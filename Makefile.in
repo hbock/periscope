@@ -83,7 +83,7 @@ YACC = @V_YACC@
 	@rm -f $@
 	$(CC) $(CFLAGS) -c $(srcdir)/$*.c
 
-LIB = @INSTALL_LIB@/argus_common.a @INSTALL_LIB@/argus_client.a
+LIB = @INSTALL_LIB@/libargus_client.la
 
 SRC =	periscope-argus.c periscope.c main.c
 
