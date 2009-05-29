@@ -1,0 +1,52 @@
+--- common/Makefile.in	2009-03-02 16:20:03.000000000 -0500
++++ ../../development/argus-periscope/common/Makefile.in	2009-05-29 19:15:39.342323093 -0400
+@@ -42,6 +42,8 @@
+ srcdir = @srcdir@
+ VPATH = @srcdir@
+ 
++COMPATLIB = @COMPATLIB@ @LIB_SASL@ @LIBS@ @V_THREADS@ @V_GEOIPDEP@
++
+ #
+ # You shouldn't need to edit anything below.
+ #
+@@ -72,6 +74,11 @@
+ 	@rm -f $@
+ 	$(CC) $(CFLAGS) -c $(srcdir)/$*.c
+ 
++# libtool compilation
++%.lo : %.c
++	@rm -f $@
++	libtool --mode=compile $(CC) $(CFLAGS) -c $(srcdir)/$<
++
+ # We would like to say "OBJ = $(SRC:.c=.o)" but Ultrix's make cannot
+ # hack the extra indirection
+ 
+@@ -87,6 +94,7 @@
+ TAGFILES = $(SRC) $(HDR) $(TAGHDR)
+ 
+ LIBS = @INSTALL_LIB@/argus_parse.a @INSTALL_LIB@/argus_common.a @INSTALL_LIB@/argus_client.a @INSTALL_LIB@/argus_event.a
++SOLIBS = @INSTALL_LIB@/libargus_client.la
+ 
+ OBJ =	$(COMMONOBJ) $(PARSEOBJ) $(CLIENTOBJ) $(EVENTOBJ)
+ CLEANFILES = $(LIBS) $(OBJ) $(GENSRC) $(GENHDR) $(VSRC) lex.yy.c 
+@@ -100,6 +108,7 @@
+ 
+ CLIENTSRC = argus_client.c argus_label.c argus_grep.c
+ CLIENTOBJ = argus_client.o argus_label.o argus_grep.o
++CLIENTSO  = $(COMMONOBJ:.o=.lo) $(CLIENTOBJ:.o=.lo)
+ 
+ EVENTSRC  = argus_event.c
+ EVENTOBJ  = argus_event.o
+@@ -107,7 +116,11 @@
+ 
+ SRC = $(COMMONSRC) $(PARSESRC) $(CLIENTSRC) $(EVENTSRC)
+ 
+-all: $(LIBS)
++all: $(LIBS) $(SOLIBS)
++
++@INSTALL_LIB@/libargus_client.la: $(CLIENTSO)
++	rm -f $@
++	libtool --mode=link $(CC) $(CCOPT) -o $@ -rpath $(DESTDIR)$(LIBDEST) $(CLIENTSO) $(COMPATLIB)
+ 
+ @INSTALL_LIB@/argus_common.a: $(COMMONOBJ)
+ 	rm -f $@; ar qc $@ $(COMMONOBJ)
