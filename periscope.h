@@ -1,4 +1,3 @@
-
 /* -*- mode: C; c-file-style: "k&r"; c-basic-offset: 3; indent-tabs-mode: nil; -*- */
 /*
  * Periscope - Argus Client Interface
@@ -91,6 +90,34 @@ struct PeriscopeCollector {
 void
 periscope_reset_metrics(struct PeriscopeCollector *collector);
 
+/* Argus interface utility functions */
+int
+periscope_argus_record_dsrs(struct ArgusRecordStruct *record,
+			    struct PeriscopeDSRs *dsrs);
+
+int
+periscope_argus_client_init(struct PeriscopeCollector *collector,
+			    int argc,
+			    char **argv);
+
+int
+periscope_argus_add_file(struct PeriscopeCollector *collector,
+			 char *pathname);
+
+int
+periscope_argus_add_remote(struct PeriscopeCollector *collector,
+			   char *hoststr);
+
+int
+periscope_argus_read_local(struct PeriscopeCollector *collector);
+
+int
+periscope_argus_read_remote(struct PeriscopeCollector *collector);
+
+int
+periscope_argus_client_close(struct PeriscopeCollector *collector);
+
+/* Helper macros to access some Argus client data. */
 #define record_type(rs)    ((rs)->hdr.type & 0xF0)
 
 #define flow_type(flow)    ((flow)->hdr.argus_dsrvl8.qual)
@@ -109,11 +136,5 @@ record_vlan(struct ArgusRecordStruct *record);
 
 inline struct ArgusMetricStruct *
 record_metric(struct ArgusRecordStruct *record);
-
-int
-periscope_argus_record_dsrs(struct ArgusRecordStruct *record, struct PeriscopeDSRs *dsrs);
-
-int
-periscope_argus_client_init(struct PeriscopeCollector *collector, int argc, char **argv);
 
 #endif
