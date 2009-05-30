@@ -146,6 +146,9 @@ periscope_argus_client_init(struct PeriscopeCollector *collector)
    pthread_attr_setdetachstate(&argus_attr, PTHREAD_CREATE_JOINABLE);
 #endif
 
+   /* Create new ArgusParserStruct.  Argus client library expects to find a global
+    * variable ArgusParser properly initialized, which is not thread safe, but
+    * it needs to be done. */
    if((ArgusParser = collector->parser = ArgusNewParser("periscope")) == NULL) {
      ArgusLog (LOG_ERR, "ArgusNewParser failed %s", strerror(errno));
      return -1;
@@ -177,6 +180,10 @@ periscope_argus_add_remote(struct PeriscopeCollector *collector, char *hoststr)
    if(ArgusAddHostList(collector->parser, hoststr, ARGUS_DATA_SOURCE) == 0) {
       return -1;
    }
+   
+   /* The Argus library seems to require this flag be set when remote data
+    * sources are used. */
+   collector->parser->Sflag = 1;
 
    return 0;
 }
@@ -333,23 +340,84 @@ periscope_argus_read_remote(struct PeriscopeCollector *collector)
 static int
 argus_close_remote(struct PeriscopeCollector *collector)
 {
+   struct ArgusParserStruct *parser = collector->parser;
+
 #if defined(ARGUS_THREADS)
    struct ArgusInput *addr;
-   
-   if (collector->parser->Sflag) {
-      void *retn = NULL;
 
+   if (parser->Sflag) {
       if (collector->parser->ArgusReliableConnection)
          pthread_attr_destroy(&argus_attr);
 
+      /* Why are these threads joined twice in the main Argus code? */
+#if 0
       while ((addr = (void *)ArgusPopQueue(collector->parser->ArgusActiveHosts, ARGUS_LOCK)) != NULL) {
          if (addr->tid != (pthread_t) 0) {
-            pthread_join(addr->tid, &retn);
+            pthread_join(addr->tid, NULL);
          }
       }
+#endif
    }
 #endif
 
+   /* Close remote host connections.
+    * 
+    * Copied from ArgusShutDown, with unnecessary signal checking and log file writing
+    * removed.  Also made thread-safe by using the collector's parser struct, not the
+    * global instance. */
+   if (parser->ArgusRemoteHosts != NULL) {
+      struct ArgusQueueStruct *queue =  parser->ArgusRemoteHosts;
+      struct ArgusInput *input = NULL;
+      
+      while (queue->count > 0) {
+         if ((input = (struct ArgusInput *) ArgusPopQueue(queue, ARGUS_LOCK)) != NULL) {
+            ArgusCloseInput(parser, input);
+            if (input->hostname != NULL)
+               free (input->hostname);
+            if (input->filename != NULL)
+               free (input->filename);
+#if defined(HAVE_GETADDRINFO)
+            if (input->host != NULL)
+               freeaddrinfo (input->host);
+#endif
+            ArgusFree(input);
+         }
+      }
+      ArgusDeleteQueue(queue);
+      parser->ArgusRemoteHosts = NULL;
+   }
+
+   /* Close active hosts?
+    * Also copied from ArgusShutDown, made thread-safe. */
+   if (parser->ArgusActiveHosts != NULL) {
+      struct ArgusQueueStruct *queue =  parser->ArgusActiveHosts;
+      struct ArgusInput *input = NULL;
+      
+      while ((input = (void *)ArgusPopQueue(queue, ARGUS_LOCK)) != NULL) {
+         ArgusCloseInput(parser, input);
+         if (input->hostname != NULL)
+            free (input->hostname);
+         if (input->filename != NULL)
+            free (input->filename);
+#if defined(HAVE_GETADDRINFO)
+         if (input->host != NULL)
+            freeaddrinfo (input->host);
+#endif
+
+         /* Why are these threads joined twice? (See above) */
+#if defined(ARGUS_THREADS) 
+         if (input->tid != (pthread_t) 0)
+            pthread_join(input->tid, NULL);
+#endif
+         
+         ArgusFree(input);
+      }
+      
+      ArgusDeleteQueue(queue);
+      parser->ArgusActiveHosts = NULL;
+   }
+   
+   
    return 0;
 }
 
@@ -360,15 +428,15 @@ periscope_argus_client_close(struct PeriscopeCollector *collector)
    
    argus_close_remote(collector);
 
-   ArgusShutDown (0);
+   //ArgusShutDown (0);
 
 #if defined(ARGUS_THREADS)
    if (parser->dns != (pthread_t) 0)
       pthread_join(parser->dns, NULL);
 #endif
 
+   /* Free all data associated with the ArgusParserStruct. */
    ArgusCloseParser(parser);
-
    return 0;
 }
 
