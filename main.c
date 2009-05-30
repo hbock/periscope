@@ -24,31 +24,9 @@
  *
  */
 
-#include <sys/types.h>
 #include <unistd.h>
-
-#if defined(ARGUS_THREADS) 
-#include <pthread.h>
-#endif
-
-#include <compat.h>
-#include <signal.h>
 #include <stdlib.h>
-#include <sys/wait.h>
-#include <arpa/inet.h>
-
-#include <argus_def.h>
-#include <argus_out.h>
-
-#include <argus_util.h>
-#include <argus_client.h>
-
-#include <ctype.h>
-#include <strings.h>
-
-#if defined(HAVE_SOLARIS)
-#include <string.h>
-#endif
+#include <stdio.h>
 
 #include "periscope.h"
 

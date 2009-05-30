@@ -22,6 +22,22 @@
 #ifndef __PERISCOPE_ARGUS_H
 #define __PERISCOPE_ARGUS_H
 
+#if defined(ARGUS_THREADS) 
+#include <pthread.h>
+#endif
+
+#include <compat.h>
+
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <arpa/inet.h>
+
+#include <argus_def.h>
+#include <argus_out.h>
+
+#include <argus_util.h>
+#include <argus_client.h>
+
 struct PeriscopeDSRs {
   struct ArgusFlow *flow;
   struct ArgusVlanStruct *vlan;
