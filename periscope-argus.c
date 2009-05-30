@@ -169,6 +169,11 @@ periscope_argus_add_file(struct PeriscopeCollector *collector, char *pathname)
    if(!(collector && pathname))
       return -1;
 
+   /* Argus will try to process the file whether it exists or not; don't let files
+    * that don't exist through. */
+   if(access(pathname, F_OK) == -1)
+      return -1;
+
    if(ArgusAddFileList(collector->parser, pathname, ARGUS_DATA_SOURCE, -1, -1) == 0)
       return -1;
 
@@ -197,67 +202,46 @@ periscope_argus_read_local(struct PeriscopeCollector *collector)
       while (parser->ArgusPassNum) {
          file = parser->ArgusInputFileList;
          while (file && parser->eNflag) {
-            if (strcmp (file->filename, "-")) {
-               if (strlen(file->filename)) {
-                  if (file->fd < 0) {
-                     if ((file->file = fopen(file->filename, "r")) == NULL) {
+            if (strlen(file->filename)) {
+               if (file->fd < 0) {
+                  if ((file->file = fopen(file->filename, "r")) == NULL) {
 #ifdef ARGUSDEBUG
-                        ArgusDebug (0, "open '%s': %s", file->filename, strerror(errno));
+                     ArgusDebug (0, "open '%s': %s", file->filename, strerror(errno));
 #endif
-                     }
-
-                  } else {
-                     fseek(file->file, 0, SEEK_SET);
                   }
-
-                  if ((file->file != NULL) && ((ArgusReadConnection (parser, file, ARGUS_FILE)) >= 0)) {
-                     parser->ArgusTotalMarRecords++;
-                     parser->ArgusTotalRecords++;
-
-                     if (parser->RaPollMode) {
-                         ArgusHandleDatum (parser, file, &file->ArgusInitCon, &parser->ArgusFilterCode);
-                         ArgusCloseInput(parser, file);  
-                     } else {
-                        if (file->ostart != -1) {
-                           file->offset = file->ostart;
-                           if (fseek(file->file, file->offset, SEEK_SET) >= 0)
-                              ArgusReadFileStream(parser, file);
-                        } else
-                           ArgusReadFileStream(parser, file);
-                     }
-
-                  } else
-                     file->fd = -1;
-
-                  if (file->file != NULL) {
-                     ArgusCloseInput(parser, file);  
-                  }
+                  
+               } else {
+                  fseek(file->file, 0, SEEK_SET);
                }
-
-            } else {
-               int flags;
-               file->file = stdin;
-               file->ostart = -1;
-               file->ostop = -1;
-
-               if (((ArgusReadConnection (parser, file, ARGUS_FILE)) >= 0)) {
+               
+               if ((file->file != NULL) && ((ArgusReadConnection (parser, file, ARGUS_FILE)) >= 0)) {
                   parser->ArgusTotalMarRecords++;
                   parser->ArgusTotalRecords++;
-
-                  if ((flags = fcntl(fileno(stdin), F_GETFL, 0L)) < 0)
-                     ArgusLog (LOG_ERR, "ArgusConnectRemote: fcntl error %s", strerror(errno));
-
-                  if (fcntl(fileno(stdin), F_SETFL, flags | O_NONBLOCK) < 0)
-                     ArgusLog (LOG_ERR, "ArgusConnectRemote: fcntl error %s", strerror(errno));
-
-                  ArgusReadFileStream(parser, file);
+                  
+                  if (parser->RaPollMode) {
+                     ArgusHandleDatum (parser, file, &file->ArgusInitCon, &parser->ArgusFilterCode);
+                     ArgusCloseInput(parser, file);  
+                  } else {
+                     if (file->ostart != -1) {
+                        file->offset = file->ostart;
+                        if (fseek(file->file, file->offset, SEEK_SET) >= 0)
+                           ArgusReadFileStream(parser, file);
+                     } else
+                        ArgusReadFileStream(parser, file);
+                  }
+                  
+               } else
+                  file->fd = -1;
+               
+               if (file->file != NULL) {
+                  ArgusCloseInput(parser, file);  
                }
             }
-
+            
             RaArgusInputComplete(file);
             file = (struct ArgusInput *)file->qhdr.nxt;
          }
-
+         
          parser->ArgusPassNum--;
       }
    }
@@ -375,6 +359,8 @@ argus_close_remote(struct PeriscopeCollector *collector)
       }
    }
 #endif
+
+   return 0;
 }
 
 int
@@ -392,6 +378,8 @@ periscope_argus_client_close(struct PeriscopeCollector *collector)
 #endif
 
    ArgusCloseParser(parser);
+
+   return 0;
 }
 
 inline struct ArgusFlow *
