@@ -286,6 +286,7 @@ periscope_argus_read_remote(struct PeriscopeCollector *collector)
 #endif
             while ((addr = (void *)ArgusPopQueue(parser->ArgusRemoteHosts, ARGUS_LOCK)) != NULL) {
                if ((addr->fd = ArgusGetServerSocket (addr, 5)) >= 0) {
+                  printf("GetServerSocket: %s\n", addr->hostname);
                   if ((ArgusReadConnection (parser, addr, ARGUS_SOCKET)) >= 0) {
                      parser->ArgusTotalMarRecords++;
                      parser->ArgusTotalRecords++;
@@ -319,7 +320,7 @@ periscope_argus_read_remote(struct PeriscopeCollector *collector)
 
          ArgusDeleteQueue(tqueue);
       }
-
+      printf("ArgusReadStream\n");
 #if defined(ARGUS_THREADS) 
       if (parser->ArgusReliableConnection || parser->ArgusActiveHosts->count)
 #else
@@ -337,9 +338,37 @@ periscope_argus_read_remote(struct PeriscopeCollector *collector)
    return 0;
 }
 
-static int
-argus_close_remote(struct ArgusParserStruct *parser)
+/* Close input source and free associated data.
+ * If 'input' is enqueued, it is dequeued before being freed by ArgusCloseInput.
+ * If the input is associated with a thread, it is joined. */
+int
+periscope_argus_close_input(struct PeriscopeCollector *collector,
+                            struct ArgusInput *input)
 {
+   ArgusCloseInput(collector->parser, input);
+   if (input->hostname != NULL)
+      free (input->hostname);
+   if (input->filename != NULL)
+      free (input->filename);
+#if defined(HAVE_GETADDRINFO)
+   if (input->host != NULL)
+      freeaddrinfo (input->host);
+#endif
+
+#if defined(ARGUS_THREADS) 
+         if (input->tid != (pthread_t) 0)
+            pthread_join(input->tid, NULL);
+#endif
+
+   ArgusFree(input);
+
+   return 0;
+}
+
+static int
+argus_close_remote(struct PeriscopeCollector *collector)
+{
+   struct ArgusParserStruct *parser = collector->parser;
 #if defined(ARGUS_THREADS)
    struct ArgusInput *addr;
 
@@ -349,7 +378,7 @@ argus_close_remote(struct ArgusParserStruct *parser)
 
       /* Why are these threads joined twice in the main Argus code? */
 #if 0
-      while ((addr = (void *)ArgusPopQueue(collector->parser->ArgusActiveHosts, ARGUS_LOCK)) != NULL) {
+      while ((addr = (void *)ArgusPopQueue(parser->ArgusActiveHosts, ARGUS_LOCK)) != NULL) {
          if (addr->tid != (pthread_t) 0) {
             pthread_join(addr->tid, NULL);
          }
@@ -369,16 +398,7 @@ argus_close_remote(struct ArgusParserStruct *parser)
       
       while (queue->count > 0) {
          if ((input = (struct ArgusInput *) ArgusPopQueue(queue, ARGUS_LOCK)) != NULL) {
-            ArgusCloseInput(parser, input);
-            if (input->hostname != NULL)
-               free (input->hostname);
-            if (input->filename != NULL)
-               free (input->filename);
-#if defined(HAVE_GETADDRINFO)
-            if (input->host != NULL)
-               freeaddrinfo (input->host);
-#endif
-            ArgusFree(input);
+            periscope_argus_close_input(collector, input);
          }
       }
       ArgusDeleteQueue(queue);
@@ -392,23 +412,7 @@ argus_close_remote(struct ArgusParserStruct *parser)
       struct ArgusInput *input = NULL;
       
       while ((input = (void *)ArgusPopQueue(queue, ARGUS_LOCK)) != NULL) {
-         ArgusCloseInput(parser, input);
-         if (input->hostname != NULL)
-            free (input->hostname);
-         if (input->filename != NULL)
-            free (input->filename);
-#if defined(HAVE_GETADDRINFO)
-         if (input->host != NULL)
-            freeaddrinfo (input->host);
-#endif
-
-         /* Why are these threads joined twice? (See above) */
-#if defined(ARGUS_THREADS) 
-         if (input->tid != (pthread_t) 0)
-            pthread_join(input->tid, NULL);
-#endif
-         
-         ArgusFree(input);
+         periscope_argus_close_input(collector, input);
       }
       
       ArgusDeleteQueue(queue);
@@ -424,7 +428,7 @@ periscope_argus_client_close(struct PeriscopeCollector *collector)
 
    /* If this function is called with remote sources active, close them now. */
    if(parser->ArgusActiveHosts || parser->ArgusRemoteHosts)
-      argus_close_remote(parser);
+      argus_close_remote(collector);
 
    /* Free all data associated with the ArgusParserStruct. */
    ArgusCloseParser(parser);
