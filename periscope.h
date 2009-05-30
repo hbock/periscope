@@ -87,33 +87,25 @@ struct PeriscopeCollector {
       }									\
    } while(0)								
 
-void
-periscope_reset_metrics(struct PeriscopeCollector *collector);
+/* Periscope core API. */
+void periscope_reset_metrics(struct PeriscopeCollector *collector);
+
+void periscope_collector_init(struct PeriscopeCollector *collector);
+void periscope_collector_start(struct PeriscopeCollector *collector);
+void periscope_collector_stop(struct PeriscopeCollector *collector);
 
 /* Argus interface utility functions */
-int
-periscope_argus_record_dsrs(struct ArgusRecordStruct *record,
-			    struct PeriscopeDSRs *dsrs);
+int periscope_argus_record_dsrs(struct ArgusRecordStruct *record,
+				struct PeriscopeDSRs *dsrs);
 
-int
-periscope_argus_client_init(struct PeriscopeCollector *collector);
+int periscope_argus_client_init(struct PeriscopeCollector *collector);
+int periscope_argus_client_close(struct PeriscopeCollector *collector);
 
-int
-periscope_argus_add_file(struct PeriscopeCollector *collector,
-			 char *pathname);
+int periscope_argus_add_file(struct PeriscopeCollector *collector, char *pathname);
+int periscope_argus_add_remote(struct PeriscopeCollector *collector, char *hoststr);
 
-int
-periscope_argus_add_remote(struct PeriscopeCollector *collector,
-			   char *hoststr);
-
-int
-periscope_argus_read_local(struct PeriscopeCollector *collector);
-
-int
-periscope_argus_read_remote(struct PeriscopeCollector *collector);
-
-int
-periscope_argus_client_close(struct PeriscopeCollector *collector);
+int periscope_argus_read_local(struct PeriscopeCollector *collector);
+int periscope_argus_read_remote(struct PeriscopeCollector *collector);
 
 /* Helper macros to access some Argus client data. */
 #define record_type(rs)    ((rs)->hdr.type & 0xF0)
