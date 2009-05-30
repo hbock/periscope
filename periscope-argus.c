@@ -56,29 +56,7 @@ void usage ()
 void
 ArgusClientInit (struct ArgusParserStruct *parser)
 {
-   struct ArgusModeStruct *mode = NULL;
-   parser->RaWriteOut = 0;
-
-   if (!(parser->RaInitialized)) {
-      (void) signal (SIGHUP,  (void (*)(int)) RaParseComplete);
-      (void) signal (SIGTERM, (void (*)(int)) RaParseComplete);
-      (void) signal (SIGQUIT, (void (*)(int)) RaParseComplete);
-      (void) signal (SIGINT,  (void (*)(int)) RaParseComplete);
-
-      if ((mode = parser->ArgusModeList) != NULL) {
-         while (mode) {
-            if (!(strncasecmp (mode->mode, "poll", 4)))
-               parser->RaPollMode++;
-
-            if (!(strncasecmp (mode->mode, "rmon", 4)))
-               parser->RaMonMode++;
-
-            mode = mode->nxt;
-         }
-      }
-
-      parser->RaInitialized++;
-   }
+   /* Do nossing yet. */
 }
 
 void RaArgusInputComplete (struct ArgusInput *input)
@@ -89,43 +67,7 @@ void RaArgusInputComplete (struct ArgusInput *input)
 void
 RaParseComplete (int sig)
 {
-   if (sig >= 0) {
-      if (!ArgusParser->RaParseCompleting++) {
-
-      }
-
-      switch (sig) {
-         case SIGHUP:
-         case SIGINT:
-         case SIGTERM:
-         case SIGQUIT: {
-            struct ArgusWfileStruct *wfile = NULL;
-
-            if (ArgusParser->ArgusWfileList != NULL) {
-               struct ArgusListObjectStruct *lobj = NULL;
-               int i, count = ArgusParser->ArgusWfileList->count;
-
-               if ((lobj = ArgusParser->ArgusWfileList->start) != NULL) {
-                  for (i = 0; i < count; i++) {
-                     if ((wfile = (struct ArgusWfileStruct *) lobj) != NULL) {
-                        if (wfile->fd != NULL) {
-#ifdef ARGUSDEBUG
-                           ArgusDebug (2, "RaParseComplete: closing %s\n", wfile->filename);
-#endif
-                           fflush (wfile->fd);
-                           fclose (wfile->fd);
-                           wfile->fd = NULL;
-                        }
-                     }
-                     lobj = lobj->nxt;
-                  }
-               }
-            }
-            exit(0);
-            break;
-         }
-      }
-   }
+   /* Do nossing yet. */
 }
 
 void
@@ -404,9 +346,9 @@ periscope_argus_read_remote(struct PeriscopeCollector *collector)
 #if defined(ARGUS_THREADS) 
       if (parser->ArgusReliableConnection || parser->ArgusActiveHosts->count)
 #else
-      if (parser->ArgusActiveHosts->count)
+         if (parser->ArgusActiveHosts->count)
 #endif
-         ArgusReadStream(parser, parser->ArgusActiveHosts);
+            ArgusReadStream(parser, parser->ArgusActiveHosts);
 
    } else {
 #if defined(ARGUS_THREADS) 
@@ -446,9 +388,7 @@ periscope_argus_client_close(struct PeriscopeCollector *collector)
    
    argus_close_remote(collector);
 
-   RaParseComplete(1);
    ArgusShutDown (0);
-   printf("LOL?\n");
 
 #if defined(ARGUS_THREADS)
    if (parser->dns != (pthread_t) 0)
