@@ -184,7 +184,7 @@ periscope_argus_add_remote(struct PeriscopeCollector *collector, char *hoststr)
    /* The Argus library seems to require this flag be set when remote data
     * sources are used. */
    collector->parser->Sflag = 1;
-
+   collector->parser->nflag = 1; /* We will do our own DNS queries, if necessary. */
    return 0;
 }
 
@@ -338,15 +338,13 @@ periscope_argus_read_remote(struct PeriscopeCollector *collector)
 }
 
 static int
-argus_close_remote(struct PeriscopeCollector *collector)
+argus_close_remote(struct ArgusParserStruct *parser)
 {
-   struct ArgusParserStruct *parser = collector->parser;
-
 #if defined(ARGUS_THREADS)
    struct ArgusInput *addr;
 
    if (parser->Sflag) {
-      if (collector->parser->ArgusReliableConnection)
+      if (parser->ArgusReliableConnection)
          pthread_attr_destroy(&argus_attr);
 
       /* Why are these threads joined twice in the main Argus code? */
@@ -415,9 +413,7 @@ argus_close_remote(struct PeriscopeCollector *collector)
       
       ArgusDeleteQueue(queue);
       parser->ArgusActiveHosts = NULL;
-   }
-   
-   
+   }   
    return 0;
 }
 
@@ -425,15 +421,10 @@ int
 periscope_argus_client_close(struct PeriscopeCollector *collector)
 {
    struct ArgusParserStruct *parser = collector->parser;
-   
-   argus_close_remote(collector);
 
-   //ArgusShutDown (0);
-
-#if defined(ARGUS_THREADS)
-   if (parser->dns != (pthread_t) 0)
-      pthread_join(parser->dns, NULL);
-#endif
+   /* If this function is called with remote sources active, close them now. */
+   if(parser->ArgusActiveHosts || parser->ArgusRemoteHosts)
+      argus_close_remote(parser);
 
    /* Free all data associated with the ArgusParserStruct. */
    ArgusCloseParser(parser);
