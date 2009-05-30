@@ -137,10 +137,29 @@ input_source_completed(struct PeriscopeCollector *collector,
    periscope_reset_metrics(collector);
 }
 
+void sighandler(int signal)
+{
+   printf("Attempting clean close of collector... ");
+   periscope_collector_stop(&g_collector);
+   printf("OK!\n");
+
+   exit(1);
+}
+
 int
 main (int argc, char **argv)
 {
    int i, sources = (argc - 1);
+   struct sigaction signals;
+
+   /* Set up signal handling for SIGINT. */
+   signals.sa_handler = sighandler;
+   signals.sa_flags = 0;
+   sigemptyset(&signals.sa_mask);
+
+   sigaction(SIGINT, &signals, NULL);
+
+   /* Initialize Periscope. */
    periscope_collector_init(&g_collector);
 
    g_collector.callbacks.process_flow = process_flow;
