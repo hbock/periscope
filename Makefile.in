@@ -76,7 +76,6 @@ YACC = @V_YACC@
 # Also, gcc does not remove the .o before forking 'as', which can be a
 # problem if you don't own the file but can write to the directory.
 %.lo: %.c
-	@rm -f $@
 	libtool --mode=compile $(CC) $(CFLAGS) -c $(srcdir)/$<
 
 .c.o:
@@ -85,19 +84,17 @@ YACC = @V_YACC@
 
 LIB = @INSTALL_LIB@/libargus_client.la
 
-SRC =	periscope-argus.c periscope.c main.c
-
+SRC =	periscope-argus.c periscope.c
 PROGS = @INSTALL_BIN@/periscope
 
-OBJ = $(SRC:.c=.o)
-LO_OBJ = $(SRC:.c=.lo)
+OBJ = $(SRC:.c=.lo)
 
 all: $(PROGS)
 
-@INSTALL_BIN@/periscope: $(LO_OBJ) $(LIB)
-	libtool --mode=link $(CC) $(CCOPT) -o libperiscope.la -rpath /usr/local/lib periscope-argus.lo periscope.lo $(LIB) $(COMPATLIB)
+@INSTALL_BIN@/periscope: $(OBJ) main.o $(LIB)
+	libtool --tag=disable-static --mode=link $(CC) $(CCOPT) -o libperiscope.la -rpath \
+	                    $(DESTDIR)$(LIBDEST) $(OBJ) $(LIB) $(COMPATLIB)
 	libtool --mode=link $(CC) $(CCOPT) -o $@ main.o libperiscope.la
-	#$(CC) $(CCOPT) -o $@ periscope-argus.o periscope.o main.o $(LIB) $(COMPATLIB)
 
 # We would like to say "OBJ = $(SRC:.c=.o)" but Ultrix's make cannot
 # hack the extra indirection
