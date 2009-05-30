@@ -73,16 +73,11 @@ periscope_reset_metrics(struct PeriscopeCollector *collector)
 }
 
 void
-parse_arg (int argc, char**argv)
-{}
-
-void
 RaProcessRecord (struct ArgusParserStruct *parser,
                  struct ArgusRecordStruct *argus)
 {
    switch (record_type(argus)) {
       case ARGUS_MAR:
-         printf("MAR\n");
          RaProcessManRecord (parser, argus);
          break;
 
@@ -93,34 +88,18 @@ RaProcessRecord (struct ArgusParserStruct *parser,
 
       case ARGUS_NETFLOW:
       case ARGUS_FAR: {
-         if (parser->RaMonMode) {
-#if 0
-            //struct ArgusRecordStruct *tns = ArgusCopyRecordStruct(argus);
-            RaProcessThisRecord(parser, argus);
-            ArgusReverseRecord(tns);
-
-            if ((flow = (void *)tns->dsrs[ARGUS_FLOW_INDEX]) != NULL) {
-               flow->hdr.subtype &= ~ARGUS_REVERSE;
-               flow->hdr.argus_dsrvl8.qual &= ~ARGUS_DIRECTION;
-            }
-
-            RaProcessThisRecord(parser, tns);
-            ArgusDeleteRecordStruct(parser, tns);
-#endif
-         } else {
-            struct PeriscopeDSRs dsrs;
-            periscope_argus_record_dsrs(argus, &dsrs);
-
-            switch(flow_subtype(dsrs.flow)) {
-            case ARGUS_FLOW_CLASSIC5TUPLE:
-            case ARGUS_FLOW_LAYER_3_MATRIX:
-               periscope_callback(&g_collector, process_flow, flow_type(dsrs.flow),
-                                  argus, &dsrs);
-               break;
-               
-            default:
-               printf("Record flow subtype: %02X\n", dsrs.flow->hdr.subtype);
-            }
+         struct PeriscopeDSRs dsrs;
+         periscope_argus_record_dsrs(argus, &dsrs);
+         
+         switch(flow_subtype(dsrs.flow)) {
+         case ARGUS_FLOW_CLASSIC5TUPLE:
+         case ARGUS_FLOW_LAYER_3_MATRIX:
+            periscope_callback(&g_collector, process_flow, flow_type(dsrs.flow),
+                               argus, &dsrs);
+            break;
+            
+         default:
+            printf("Record flow subtype: %02X\n", dsrs.flow->hdr.subtype);
          }
       }
    }
@@ -130,7 +109,14 @@ void
 RaProcessManRecord (struct ArgusParserStruct *parser,
                     struct ArgusRecordStruct *argus)
 {
-   /* Do nothing yet. */
+   struct ArgusRecord *rec = (struct ArgusRecord *)argus->dsrs[0];
+   if(rec) {
+      struct ArgusMarStruct *mar = &rec->ar_un.mar;
+      
+      printf("Received MAR: status %u local net %08x, netmask %08x, ver %hhu.%hhu, %llu received packets.\n",
+             mar->status, mar->localnet, mar->netmask, mar->major_version, mar->minor_version,
+             mar->pktsRcvd);
+   }
 }
 
 void
