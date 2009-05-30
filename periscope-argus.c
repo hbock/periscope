@@ -215,18 +215,12 @@ periscope_argus_read_local(struct PeriscopeCollector *collector)
                   parser->ArgusTotalMarRecords++;
                   parser->ArgusTotalRecords++;
                   
-                  if (parser->RaPollMode) {
-                     ArgusHandleDatum (parser, file, &file->ArgusInitCon, &parser->ArgusFilterCode);
-                     ArgusCloseInput(parser, file);  
-                  } else {
-                     if (file->ostart != -1) {
-                        file->offset = file->ostart;
-                        if (fseek(file->file, file->offset, SEEK_SET) >= 0)
-                           ArgusReadFileStream(parser, file);
-                     } else
+                  if (file->ostart != -1) {
+                     file->offset = file->ostart;
+                     if (fseek(file->file, file->offset, SEEK_SET) >= 0)
                         ArgusReadFileStream(parser, file);
-                  }
-                  
+                  } else
+                     ArgusReadFileStream(parser, file);
                } else
                   file->fd = -1;
                
@@ -297,13 +291,8 @@ periscope_argus_read_remote(struct PeriscopeCollector *collector)
                      if (fcntl(addr->fd, F_SETFL, flags | O_NONBLOCK) < 0)
                         ArgusLog (LOG_ERR, "ArgusConnectRemote: fcntl error %s", strerror(errno));
 
-                     if (parser->RaPollMode) {
-                        ArgusHandleDatum (parser, addr, &addr->ArgusInitCon, &parser->ArgusFilterCode);
-                        ArgusCloseInput (parser, addr);
-                     } else {
-                        ArgusAddToQueue(parser->ArgusActiveHosts, &addr->qhdr, ARGUS_LOCK);
-                        parser->ArgusHostsActive++;
-                     }
+                     ArgusAddToQueue(parser->ArgusActiveHosts, &addr->qhdr, ARGUS_LOCK);
+                     parser->ArgusHostsActive++;
                   } else
                      ArgusAddToQueue(tqueue, &addr->qhdr, ARGUS_LOCK);
                } else
@@ -427,8 +416,9 @@ periscope_argus_client_close(struct PeriscopeCollector *collector)
    struct ArgusParserStruct *parser = collector->parser;
 
    /* If this function is called with remote sources active, close them now. */
-   if(parser->ArgusActiveHosts || parser->ArgusRemoteHosts)
+   if(parser->ArgusActiveHosts || parser->ArgusRemoteHosts) {
       argus_close_remote(collector);
+   }
 
    /* Free all data associated with the ArgusParserStruct. */
    ArgusCloseParser(parser);
