@@ -140,7 +140,7 @@ input_source_completed(struct PeriscopeCollector *collector,
 int
 main (int argc, char **argv)
 {
-   int i;
+   int i, sources = (argc - 1);
    periscope_collector_init(&g_collector);
 
    g_collector.callbacks.process_flow = process_flow;
@@ -151,10 +151,28 @@ main (int argc, char **argv)
         exit(1);
    }
 
-   for(i = 0; i < (argc - 1); i++) {
-      periscope_argus_add_file(&g_collector, argv[1+i]);
+   if(sources == 0) {
+      fprintf(stderr, "Periscope: no sources to process, aborting.\n");
+      periscope_argus_add_remote(&g_collector, "127.0.0.1");
    }
    
+   for(i = 0; i < sources; i++) {
+      if(periscope_argus_add_file(&g_collector, argv[1+i]) == -1) {
+         fprintf(stderr, "Periscope: file '%s' doesn't exist.\n", argv[1+i]);
+         exit(1);
+      }
+   }
+
+   
+   /* Runs the Argus processor on both local and remote sources.
+    * Eventually we will want to separate this, so local files can be
+    * processed at any time with another parser in another thread. */
    periscope_collector_start(&g_collector);
+
+   /* Once Argus completes processing local and remote data sources,
+    * close all sources and free memory associated with Periscope and
+    * Argus. */
    periscope_collector_stop(&g_collector);
+
+   return 0;
 }
