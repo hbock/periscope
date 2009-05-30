@@ -28,7 +28,6 @@
 
 #include <compat.h>
 
-#include <rabins.h>
 #include <argus_util.h>
 #include <argus_client.h>
 #include <argus_main.h>
@@ -43,8 +42,8 @@ extern struct ArgusParserStruct *ArgusParser;
 extern struct PeriscopeCollector g_collector;
 pthread_attr_t argus_attr;
 
-void
-usage ()
+/* Stub function, required by Argus library. */
+void usage ()
 {
    fprintf(stderr, "BUG: periscope stub: You shouldn't see this message.\n");
 }
@@ -146,7 +145,7 @@ void ArgusWindowClose(void)
 }
 
 int
-periscope_argus_client_init(struct PeriscopeCollector *collector, int argc, char **argv)
+periscope_argus_client_init(struct PeriscopeCollector *collector)
 {
    extern int optind, opterr;
    extern char *optarg;
@@ -221,7 +220,6 @@ periscope_argus_client_init(struct PeriscopeCollector *collector, int argc, char
    }
 
    //ArgusMainInit(ArgusParser, argc, argv);
-   ArgusAddFileList(ArgusParser, "argus.1", ARGUS_DATA_SOURCE, -1, -1);
    ArgusClientInit(ArgusParser);   
 
    return 0;
@@ -441,7 +439,8 @@ argus_close_remote(struct PeriscopeCollector *collector)
 #endif
 }
 
-int periscope_argus_client_close(struct PeriscopeCollector *collector)
+int
+periscope_argus_client_close(struct PeriscopeCollector *collector)
 {
    struct ArgusParserStruct *parser = collector->parser;
    

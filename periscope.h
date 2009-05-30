@@ -96,9 +96,7 @@ periscope_argus_record_dsrs(struct ArgusRecordStruct *record,
 			    struct PeriscopeDSRs *dsrs);
 
 int
-periscope_argus_client_init(struct PeriscopeCollector *collector,
-			    int argc,
-			    char **argv);
+periscope_argus_client_init(struct PeriscopeCollector *collector);
 
 int
 periscope_argus_add_file(struct PeriscopeCollector *collector,

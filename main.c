@@ -23,7 +23,6 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  */
-
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -141,16 +140,21 @@ input_source_completed(struct PeriscopeCollector *collector,
 int
 main (int argc, char **argv)
 {
+   int i;
    periscope_collector_init(&g_collector);
 
    g_collector.callbacks.process_flow = process_flow;
    g_collector.callbacks.input_complete = input_source_completed;
 
-   if(periscope_argus_client_init(&g_collector, argc, argv) == -1) {
+   if(periscope_argus_client_init(&g_collector) == -1) {
         fprintf(stderr, "Initializing Argus client failed!\n");
         exit(1);
    }
 
+   for(i = 0; i < (argc - 1); i++) {
+      periscope_argus_add_file(&g_collector, argv[1+i]);
+   }
+   
    periscope_collector_start(&g_collector);
    periscope_collector_stop(&g_collector);
 }
