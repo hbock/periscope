@@ -53,12 +53,6 @@ void usage ()
  *  ArgusAddHostList(parser, hostname, ARGUS_DATA_SOURCE); (NULL error)
  */
 
-void
-ArgusClientInit (struct ArgusParserStruct *parser)
-{
-   /* Do nossing yet. */
-}
-
 void RaArgusInputComplete (struct ArgusInput *input)
 {
    periscope_callback(&g_collector, input_complete, input);
@@ -156,10 +150,7 @@ periscope_argus_client_init(struct PeriscopeCollector *collector)
      ArgusLog (LOG_ERR, "ArgusNewParser failed %s", strerror(errno));
      return -1;
    }
-
-   //ArgusMainInit(ArgusParser, argc, argv);
-   ArgusClientInit(ArgusParser);   
-
+   
    return 0;
 }
 
@@ -198,7 +189,6 @@ periscope_argus_read_local(struct PeriscopeCollector *collector)
    /* Read in all the files, for as many passes as needed. */
    if (parser->ArgusInputFileList != NULL) {
       struct ArgusInput *file; 
-
       while (parser->ArgusPassNum) {
          file = parser->ArgusInputFileList;
          while (file && parser->eNflag) {
