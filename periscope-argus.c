@@ -43,6 +43,11 @@ extern struct ArgusParserStruct *ArgusParser;
 extern struct PeriscopeCollector g_collector;
 pthread_attr_t argus_attr;
 
+void
+usage ()
+{
+   fprintf(stderr, "BUG: periscope stub: You shouldn't see this message.\n");
+}
 
 /* Stuff to know:
  *  ArgusAddFileList(parser, pathname, ARGUS_DATA_SOURCE, -1, -1); (NULL error)
@@ -216,15 +221,8 @@ periscope_argus_client_init(struct PeriscopeCollector *collector, int argc, char
    }
 
    //ArgusMainInit(ArgusParser, argc, argv);
-   ArgusAddFileList(ArgusParser, "/home/hbock/development/session-1.argus", ARGUS_DATA_SOURCE, -1, -1);
+   ArgusAddFileList(ArgusParser, "argus.1", ARGUS_DATA_SOURCE, -1, -1);
    ArgusClientInit(ArgusParser);   
-
-#if 0
-   if (!(ArgusParser->Sflag))
-      if (ArgusParser->ArgusInputFileList == NULL)
-         if (!(ArgusAddFileList (ArgusParser, "-", ARGUS_DATA_SOURCE, -1, -1)))
-            ArgusLog(LOG_ERR, "%s: error: file arg %s", *argv, optarg);
-#endif
 
    return 0;
 }
