@@ -89,10 +89,6 @@ void ArgusWindowClose(void)
 int
 periscope_argus_client_init(struct PeriscopeCollector *collector)
 {
-   extern int optind, opterr;
-   extern char *optarg;
-   int i;
-
    /* Initialize threading parameters. */
 #if defined(ARGUS_THREADS)
 #if defined(_POSIX_THREAD_PRIORITY_SCHEDULING) && !defined(sun) && !defined(CYGWIN)
