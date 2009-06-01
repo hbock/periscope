@@ -1,4 +1,4 @@
-/* -*- mode: C; c-file-style: "k&r"; c-basic-offset: 3; indent-tabs-mode: nil; -*- */
+/* -*- mode: C; c-basic-offset: 3; indent-tabs-mode: nil; -*- */
 /*
  * Periscope - Argus Client Interface
  * Copyright (c) 2009 Harry Bock <harry@oshean.org>
@@ -106,6 +106,8 @@ int periscope_argus_add_remote(struct PeriscopeCollector *collector, char *hosts
 
 int periscope_argus_read_local(struct PeriscopeCollector *collector);
 int periscope_argus_read_remote(struct PeriscopeCollector *collector);
+
+int periscope_argus_close_input(struct PeriscopeCollector *collector, struct ArgusInput *input);
 
 /* Helper macros to access some Argus client data. */
 #define record_type(rs)    ((rs)->hdr.type & 0xF0)

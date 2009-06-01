@@ -191,6 +191,38 @@ periscope_argus_add_remote(struct PeriscopeCollector *collector, char *hoststr)
 }
 
 int
+periscope_argus_remote_connect(struct PeriscopeCollector *collector, struct ArgusInput *remote)
+{
+   struct ArgusParserStruct *parser = collector->parser;
+   
+   if ((remote->fd = ArgusGetServerSocket (remote, 5)) >= 0) {
+      if ((ArgusReadConnection (parser, remote, ARGUS_SOCKET)) >= 0) {
+         int flags;
+         
+         parser->ArgusTotalMarRecords++;
+         parser->ArgusTotalRecords++;
+         
+         printf("Connected to %s:%d, Argus server version %d.%d\n",
+                remote->hostname, remote->portnum, remote->major_version, remote->minor_version);
+         
+         if ((flags = fcntl(remote->fd, F_GETFL, 0L)) < 0)
+            ArgusLog (LOG_ERR, "ArgusConnectRemote: fcntl error %s", strerror(errno));
+         
+         if (fcntl(remote->fd, F_SETFL, flags | O_NONBLOCK) < 0)
+            ArgusLog (LOG_ERR, "ArgusConnectRemote: fcntl error %s", strerror(errno));
+         
+         ArgusAddToQueue(parser->ArgusActiveHosts, &remote->qhdr, ARGUS_LOCK);
+         parser->ArgusHostsActive++;
+
+         return 0;
+      } else {
+         return -1;
+      }
+   }
+   return -1;
+}
+
+int
 periscope_argus_read_local(struct PeriscopeCollector *collector)
 {
    struct ArgusParserStruct *parser = collector->parser;
@@ -263,9 +295,6 @@ periscope_argus_read_remote(struct PeriscopeCollector *collector)
 
    if (parser->Sflag) {
       if (parser->ArgusRemoteHosts && (parser->ArgusRemoteHosts->count > 0)) {
-         struct ArgusQueueStruct *tqueue = ArgusNewQueue();
-         int flags;
-
          parser->ArgusRemotes = parser->ArgusRemoteHosts->count;
 
 #if defined(ARGUS_THREADS)
@@ -281,28 +310,9 @@ periscope_argus_read_remote(struct PeriscopeCollector *collector)
          {
 #endif
             while ((addr = (void *)ArgusPopQueue(parser->ArgusRemoteHosts, ARGUS_LOCK)) != NULL) {
-               if ((addr->fd = ArgusGetServerSocket (addr, 5)) >= 0) {
-                  if ((ArgusReadConnection (parser, addr, ARGUS_SOCKET)) >= 0) {
-                     parser->ArgusTotalMarRecords++;
-                     parser->ArgusTotalRecords++;
-
-                     
-                     printf("Connected to %s:%d, Argus server version %d.%d\n",
-                            addr->hostname, addr->portnum, addr->major_version, addr->minor_version);
-
-                     if ((flags = fcntl(addr->fd, F_GETFL, 0L)) < 0)
-                        ArgusLog (LOG_ERR, "ArgusConnectRemote: fcntl error %s", strerror(errno));
-
-                     if (fcntl(addr->fd, F_SETFL, flags | O_NONBLOCK) < 0)
-                        ArgusLog (LOG_ERR, "ArgusConnectRemote: fcntl error %s", strerror(errno));
-
-                     ArgusAddToQueue(parser->ArgusActiveHosts, &addr->qhdr, ARGUS_LOCK);
-                     parser->ArgusHostsActive++;
-                  } else {
-                     ArgusAddToQueue(tqueue, &addr->qhdr, ARGUS_LOCK);
-                  }
-               } else {
-                  ArgusAddToQueue(tqueue, &addr->qhdr, ARGUS_LOCK);
+               if(periscope_argus_remote_connect(collector, addr) < 0) {
+                  fprintf(stderr, "Periscope: connecting to %s failed!\n", addr->hostname);
+                  periscope_argus_close_input(collector, addr);
                }
 #if !defined(ARGUS_THREADS)
             }
@@ -310,11 +320,6 @@ periscope_argus_read_remote(struct PeriscopeCollector *collector)
             }
 #endif
          }
-
-         while ((addr = (void *)ArgusPopQueue(tqueue, ARGUS_LOCK)) != NULL)
-            ArgusAddToQueue(parser->ArgusRemoteHosts, &addr->qhdr, ARGUS_LOCK);
-
-         ArgusDeleteQueue(tqueue);
       }
 
       //printf("ArgusRemoteHosts count: %d\n", parser->ArgusRemoteHosts->count);
