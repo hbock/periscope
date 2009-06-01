@@ -274,32 +274,19 @@ periscope_argus_local_process(struct PeriscopeCollector *collector)
 }
 
 int
-periscope_argus_remote_process(struct PeriscopeCollector *collector)
+periscope_argus_remote_connect_all(struct PeriscopeCollector *collector)
 {
-/*
-   Now we're going to deal with remote data sources.  To implement
-   reliable connections effeciently, we need to put the input blocks
-   in a data structure so that our reliable thread can do the right
-   thing with them.
-   
-   The idea is that if they are in the queue we need to get a connection
-   with the input.  If they are not in the queue, we have a connection or
-   we are going to delete/forget them  because of massive errors.
-
-   So, if we are reliably connected, first we put them all on the queue.
-   If not we just connect to them sequentially.
-*/
-   int hosts;
+   int failed = 0;
    struct ArgusInput *addr;
    struct ArgusParserStruct *parser = collector->parser;
 
    if (parser->Sflag) {
       if (parser->ArgusRemoteHosts && (parser->ArgusRemoteHosts->count > 0)) {
          parser->ArgusRemotes = parser->ArgusRemoteHosts->count;
-
+         
 #if defined(ARGUS_THREADS)
          if (parser->ArgusReliableConnection) {
-            if (parser->ArgusRemoteHosts && (hosts = parser->ArgusRemoteHosts->count)) {
+            if (parser->ArgusRemoteHosts && parser->ArgusRemoteHosts->count) {
                if ((pthread_create(&parser->remote, &argus_attr, ArgusConnectRemotes,
                                    parser->ArgusRemoteHosts)) != 0)
                   ArgusLog (LOG_ERR, "ArgusNewOutput() pthread_create error %s\n", strerror(errno));
@@ -313,6 +300,7 @@ periscope_argus_remote_process(struct PeriscopeCollector *collector)
                if(periscope_argus_remote_connect(collector, addr) < 0) {
                   fprintf(stderr, "Periscope: connecting to %s failed!\n", addr->hostname);
                   periscope_argus_close_input(collector, addr);
+                  failed++;
                }
 #if !defined(ARGUS_THREADS)
             }
@@ -321,8 +309,21 @@ periscope_argus_remote_process(struct PeriscopeCollector *collector)
 #endif
          }
       }
+   } else {
+#if defined(ARGUS_THREADS) 
+      parser->RaDonePending++;
+#else
+      parser->RaParseDone++;
+#endif
+   }
 
-      //printf("ArgusRemoteHosts count: %d\n", parser->ArgusRemoteHosts->count);
+   return failed;
+}
+
+int
+periscope_argus_remote_process(struct PeriscopeCollector *collector)
+{
+   struct ArgusParserStruct *parser = collector->parser;
 
 #if defined(ARGUS_THREADS) 
       if (parser->ArgusReliableConnection || parser->ArgusActiveHosts->count)
@@ -331,13 +332,6 @@ periscope_argus_remote_process(struct PeriscopeCollector *collector)
 #endif
             ArgusReadStream(parser, parser->ArgusActiveHosts);
 
-   } else {
-#if defined(ARGUS_THREADS) 
-      parser->RaDonePending++;
-#else
-      parser->RaParseDone++;
-#endif
-   }
    return 0;
 }
 

@@ -1,4 +1,4 @@
-/* -*- mode: C; c-file-style: "k&r"; c-basic-offset: 3; indent-tabs-mode: nil; -*- */
+/* -*- mode: C; c-basic-offset: 3; indent-tabs-mode: nil; -*- */
 /*
  * Argus Software
  * Copyright (c) 2000-2009 QoSient, LLC
@@ -56,7 +56,24 @@ periscope_collector_init(struct PeriscopeCollector *collector)
 void
 periscope_collector_start(struct PeriscopeCollector *collector)
 {
+   /* Process all local files first, before we try to handle remote connections. */
    periscope_argus_local_process(collector);
+
+   /* Connect to all requested probes.
+    * TODO: currently we don't handle situations where some or all connections failed,
+    * we just report that it happened. In the future we should allow for atomic
+    * startup (i.e., all or nothing). */
+   if(periscope_argus_remote_connect_all(collector) != 0) {
+      fprintf(stderr, "Periscope: some connections failed!\n");
+   }
+
+   /* Process all remote sources.
+    * This function will return when:
+    *  - There are no remote sources to process.
+    *  - The remote end closes the connection, or the connection fails.
+    *  - periscope_argus_client_close is called.
+    * In the last case - when the app wants to close down gracefully - it must be
+    * done asynchronously, either in another thread or via a signal handler. */
    periscope_argus_remote_process(collector);
 }
 
