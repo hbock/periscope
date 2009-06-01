@@ -56,8 +56,8 @@ periscope_collector_init(struct PeriscopeCollector *collector)
 void
 periscope_collector_start(struct PeriscopeCollector *collector)
 {
-   periscope_argus_read_local(collector);
-   periscope_argus_read_remote(collector);
+   periscope_argus_local_process(collector);
+   periscope_argus_remote_process(collector);
 }
 
 void

@@ -101,11 +101,11 @@ int periscope_argus_record_dsrs(struct ArgusRecordStruct *record,
 int periscope_argus_client_init(struct PeriscopeCollector *collector);
 int periscope_argus_client_close(struct PeriscopeCollector *collector);
 
-int periscope_argus_add_file(struct PeriscopeCollector *collector, char *pathname);
-int periscope_argus_add_remote(struct PeriscopeCollector *collector, char *hoststr);
+int periscope_argus_local_add(struct PeriscopeCollector *collector, char *pathname);
+int periscope_argus_local_process(struct PeriscopeCollector *collector);
 
-int periscope_argus_read_local(struct PeriscopeCollector *collector);
-int periscope_argus_read_remote(struct PeriscopeCollector *collector);
+int periscope_argus_remote_add(struct PeriscopeCollector *collector, char *hoststr);
+int periscope_argus_remote_process(struct PeriscopeCollector *collector);
 
 int periscope_argus_close_input(struct PeriscopeCollector *collector, struct ArgusInput *input);
 

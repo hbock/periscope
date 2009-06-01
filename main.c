@@ -171,17 +171,25 @@ main (int argc, char **argv)
    }
 
    if(sources == 0) {
-      fprintf(stderr, "Periscope: no sources to process, aborting.\n");
-      periscope_argus_add_remote(&g_collector, "127.0.0.1");
+      fprintf(stderr, "Periscope: no local sources to process. Connecting to local server.\n");
    }
    
    for(i = 0; i < sources; i++) {
-      if(periscope_argus_add_file(&g_collector, argv[1+i]) == -1) {
+      if(strcmp(argv[1+i], "remote") == 0) {
+         i++;
+         break;
+      }
+      
+      if(periscope_argus_local_add(&g_collector, argv[1+i]) == -1) {
          fprintf(stderr, "Periscope: file '%s' doesn't exist.\n", argv[1+i]);
          exit(1);
       }
    }
-
+   for(; i < sources; i++) {
+      if(periscope_argus_remote_add(&g_collector, argv[1+i]) == -1) {
+         fprintf(stderr, "Periscope: host '%s' is not valid!\n", argv[1+i]);
+      }
+   }
    
    /* Runs the Argus processor on both local and remote sources.
     * Eventually we will want to separate this, so local files can be
@@ -193,5 +201,6 @@ main (int argc, char **argv)
     * Argus. */
    periscope_collector_stop(&g_collector);
 
+   printf("Periscope: Shutting down after normal operation.\n");
    return 0;
 }

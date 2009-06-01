@@ -1,4 +1,4 @@
-/* -*- mode: C; c-file-style: "k&r"; c-basic-offset: 3; indent-tabs-mode: nil; -*- */
+/* -*- mode: C; c-basic-offset: 3; indent-tabs-mode: nil; -*- */
 /*
  * Periscope - Argus Client Interface
  * Copyright (c) 2009 Harry Bock <harry@oshean.org>
@@ -158,7 +158,7 @@ periscope_argus_client_init(struct PeriscopeCollector *collector)
 }
 
 int
-periscope_argus_add_file(struct PeriscopeCollector *collector, char *pathname)
+periscope_argus_local_add(struct PeriscopeCollector *collector, char *pathname)
 {
    if(!(collector && pathname))
       return -1;
@@ -175,7 +175,7 @@ periscope_argus_add_file(struct PeriscopeCollector *collector, char *pathname)
 }
 
 int
-periscope_argus_add_remote(struct PeriscopeCollector *collector, char *hoststr)
+periscope_argus_remote_add(struct PeriscopeCollector *collector, char *hoststr)
 {
    int ret;
 
@@ -223,7 +223,7 @@ periscope_argus_remote_connect(struct PeriscopeCollector *collector, struct Argu
 }
 
 int
-periscope_argus_read_local(struct PeriscopeCollector *collector)
+periscope_argus_local_process(struct PeriscopeCollector *collector)
 {
    struct ArgusParserStruct *parser = collector->parser;
 
@@ -274,7 +274,7 @@ periscope_argus_read_local(struct PeriscopeCollector *collector)
 }
 
 int
-periscope_argus_read_remote(struct PeriscopeCollector *collector)
+periscope_argus_remote_process(struct PeriscopeCollector *collector)
 {
 /*
    Now we're going to deal with remote data sources.  To implement
