@@ -177,10 +177,12 @@ periscope_argus_add_file(struct PeriscopeCollector *collector, char *pathname)
 int
 periscope_argus_add_remote(struct PeriscopeCollector *collector, char *hoststr)
 {
-   if(ArgusAddHostList(collector->parser, hoststr, ARGUS_DATA_SOURCE) == 0) {
+   int ret;
+
+   if((ret = ArgusAddHostList(collector->parser, hoststr, ARGUS_DATA_SOURCE)) < 0) {
       return -1;
    }
-   
+
    /* The Argus library seems to require this flag be set when remote data
     * sources are used. */
    collector->parser->Sflag = 1;
@@ -280,10 +282,13 @@ periscope_argus_read_remote(struct PeriscopeCollector *collector)
 #endif
             while ((addr = (void *)ArgusPopQueue(parser->ArgusRemoteHosts, ARGUS_LOCK)) != NULL) {
                if ((addr->fd = ArgusGetServerSocket (addr, 5)) >= 0) {
-                  printf("GetServerSocket: %s\n", addr->hostname);
                   if ((ArgusReadConnection (parser, addr, ARGUS_SOCKET)) >= 0) {
                      parser->ArgusTotalMarRecords++;
                      parser->ArgusTotalRecords++;
+
+                     
+                     printf("Connected to %s:%d, Argus server version %d.%d\n",
+                            addr->hostname, addr->portnum, addr->major_version, addr->minor_version);
 
                      if ((flags = fcntl(addr->fd, F_GETFL, 0L)) < 0)
                         ArgusLog (LOG_ERR, "ArgusConnectRemote: fcntl error %s", strerror(errno));
@@ -293,10 +298,12 @@ periscope_argus_read_remote(struct PeriscopeCollector *collector)
 
                      ArgusAddToQueue(parser->ArgusActiveHosts, &addr->qhdr, ARGUS_LOCK);
                      parser->ArgusHostsActive++;
-                  } else
+                  } else {
                      ArgusAddToQueue(tqueue, &addr->qhdr, ARGUS_LOCK);
-               } else
+                  }
+               } else {
                   ArgusAddToQueue(tqueue, &addr->qhdr, ARGUS_LOCK);
+               }
 #if !defined(ARGUS_THREADS)
             }
 #else
@@ -309,7 +316,9 @@ periscope_argus_read_remote(struct PeriscopeCollector *collector)
 
          ArgusDeleteQueue(tqueue);
       }
-      printf("ArgusReadStream\n");
+
+      //printf("ArgusRemoteHosts count: %d\n", parser->ArgusRemoteHosts->count);
+
 #if defined(ARGUS_THREADS) 
       if (parser->ArgusReliableConnection || parser->ArgusActiveHosts->count)
 #else
