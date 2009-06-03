@@ -103,6 +103,20 @@ process_flow(struct PeriscopeCollector *collector,
       break;
    }
 
+   case ARGUS_TYPE_ETHER: {
+      int i;
+      struct ArgusEtherMacFlow *ether = &flow_ether(flow);
+      
+      printf("Ether: %04x dest ", ether->ehdr.ether_type);
+      for(i = 0; i < ETH_ALEN; i++)
+         printf("%02hhx", ether->ehdr.ether_dhost[i]);
+      printf(" src ");
+      for(i = 0; i < ETH_ALEN; i++)
+         printf("%02hhx", ether->ehdr.ether_shost[i]);
+      printf("\n");
+      break;
+   }
+
    default:
       printf("Unhandled flow type %02X.\n.", type);
    }
