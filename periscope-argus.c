@@ -174,20 +174,38 @@ periscope_argus_local_add(struct PeriscopeCollector *collector, char *pathname)
    return 0;      
 }
 
-int
+struct ArgusInput *
 periscope_argus_remote_add(struct PeriscopeCollector *collector, char *hoststr)
 {
    int ret;
+   struct ArgusParserStruct *parser = collector->parser;
 
-   if((ret = ArgusAddHostList(collector->parser, hoststr, ARGUS_DATA_SOURCE)) < 0) {
-      return -1;
+   if((ret = ArgusAddHostList(parser, hoststr, ARGUS_DATA_SOURCE)) < 0) {
+      return NULL;
    }
 
    /* The Argus library seems to require this flag be set when remote data
     * sources are used. */
-   collector->parser->Sflag = 1;
-   collector->parser->nflag = 1; /* We will do our own DNS queries, if necessary. */
-   return 0;
+   parser->Sflag = 1;
+   parser->nflag = 1; /* We will do our own DNS queries, if necessary. */
+
+   /* This may be a race condition.  It shouldn't matter right now, but there
+    * should be a better way to do this... */
+   return (struct ArgusInput *)parser->ArgusRemoteHosts->end;
+}
+
+int
+periscope_argus_remote_direct_connect(struct PeriscopeCollector *collector, char *hoststr)
+{
+   struct ArgusInput *input = periscope_argus_remote_add(collector, hoststr);
+
+   if(input != NULL) {
+      ArgusRemoveFromQueue(collector->parser->ArgusRemoteHosts,
+                           (struct ArgusQueueHeader *)input, ARGUS_LOCK);
+   } else {
+      return -1;
+   }
+   return periscope_argus_remote_connect(collector, input);
 }
 
 int

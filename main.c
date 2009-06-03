@@ -1,4 +1,4 @@
-/* -*- mode: C; c-file-style: "k&r"; c-basic-offset: 3; indent-tabs-mode: nil; -*- */
+/* -*- mode: C; c-basic-offset: 3; indent-tabs-mode: nil; -*- */
 /*
  * Periscope - Argus Client Interface
  * Copyright (c) 2009 Harry Bock <harry@oshean.org>
@@ -139,11 +139,23 @@ input_source_completed(struct PeriscopeCollector *collector,
 
 void sighandler(int signal)
 {
-   printf("Attempting clean close of collector... ");
-   periscope_collector_stop(&g_collector);
-   printf("OK!\n");
+   switch(signal) {
+   case SIGINT:
+      printf("Attempting clean close of collector... ");
+      periscope_collector_stop(&g_collector);
+      printf("OK!\n");
 
-   exit(1);
+      exit(1);
+      break;
+
+   case SIGHUP:
+      printf("Attempting asynchronous connection to 127.0.0.1...\n");
+      
+      if(periscope_argus_remote_direct_connect(&g_collector, "127.0.0.1") < 0)
+         printf("fuck?\n");
+
+      break;
+   }
 }
 
 int
@@ -158,6 +170,7 @@ main (int argc, char **argv)
    sigemptyset(&signals.sa_mask);
 
    sigaction(SIGINT, &signals, NULL);
+   sigaction(SIGHUP, &signals, NULL);
 
    /* Initialize Periscope. */
    periscope_collector_init(&g_collector);
@@ -186,7 +199,7 @@ main (int argc, char **argv)
       }
    }
    for(; i < sources; i++) {
-      if(periscope_argus_remote_add(&g_collector, argv[1+i]) == -1) {
+      if(periscope_argus_remote_add(&g_collector, argv[1+i]) == NULL) {
          fprintf(stderr, "Periscope: host '%s' is not valid!\n", argv[1+i]);
       }
    }
