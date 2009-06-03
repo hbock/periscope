@@ -117,6 +117,7 @@ int periscope_argus_close_input(struct PeriscopeCollector *collector, struct Arg
 
 #define flow_type(flow)    ((flow)->hdr.argus_dsrvl8.qual)
 #define flow_subtype(flow) ((flow)->hdr.subtype & 0x3F)
+#define flow_ether(flow) ((flow)->mac_flow.mac_union.ether)
 
 #define net_subtype(net) ((net)->hdr.subtype)
 #define net_tcp(net) ((struct ArgusTCPObject *)&(net)->net_union.tcp)

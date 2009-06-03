@@ -99,7 +99,6 @@ RaProcessRecord (struct ArgusParserStruct *parser,
          break;
 
       case ARGUS_EVENT:
-         printf("Event\n");
          RaProcessEventRecord (parser, argus);
          break;
 
@@ -113,6 +112,10 @@ RaProcessRecord (struct ArgusParserStruct *parser,
          case ARGUS_FLOW_LAYER_3_MATRIX:
             periscope_callback(&g_collector, process_flow, flow_type(dsrs.flow),
                                argus, &dsrs);
+            break;
+
+         case ARGUS_FLOW_ARP:
+            printf("TODO: ARP support?\n");
             break;
             
          default:
@@ -176,6 +179,8 @@ void
 RaProcessEventRecord (struct ArgusParserStruct *parser,
                       struct ArgusRecordStruct *argus)
 {
+   printf("Event\n");
+
    if (parser->ArgusWfileList != NULL) {
       PeriscopeWriteEventRecord(parser, argus);
    } else {
