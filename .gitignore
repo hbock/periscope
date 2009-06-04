@@ -4,3 +4,4 @@ Makefile
 *.lo
 *.o
 *.la
+*.fasl
