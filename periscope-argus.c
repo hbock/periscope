@@ -39,7 +39,6 @@
 #include "periscope.h"
 
 extern struct ArgusParserStruct *ArgusParser;
-extern struct PeriscopeCollector g_collector;
 pthread_attr_t argus_attr;
 
 /* Stub function, required by Argus library. */
@@ -52,11 +51,6 @@ void usage ()
  *  ArgusAddFileList(parser, pathname, ARGUS_DATA_SOURCE, -1, -1); (NULL error)
  *  ArgusAddHostList(parser, hostname, ARGUS_DATA_SOURCE); (NULL error)
  */
-
-void RaArgusInputComplete (struct ArgusInput *input)
-{
-   periscope_callback(&g_collector, input_complete, input);
-}
 
 void
 RaParseComplete (int sig)
@@ -153,6 +147,11 @@ periscope_argus_client_init(struct PeriscopeCollector *collector)
      ArgusLog (LOG_ERR, "ArgusNewParser failed %s", strerror(errno));
      return -1;
    }
+
+   /* This is a hack - ArgusParserStruct has no agnostic pointer field for an application-
+    * specific context, so this will have to do for now.  grepping through the source
+    * shows that this pointer is untouched if RaClearConfiguration is never called. */
+   collector->parser->RaFlowModelFile = (char *)collector;
    
    return 0;
 }
@@ -275,13 +274,17 @@ periscope_argus_local_process(struct PeriscopeCollector *collector)
                      ArgusReadFileStream(parser, file);
                } else
                   file->fd = -1;
-               
+
+               /* When will this branch ever occur?
+                * ArgusReadFileStream always seems to close its input before returning
+                * to caller. */
                if (file->file != NULL) {
                   ArgusCloseInput(parser, file);  
                }
             }
             
-            RaArgusInputComplete(file);
+            periscope_callback(collector, input_complete, file);
+
             file = (struct ArgusInput *)file->qhdr.nxt;
          }
          

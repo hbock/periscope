@@ -44,9 +44,6 @@
 
 #include "periscope.h"
 
-extern struct ArgusParserStruct *ArgusParser;
-extern struct PeriscopeCollector g_collector;
-
 void
 periscope_collector_init(struct PeriscopeCollector *collector)
 {
@@ -93,6 +90,8 @@ void
 RaProcessRecord (struct ArgusParserStruct *parser,
                  struct ArgusRecordStruct *argus)
 {
+   struct PeriscopeCollector *collector = (struct PeriscopeCollector *)parser->RaFlowModelFile;
+   
    switch (record_type(argus)) {
       case ARGUS_MAR:
          RaProcessManRecord (parser, argus);
@@ -110,8 +109,7 @@ RaProcessRecord (struct ArgusParserStruct *parser,
          switch(flow_subtype(dsrs.flow)) {
          case ARGUS_FLOW_CLASSIC5TUPLE:
          case ARGUS_FLOW_LAYER_3_MATRIX:
-            periscope_callback(&g_collector, process_flow, flow_type(dsrs.flow),
-                               argus, &dsrs);
+            periscope_callback(collector, process_flow, flow_type(dsrs.flow), argus, &dsrs);
             break;
 
          case ARGUS_FLOW_ARP:
