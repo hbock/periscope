@@ -32,16 +32,18 @@
   (parser :pointer)
   (callbacks periscope-callbacks))
 
-(defcfun "periscope_collector_init" :int
+(defcfun ("periscope_collector_init" %collector-init) :int
   (collector periscope-collector))
 
-(defcfun "periscope_argus_local_add" :int
+(defcfun ("periscope_argus_local_add" %argus-local-add) :int
   (collector periscope-collector)
   (pathname :string))
 
-(defcfun "periscope_collector_start" :void
+(defcfun ("periscope_collector_start" %collector-start) :void
   (collector periscope-collector))
 
-(defcfun "periscope_collector_stop" :void
+(defcfun ("periscope_collector_stop" %collector-stop) :void
   (collector periscope-collector))
 
+(defun get-callbacks (collector)
+  (foreign-slot-value collector 'periscope-collector 'callbacks))
