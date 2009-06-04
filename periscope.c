@@ -82,7 +82,13 @@ periscope_collector_start(struct PeriscopeCollector *collector)
 void
 periscope_collector_stop(struct PeriscopeCollector *collector)
 {
-   periscope_argus_client_close(collector);
+   periscope_argus_client_stop(collector);
+}
+
+void
+periscope_collector_free(struct PeriscopeCollector *collector)
+{
+   periscope_argus_client_free(collector);
 }
 
 void

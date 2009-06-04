@@ -440,7 +440,13 @@ argus_close_remote(struct PeriscopeCollector *collector)
 }
 
 int
-periscope_argus_client_close(struct PeriscopeCollector *collector)
+periscope_argus_client_stop(struct PeriscopeCollector *collector)
+{
+   return argus_close_remote(collector);
+}
+
+int
+periscope_argus_client_free(struct PeriscopeCollector *collector)
 {
    struct ArgusParserStruct *parser = collector->parser;
 

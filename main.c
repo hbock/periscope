@@ -225,6 +225,7 @@ main (int argc, char **argv)
     * close all sources and free memory associated with Periscope and
     * Argus. */
    periscope_collector_stop(&g_collector);
+   periscope_collector_free(&g_collector);
 
    printf("Periscope: Shutting down after normal operation.\n");
    return 0;
