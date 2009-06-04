@@ -90,7 +90,7 @@ struct PeriscopeCollector {
 /* Periscope core API. */
 void periscope_reset_metrics(struct PeriscopeCollector *collector);
 
-void periscope_collector_init(struct PeriscopeCollector *collector);
+int periscope_collector_init(struct PeriscopeCollector *collector);
 void periscope_collector_start(struct PeriscopeCollector *collector);
 void periscope_collector_stop(struct PeriscopeCollector *collector);
 

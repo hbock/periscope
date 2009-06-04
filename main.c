@@ -166,7 +166,7 @@ void sighandler(int signal)
       printf("Attempting asynchronous connection to 127.0.0.1...\n");
       
       if(periscope_argus_remote_direct_connect(&g_collector, "127.0.0.1") < 0)
-         printf("fuck?\n");
+         printf("Asynchronous connect failed!\n");
 
       break;
    }
@@ -187,15 +187,13 @@ main (int argc, char **argv)
    sigaction(SIGHUP, &signals, NULL);
 
    /* Initialize Periscope. */
-   periscope_collector_init(&g_collector);
+   if(periscope_collector_init(&g_collector) < 0) {
+      fprintf(stderr, "Error initializing Periscope!\n");
+      exit(1);
+   }
 
    g_collector.callbacks.process_flow = process_flow;
    g_collector.callbacks.input_complete = input_source_completed;
-
-   if(periscope_argus_client_init(&g_collector) == -1) {
-        fprintf(stderr, "Initializing Argus client failed!\n");
-        exit(1);
-   }
 
    if(sources == 0) {
       fprintf(stderr, "Periscope: no local sources to process. Connecting to local server.\n");

@@ -44,10 +44,15 @@
 
 #include "periscope.h"
 
-void
+int
 periscope_collector_init(struct PeriscopeCollector *collector)
 {
    memset(collector, 0, sizeof(struct PeriscopeCollector));
+
+   if(periscope_argus_client_init(collector) == -1) {
+        fprintf(stderr, "Initializing Argus client failed!\n");
+        return -1;
+   }
 }
 
 void
