@@ -57,7 +57,7 @@ process_flow(struct PeriscopeCollector *collector,
 
       switch(ip->ip_p) {
       case IPPROTO_TCP:
-         printf("tcp: "); collector->metrics.tcp_count++;
+         printf("tcp: cause %02x ", (record->hdr.cause & 0xF0));
          switch(net_subtype(dsrs->net)) {
          case ARGUS_TCP_PERF: {
             struct ArgusTCPObject *tcp = net_tcp(dsrs->net);
@@ -67,19 +67,24 @@ process_flow(struct PeriscopeCollector *collector,
             }
             if(tcp->status & ARGUS_PKTS_RETRANS)
                printf("RETRANSMIT - ");
-            if(tcp->status & ARGUS_NORMAL_CLOSE)
+            if(tcp->status & (ARGUS_FIN|ARGUS_FIN_ACK)) {
                printf("NORMAL CLOSE - ");
+               collector->metrics.tcp_count++;
+            } else if(tcp->status & ARGUS_RESET) {
+               collector->metrics.tcp_count++;
+            }
          }
             break;
 
          case ARGUS_TCP_STATUS:
-            printf("status");
+            printf("status only");
             break;
 
-         case ARGUS_TCP_INIT:
-            printf("init");
+         case ARGUS_TCP_INIT: {
+            struct ArgusTCPInitStatus *tcp = net_tcp_init(dsrs->net);
+            printf("init status: %08x ", tcp->status);
             break;
-
+         }
          default:
             printf("???");
             break;

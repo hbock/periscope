@@ -20,18 +20,19 @@
 
 (defvar *flows* 0)
 (defvar *ipv4* 0)
+(defvar *collector* nil)
 
 (defcallback receive-flow :void ((collector periscope-collector)
 				 (type :uchar)
 				 (record :pointer)
 				 (dsrs periscope-dsrs))
   (declare (ignore collector record))
-  (case (foreign-enum-keyword 'argus-flow-types type)
+  (case (foreign-enum-keyword 'argus-flow-types type :errorp nil)
     (:ipv4
      (incf *ipv4*)
      (let ((ip (get-ip (foreign-slot-value dsrs 'periscope-dsrs 'flow))))
        (with-foreign-slots ((ip-src ip-dst ip-proto) ip argus-ip-flow)
-	 (case (foreign-enum-keyword 'ip-protocols ip-proto)
+	 (case (foreign-enum-keyword 'ip-protocols ip-proto :errorp nil)
 	   (:icmp (format t "ICMP!~%"))
 	   (:tcp (format t "TCP!~%"))
 	   (:udp (format t "UDP!~%"))))))
@@ -39,16 +40,43 @@
   
   (incf *flows*))
 
-(defun test-argus ()
+(defun init-basic-collector ()
   (let ((collector (make-instance 'collector)))
     (with-collector-callbacks (process_flow) collector
-      (setf process_flow (callback receive-flow)))
-    (setf *flows* 0
-	  *ipv4* 0)
-    (add-file collector "argus.1")
+	(setf process_flow (callback receive-flow)))
+    collector))
+
+(defun test-argus (&optional (file "argus.1"))
+  (let ((collector (init-basic-collector)))
+    (add-file collector file)
     (start collector)
     (stop collector)
-    (format t "Handled ~a flows (~a IPv4)!~%" *flows* *ipv4*)
     1))
 
+(hunchentoot:define-easy-handler (stop-page :uri "/stop") ()
+  (stop *collector*)
+  (with-periscope-page ("Stopping collector.")
+    (:h3 "Collector stopped")
+    "Please put your trays in the upright position before landing Periscope."))
 
+(hunchentoot:define-easy-handler (start-page :uri "/start") ()
+  (setf *flows* 0
+	*ipv4* 0)
+  (start *collector*)
+  (with-periscope-page ("Starting collector.")
+    (:h3 "Collector started")
+    "AYEEEEEEEEEEE"))
+
+(hunchentoot:define-easy-handler (test :uri "/test") (file remote)
+  
+  (when file
+    (test-argus file))
+  (when remote
+    (add-remote *collector* remote))
+  (with-periscope-page ("Testing Argus! (BOOM?)")
+    (:h3 "Testing the Argus processor...")
+    (when remote
+      (who:htm
+       (who:fmt "Added remote source ~a to collector!" remote)
+       (:br)))
+    (who:fmt "Processed ~a flows, with ~a IPv4!" *flows* *ipv4*)))
