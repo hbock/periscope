@@ -31,4 +31,5 @@
    (:file "periscope-cffi")
    (:file "argus-cffi")
    (:file "collector")
-   (:file "web")))
+   (:file "web")
+   (:file "web-index")))

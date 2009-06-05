@@ -78,7 +78,7 @@
 		    (:a :href "http://qosient.com/argus" :target "_blank"
 			"Argus")))))))))
 
-(hunchentoot:define-easy-handler (index :uri "/index") ()
+(hunchentoot:define-easy-handler (index :uri "/") ()
   (with-periscope-page ("Testing")
     (:h3 (who:fmt "Welcome to Periscope, version ~a!" *periscope-version*))
     "This is a pre-release version of what will eventually become Periscope 0.10.0, merged with
