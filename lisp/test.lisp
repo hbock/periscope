@@ -18,20 +18,24 @@
 ;;;; Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 (in-package :periscope)
 
-(let ((flows 0))
-  (defcallback receive-flow :void ((collector periscope-collector)
-				   (type :uchar)
-				   (record :pointer)
-				   (dsrs :pointer))
-    (declare (ignore collector record dsrs))
-    (format t "FLOW (type ~a)~%" type)
-    (incf flows)))
+(defvar *flows* 0)
+
+(defcallback receive-flow :void ((collector periscope-collector)
+				 (type :uchar)
+				 (record :pointer)
+				 (dsrs periscope-dsrs))
+  (declare (ignore collector record dsrs type))
+  (incf *flows*))
 
 (defun test-argus ()
-  (with-foreign-object (col 'periscope-collector)
-    (periscope-collector-init col)
-    (with-foreign-slots ((process_flow) (foreign-slot-value col 'periscope-collector 'callbacks)
-			 periscope-callbacks)
+  (let ((collector (make-instance 'collector)))
+    (with-collector-callbacks (process_flow) collector
       (setf process_flow (callback receive-flow)))
-    (periscope-argus-local-add col "argus.1")
-    (periscope-collector-start col)))
+    (setf *flows* 0)
+    (add-file collector "argus.1")
+    (start collector)
+    (stop collector)
+    (format t "Handled ~a flows!~%" *flows*)
+    1))
+
+

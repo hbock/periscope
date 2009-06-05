@@ -41,12 +41,16 @@
   (metrics periscope-metrics)
   (sources :uint32))
 
+;;; Argus DSR pointers
+(defcstruct periscope-dsrs
+  (flow :pointer)
+  (vlan :pointer)
+  (metric :pointer)
+  (time :pointer)
+  (net :pointer))
+
 (defcfun ("periscope_collector_init" %collector-init) :int
   (collector periscope-collector))
-
-(defcfun ("periscope_argus_local_add" %argus-local-add) :int
-  (collector periscope-collector)
-  (pathname :string))
 
 (defcfun ("periscope_collector_start" %collector-start) :void
   (collector periscope-collector))
@@ -57,8 +61,17 @@
 (defcfun ("periscope_collector_free" %collector-free) :void
   (collector periscope-collector))
 
-(defun get-callbacks (collector)
-  )
+(defcfun ("periscope_argus_local_add" %argus-local-add) :int
+  (collector periscope-collector)
+  (pathname :string))
+
+(defcfun ("periscope_argus_remote_add" %argus-remote-add) :pointer
+  (collector periscope-collector)
+  (hoststr :string))
+
+(defcfun ("periscope_argus_remote_direct_connect" %argus-remote-direct-connect) :int
+  (collector periscope-collector)
+  (hoststr :string))
 
 (defmacro with-collector-callbacks (callbacks collector &body body)
   `(with-foreign-slots ((,@callbacks)

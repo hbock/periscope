@@ -32,7 +32,32 @@
 				     (foreign-free ptr)))))
 
 (defmethod start ((object collector))
+  "Start the collector."
   (%collector-start (get-ptr object)))
 
 (defmethod stop ((object collector))
+  "Stop the collector, closing all open files and connections."
   (%collector-stop (get-ptr object)))
+
+(defmethod add-remote ((collector collector) (host string))
+  "Add a remote host to be processed when START is called."
+  (when (minusp (%argus-remote-add (get-ptr collector) host))
+    (error "Error adding host ~a to the collector." host)))
+
+(defgeneric add-file (collector file)
+  (:documentation "Add a local Argus file to be processed when START is called."))
+
+(defmethod add-file ((collector collector) (file string))
+  (when (minusp (%argus-local-add (get-ptr collector) file))
+    (if (not (probe-file file))
+	(error "File ~a does not exist!" file)
+	(error "Failed to add file ~a to the collector." file)))
+  file)
+
+(defmethod add-file ((collector collector) (file pathname))
+  (add-file collector (namestring file)))
+
+(defmethod connect ((collector collector) (host string))
+  "Connect directly to a remote Argus server at HOST."
+  (when (minusp (%argus-remote-direct-connect (get-ptr collector) host))
+    (error "Failed to connect to host ~a!" host)))
