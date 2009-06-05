@@ -53,11 +53,17 @@ periscope_collector_init(struct PeriscopeCollector *collector)
         fprintf(stderr, "Initializing Argus client failed!\n");
         return -1;
    }
+   return 0;
 }
 
-void
+int
 periscope_collector_start(struct PeriscopeCollector *collector)
 {
+   if(collector->running)
+      return -1;
+   
+   collector->running = 1;
+
    /* Process all local files first, before we try to handle remote connections. */
    periscope_argus_local_process(collector);
 
@@ -76,19 +82,31 @@ periscope_collector_start(struct PeriscopeCollector *collector)
     *  - periscope_argus_client_close is called.
     * In the last case - when the app wants to close down gracefully - it must be
     * done asynchronously, either in another thread or via a signal handler. */
-   periscope_argus_remote_process(collector);
+   return periscope_argus_remote_process(collector);
 }
 
 void
 periscope_collector_stop(struct PeriscopeCollector *collector)
 {
-   periscope_argus_client_stop(collector);
+   if(collector->running) {
+      periscope_argus_client_stop(collector);
+      collector->running = 0;
+   }
 }
 
 void
 periscope_collector_free(struct PeriscopeCollector *collector)
 {
+   if(collector->running) {
+      periscope_collector_stop(collector);
+   }
    periscope_argus_client_free(collector);
+}
+
+int
+periscope_collector_is_running(struct PeriscopeCollector *collector)
+{
+   return collector->running;
 }
 
 void
