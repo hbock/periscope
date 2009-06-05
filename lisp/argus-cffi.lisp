@@ -79,7 +79,7 @@
   (:normal-close  #x00000020)
   (:close-waiting #x00000040)
   (:src-packets-retransmitted  #x00000100)
-  (:dest-packets-retransmitted #x00000100)
+  (:dest-packets-retransmitted #x00000200)
   (:src-reset  #x000001000)
   (:dest-reset #x000002000))
 
