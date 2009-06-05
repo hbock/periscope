@@ -27,9 +27,9 @@
     (when (minusp (%collector-init ptr))
       (foreign-free ptr)
       (error "Unable to initialize collector!"))
-    #+sbcl (sb-ext:finalize object (lambda ()
-				     (%collector-free ptr)
-				     (foreign-free ptr)))))
+    (tg:finalize object (lambda ()
+			  (%collector-free ptr)
+			  (foreign-free ptr)))))
 
 (defmethod start ((object collector))
   "Start the collector."

@@ -23,7 +23,7 @@
   :author "Harry Bock <harry@oshean.org>"
   :version "0.10.0-pre-alpha"
   :description "Network auditing tool"
-  :depends-on (:cffi :hunchentoot :cl-who)
+  :depends-on (:cffi :hunchentoot :cl-who :trivial-garbage)
   :serial t
   :components
   ((:file "packages")
