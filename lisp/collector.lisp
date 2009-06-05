@@ -41,7 +41,7 @@
 
 (defmethod add-remote ((collector collector) (host string))
   "Add a remote host to be processed when START is called."
-  (when (minusp (%argus-remote-add (get-ptr collector) host))
+  (when (null-pointer-p (%argus-remote-add (get-ptr collector) host))
     (error "Error adding host ~a to the collector." host)))
 
 (defgeneric add-file (collector file)
