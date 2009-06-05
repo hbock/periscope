@@ -262,7 +262,7 @@ periscope_argus_local_process(struct PeriscopeCollector *collector)
                if ((file->file != NULL) && ((ArgusReadConnection (parser, file, ARGUS_FILE)) >= 0)) {
                   parser->ArgusTotalMarRecords++;
                   parser->ArgusTotalRecords++;
-                  
+                 
                   if (file->ostart != -1) {
                      file->offset = file->ostart;
                      if (fseek(file->file, file->offset, SEEK_SET) >= 0)
@@ -388,9 +388,6 @@ argus_close_remote(struct PeriscopeCollector *collector)
    struct ArgusInput *addr;
 
    if (parser->Sflag) {
-      if (parser->ArgusReliableConnection)
-         pthread_attr_destroy(&argus_attr);
-
       /* Why are these threads joined twice in the main Argus code? */
 #if 0
       while ((addr = (void *)ArgusPopQueue(parser->ArgusActiveHosts, ARGUS_LOCK)) != NULL) {
@@ -416,8 +413,8 @@ argus_close_remote(struct PeriscopeCollector *collector)
             periscope_argus_close_input(collector, input);
          }
       }
-      ArgusDeleteQueue(queue);
-      parser->ArgusRemoteHosts = NULL;
+      /*
+      */
    }
 
    /* Close active hosts?
@@ -428,10 +425,8 @@ argus_close_remote(struct PeriscopeCollector *collector)
       
       while ((input = (void *)ArgusPopQueue(queue, ARGUS_LOCK)) != NULL) {
          periscope_argus_close_input(collector, input);
+         parser->ArgusHostsActive--;
       }
-      
-      ArgusDeleteQueue(queue);
-      parser->ArgusActiveHosts = NULL;
    }   
    return 0;
 }
@@ -451,6 +446,9 @@ periscope_argus_client_free(struct PeriscopeCollector *collector)
    if(parser->ArgusActiveHosts || parser->ArgusRemoteHosts) {
       argus_close_remote(collector);
    }
+   
+   if (parser->ArgusReliableConnection)
+      pthread_attr_destroy(&argus_attr);
 
    /* Free all data associated with the ArgusParserStruct. */
    ArgusCloseParser(parser);
