@@ -39,7 +39,8 @@
   (parser :pointer)
   (callbacks periscope-callbacks)
   (metrics periscope-metrics)
-  (sources :uint32))
+  (sources :uint32)
+  (running :uint8))
 
 ;;; Argus DSR pointers
 (defcstruct periscope-dsrs
@@ -62,7 +63,10 @@
 (defcfun ("periscope_collector_init" %collector-init) :int
   (collector periscope-collector))
 
-(defcfun ("periscope_collector_start" %collector-start) :void
+(defcfun ("periscope_collector_start" %collector-start) :int
+  (collector periscope-collector))
+
+(defcfun ("periscope_collector_is_running" %collector-running-p) :int
   (collector periscope-collector))
 
 (defcfun ("periscope_collector_stop" %collector-stop) :void

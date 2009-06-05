@@ -33,7 +33,10 @@
 
 (defmethod start ((object collector))
   "Start the collector."
-  (%collector-start (get-ptr object)))
+  (when (running-p object)
+    (error "Collector is already running."))
+  (when (minusp (%collector-start (get-ptr object)))
+    (error "Failed to start collector.")))
 
 (defmethod stop ((object collector))
   "Stop the collector, closing all open files and connections."
@@ -61,3 +64,6 @@
   "Connect directly to a remote Argus server at HOST."
   (when (minusp (%argus-remote-direct-connect (get-ptr collector) host))
     (error "Failed to connect to host ~a!" host)))
+
+(defmethod running-p ((collector collector))
+  (plusp (%collector-running-p (get-ptr collector))))
