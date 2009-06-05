@@ -122,9 +122,11 @@ int periscope_argus_close_input(struct PeriscopeCollector *collector, struct Arg
 #define flow_ether(flow) ((flow)->mac_flow.mac_union.ether)
 
 #define net_subtype(net) ((net)->hdr.subtype)
-#define net_tcp(net) ((struct ArgusTCPObject *)&(net)->net_union.tcp)
-#define net_icmp(net) ((struct ArgusICMPObject *)&(net)->net_union.icmp)
-#define net_icmp6(net) ((struct ArgusICMPv6Object *)&(net)->net_union.icmp6)
+#define net_tcp(net)        (&(net)->net_union.tcp)
+#define net_tcp_init(net)   (&(net)->net_union.tcpinit)
+#define net_tcp_status(net) (&(net)->net_union.tcpstatus)
+#define net_icmp(net)  (&(net)->net_union.icmp)
+#define net_icmp6(net) (&(net)->net_union.icmp6)
 
 inline struct ArgusFlow *
 record_flow(struct ArgusRecordStruct *record);
