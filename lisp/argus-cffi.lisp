@@ -70,6 +70,19 @@
   (:lcp  #x09)
   (:isis #x0A))
 
+(defbitfield argus-tcp-state
+  (:saw-syn       #x00000001)
+  (:saw-syn-sent  #x00000002)
+  (:established   #x00000004)
+  (:fin           #x00000008)
+  (:fin-ack       #x00000010)
+  (:normal-close  #x00000020)
+  (:close-waiting #x00000040)
+  (:src-packets-retransmitted  #x00000100)
+  (:dest-packets-retransmitted #x00000100)
+  (:src-reset  #x000001000)
+  (:dest-reset #x000002000))
+
 (declaim (inline get-icmp get-ip))
 (defun get-ip (flow)
   (foreign-slot-value (foreign-slot-value flow 'argus-flow 'flow-un) 'argus-flow-union 'ip))
