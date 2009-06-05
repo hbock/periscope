@@ -23,10 +23,12 @@
   :author "Harry Bock <harry@oshean.org>"
   :version "0.10.0-pre-alpha"
   :description "Network auditing tool"
-  :depends-on (:cffi)
+  :depends-on (:cffi :hunchentoot :cl-who)
   :serial t
   :components
   ((:file "packages")
+   (:file "specials")
    (:file "periscope-cffi")
    (:file "argus-cffi")
-   (:file "collector")))
+   (:file "collector")
+   (:file "web")))
