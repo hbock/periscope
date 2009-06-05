@@ -28,9 +28,18 @@
   (process_flow :pointer)
   (input_complete :pointer))
 
+(defcstruct periscope-metrics
+  (flows :uint32)
+  (tcp-count :uint32)
+  (udp-count :uint32)
+  (icmp-count :uint32)
+  (other-count :uint32))
+
 (defcstruct periscope-collector
   (parser :pointer)
-  (callbacks periscope-callbacks))
+  (callbacks periscope-callbacks)
+  (metrics periscope-metrics)
+  (sources :uint32))
 
 (defcfun ("periscope_collector_init" %collector-init) :int
   (collector periscope-collector))
@@ -45,5 +54,14 @@
 (defcfun ("periscope_collector_stop" %collector-stop) :void
   (collector periscope-collector))
 
+(defcfun ("periscope_collector_free" %collector-free) :void
+  (collector periscope-collector))
+
 (defun get-callbacks (collector)
-  (foreign-slot-value collector 'periscope-collector 'callbacks))
+  )
+
+(defmacro with-collector-callbacks (callbacks collector &body body)
+  `(with-foreign-slots ((,@callbacks)
+			(foreign-slot-value (get-ptr ,collector) 'periscope-collector 'callbacks)
+			periscope-callbacks)
+     ,@body))
