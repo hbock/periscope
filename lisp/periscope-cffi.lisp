@@ -49,6 +49,16 @@
   (time :pointer)
   (net :pointer))
 
+(defcenum ip-protocols
+  (:ip 0)
+  (:icmp 1)
+  (:igmp 2)
+  (:ipip 4)
+  (:tcp 6)
+  (:udp 17)
+  (:dccp 33)
+  (:mtp 92))
+
 (defcfun ("periscope_collector_init" %collector-init) :int
   (collector periscope-collector))
 
