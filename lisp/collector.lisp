@@ -16,16 +16,23 @@
 ;;;; You should have received a copy of the GNU General Public License
 ;;;; along with periscope; if not, write to the Free Software
 ;;;; Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-(in-package :cl-user)
+(in-package :periscope)
 
-(asdf:defsystem periscope
-  :name "Periscope"
-  :author "Harry Bock <harry@oshean.org>"
-  :version "0.10.0-pre-alpha"
-  :description "Network auditing tool"
-  :depends-on (:cffi)
-  :serial t
-  :components
-  ((:file "packages")
-   (:file "periscope-cffi")
-   (:file "collector")))
+(defclass collector ()
+  ((ptr :initform nil :accessor get-ptr)))
+
+(defmethod initialize-instance :after ((object collector) &key)
+  (let ((ptr (foreign-alloc 'periscope-collector)))
+    (setf (get-ptr object) ptr)
+    (when (minusp (%collector-init ptr))
+      (foreign-free ptr)
+      (error "Unable to initialize collector!"))
+    #+sbcl (sb-ext:finalize object (lambda ()
+				     (%collector-free ptr)
+				     (foreign-free ptr)))))
+
+(defmethod start ((object collector))
+  (%collector-start (get-ptr object)))
+
+(defmethod stop ((object collector))
+  (%collector-stop (get-ptr object)))
