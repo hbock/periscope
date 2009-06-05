@@ -28,4 +28,5 @@
   :components
   ((:file "packages")
    (:file "periscope-cffi")
+   (:file "argus-cffi")
    (:file "collector")))
