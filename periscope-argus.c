@@ -38,7 +38,6 @@
 
 #include "periscope.h"
 
-extern struct ArgusParserStruct *ArgusParser;
 pthread_attr_t argus_attr;
 
 /* Stub function, required by Argus library. */
@@ -140,10 +139,8 @@ periscope_argus_client_init(struct PeriscopeCollector *collector)
    pthread_attr_setdetachstate(&argus_attr, PTHREAD_CREATE_JOINABLE);
 #endif
 
-   /* Create new ArgusParserStruct.  Argus client library expects to find a global
-    * variable ArgusParser properly initialized, which is not thread safe, but
-    * it needs to be done. */
-   if((ArgusParser = collector->parser = ArgusNewParser("periscope")) == NULL) {
+   /* Create new ArgusParserStruct. */
+   if((collector->parser = ArgusNewParser("periscope")) == NULL) {
      ArgusLog (LOG_ERR, "ArgusNewParser failed %s", strerror(errno));
      return -1;
    }
