@@ -360,6 +360,8 @@ int
 periscope_argus_close_input(struct PeriscopeCollector *collector,
                             struct ArgusInput *input)
 {
+   periscope_callback(collector, input_complete, input);
+
    ArgusCloseInput(collector->parser, input);
    if (input->hostname != NULL)
       free (input->hostname);
