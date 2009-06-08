@@ -21,3 +21,5 @@
 (defvar *periscope-version* "0.9.90 (pre-alpha)")
 (defvar *web-port* 20570)
 (defvar *web-server* nil)
+
+(defvar *collector*)

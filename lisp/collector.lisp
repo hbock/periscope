@@ -19,7 +19,13 @@
 (in-package :periscope)
 
 (defclass collector ()
-  ((ptr :initform nil :accessor get-ptr)))
+  ((ptr :initform nil :accessor get-ptr)
+   (remote :initform nil :accessor remote-sources)))
+
+(defclass source ()
+  ((ptr :initarg :ptr :initform nil :accessor get-ptr)
+   (path :initarg :path :initform nil :accessor source-path)
+   (connected :initarg :connected :initform nil :accessor connected-p)))
 
 (defmethod initialize-instance :after ((object collector) &key)
   (let ((ptr (foreign-alloc 'periscope-collector)))
@@ -45,7 +51,9 @@
 (defmethod add-remote ((collector collector) (host string))
   "Add a remote host to be processed when START is called."
   (when (null-pointer-p (%argus-remote-add (get-ptr collector) host))
-    (error "Error adding host ~a to the collector." host)))
+    (error "Error adding host ~a to the collector." host))
+  (let ((source (make-instance 'source :path host :connected nil)))
+    (push source (remote-sources collector))))
 
 (defgeneric add-file (collector file)
   (:documentation "Add a local Argus file to be processed when START is called."))
@@ -63,7 +71,9 @@
 (defmethod connect ((collector collector) (host string))
   "Connect directly to a remote Argus server at HOST."
   (when (minusp (%argus-remote-direct-connect (get-ptr collector) host))
-    (error "Failed to connect to host ~a!" host)))
+    (error "Failed to connect to host ~a!" host))
+  (let ((source (make-instance 'source :path host :connected t)))
+    (push source (remote-sources collector))))
 
 (defmethod running-p ((collector collector))
   (plusp (%collector-running-p (get-ptr collector))))
