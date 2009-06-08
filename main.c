@@ -164,7 +164,6 @@ void sighandler(int signal)
       periscope_collector_stop(&g_collector);
       printf("OK!\n");
 
-      exit(1);
       break;
 
    case SIGHUP:
@@ -229,7 +228,6 @@ main (int argc, char **argv)
    /* Once Argus completes processing local and remote data sources,
     * close all sources and free memory associated with Periscope and
     * Argus. */
-   periscope_collector_stop(&g_collector);
    periscope_collector_free(&g_collector);
 
    printf("Periscope: Shutting down after normal operation.\n");
