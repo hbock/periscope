@@ -443,9 +443,7 @@ periscope_argus_client_free(struct PeriscopeCollector *collector)
    struct ArgusParserStruct *parser = collector->parser;
 
    /* If this function is called with remote sources active, close them now. */
-   if(parser->ArgusActiveHosts || parser->ArgusRemoteHosts) {
-      argus_close_remote(collector);
-   }
+   argus_close_remote(collector);
    
    if (parser->ArgusReliableConnection)
       pthread_attr_destroy(&argus_attr);

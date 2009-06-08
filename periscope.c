@@ -30,6 +30,7 @@
  */
 #include <unistd.h>
 #include <stdlib.h>
+#include <assert.h>
 
 #include <compat.h>
 
@@ -87,6 +88,13 @@ periscope_collector_start(struct PeriscopeCollector *collector)
    ret = periscope_argus_remote_process(collector);
    collector->running = 0;
 
+   /* When we reach this point, all sources should be closed! */
+   assert(collector->parser->ArgusRemoteHosts == NULL ||
+          collector->parser->ArgusRemoteHosts->count == 0);
+
+   assert(collector->parser->ArgusActiveHosts == NULL ||
+          collector->parser->ArgusActiveHosts->count == 0);
+   
    return ret;
 }
 
