@@ -59,6 +59,8 @@ periscope_collector_init(struct PeriscopeCollector *collector)
 int
 periscope_collector_start(struct PeriscopeCollector *collector)
 {
+   int ret;
+
    if(collector->running)
       return -1;
    
@@ -82,7 +84,10 @@ periscope_collector_start(struct PeriscopeCollector *collector)
     *  - periscope_argus_client_close is called.
     * In the last case - when the app wants to close down gracefully - it must be
     * done asynchronously, either in another thread or via a signal handler. */
-   return periscope_argus_remote_process(collector);
+   ret = periscope_argus_remote_process(collector);
+   collector->running = 0;
+
+   return ret;
 }
 
 void
