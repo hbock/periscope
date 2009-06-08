@@ -46,7 +46,8 @@
           (:ul
 	   (:li "Nothing to see here yet!")))
      (:li (:a :href "/search" "Search Logs"))
-     (:li (:a :href "/config" "Configuration")))))
+     (:li (:a :href "/config" "Configuration"))
+     (:li (:a :href "/sources" "Manage Sources")))))
 
 (defmacro with-periscope-page ((title) &body body)
   "Generate a Periscope-template page."
