@@ -160,10 +160,7 @@ void sighandler(int signal)
 {
    switch(signal) {
    case SIGINT:
-      printf("Attempting clean close of collector... ");
       periscope_collector_stop(&g_collector);
-      printf("OK!\n");
-
       break;
 
    case SIGHUP:
