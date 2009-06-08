@@ -49,7 +49,7 @@
 (defun test-argus (&optional (file "argus.1"))
   (let ((collector (init-basic-collector)))
     (add-file collector file)
-    (start collector)
+    (run collector)
     (stop collector)
     1))
 

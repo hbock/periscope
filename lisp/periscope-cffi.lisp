@@ -63,7 +63,7 @@
 (defcfun ("periscope_collector_init" %collector-init) :int
   (collector periscope-collector))
 
-(defcfun ("periscope_collector_start" %collector-start) :int
+(defcfun ("periscope_collector_run" %collector-run) :int
   (collector periscope-collector))
 
 (defcfun ("periscope_collector_is_running" %collector-running-p) :int

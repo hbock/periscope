@@ -92,7 +92,7 @@ struct PeriscopeCollector {
 void periscope_reset_metrics(struct PeriscopeCollector *collector);
 
 int periscope_collector_init(struct PeriscopeCollector *collector);
-int periscope_collector_start(struct PeriscopeCollector *collector);
+int periscope_collector_run(struct PeriscopeCollector *collector);
 void periscope_collector_stop(struct PeriscopeCollector *collector);
 void periscope_collector_free(struct PeriscopeCollector *collector);
 int periscope_collector_is_running(struct PeriscopeCollector *collector);

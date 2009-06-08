@@ -31,11 +31,11 @@
 			  (%collector-free ptr)
 			  (foreign-free ptr)))))
 
-(defmethod start ((object collector))
+(defmethod run ((object collector))
   "Start the collector."
   (when (running-p object)
     (error "Collector is already running."))
-  (when (minusp (%collector-start (get-ptr object)))
+  (when (minusp (%collector-run (get-ptr object)))
     (error "Failed to start collector.")))
 
 (defmethod stop ((object collector))

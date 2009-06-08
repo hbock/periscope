@@ -223,7 +223,7 @@ main (int argc, char **argv)
    /* Runs the Argus processor on both local and remote sources.
     * Eventually we will want to separate this, so local files can be
     * processed at any time with another parser in another thread. */
-   periscope_collector_start(&g_collector);
+   periscope_collector_run(&g_collector);
 
    /* Once Argus completes processing local and remote data sources,
     * close all sources and free memory associated with Periscope and

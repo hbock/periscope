@@ -58,7 +58,7 @@ periscope_collector_init(struct PeriscopeCollector *collector)
 }
 
 int
-periscope_collector_start(struct PeriscopeCollector *collector)
+periscope_collector_run(struct PeriscopeCollector *collector)
 {
    int ret;
 
