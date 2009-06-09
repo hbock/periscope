@@ -42,18 +42,21 @@
   (when (running-p object)
     (error "Collector is already running."))
   (when (minusp (%collector-run (get-ptr object)))
-    (error "Failed to start collector.")))
+    (error "Failed to start collector."))
+  object)
 
 (defmethod stop ((object collector))
   "Stop the collector, closing all open files and connections."
-  (%collector-stop (get-ptr object)))
+  (%collector-stop (get-ptr object))
+  object)
 
 (defmethod add-remote ((collector collector) (host string))
   "Add a remote host to be processed when START is called."
-  (when (null-pointer-p (%argus-remote-add (get-ptr collector) host))
-    (error "Error adding host ~a to the collector." host))
-  (let ((source (make-instance 'source :path host :connected nil)))
-    (push source (remote-sources collector))))
+  (let ((ptr (%argus-remote-add (get-ptr collector) host)))
+    (when (null-pointer-p ptr)
+      (error "Error adding host ~a to the collector." host))
+    (let ((source (make-instance 'source :ptr ptr :path host :connected nil)))
+      (push source (remote-sources collector)))))
 
 (defgeneric add-file (collector file)
   (:documentation "Add a local Argus file to be processed when START is called."))
