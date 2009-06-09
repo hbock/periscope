@@ -22,4 +22,4 @@
 (defvar *web-port* 20570)
 (defvar *web-server* nil)
 
-(defvar *collector*)
+(defvar *collector* nil)
