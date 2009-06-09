@@ -135,6 +135,7 @@ body>table {
 #wrapper {
   vertical-align:top;
   padding-left:10px;
+  padding-bottom:10px;
 }
 #wrapper div {
     /*
@@ -241,4 +242,23 @@ div.warning img {
   float:left;
   margin:4px;
   border:0;
+}
+
+table.sources {
+  margin:5px;
+  border:1px solid black;
+  color:#000;
+  text-align:center;
+}
+
+table.sources th {
+  background-color:#6C8FBB;
+  border:1px solid black;
+  padding:5px;
+}
+
+table.sources td {
+  background-color:transparent;
+  border:1px solid black;
+  padding:5px;
 }

@@ -18,9 +18,9 @@
 ;;;; Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 (in-package :periscope)
 
-(hunchentoot:define-easy-handler (sources :uri "/sources") (action source)
+(hunchentoot:define-easy-handler (sources :uri "/config") (action source)
   (with-periscope-page ("Argus Input Sources")
-    (:h3 "Manage Argus Input Sources")
+    (:h2 "Periscope Control Panel")
     (:br)
     (unless *collector*
       (warning-box
@@ -33,25 +33,37 @@
 	    (warning-box
 	      (who:htm
 	       "The collector is not running." (:br)
-	       (:b (:a :href "/sources?action=run" "Click here to run the collector."))))))
-      (if (null (remote-sources *collector*))
-	  (who:htm "No sources added!")
-	  (who:htm
-	   (:table
-	    (:tr (:th :colspan 3 "Remote Sources"))
-	    (:tr (:th "Hostname") (:th "Status") (:th "Options"))	 
-	    (dolist (source (remote-sources *collector*))
-	      (who:htm
-	       (:tr (:td (who:str (source-path source)))
-		    (:td (who:str
-			  (if (connected-p source)
-			      "Connected"
-			      "Not Connected")))
-		    (:td
-		     (:a :href (format nil "/sources?action=remove&source=~a" (source-path source))
-			 "Remove")
-		     (:a :href (format nil "/sources?action=connect&source=~a" (source-path source))
-			 (who:str
-			  (if (connected-p source)
-			      "Disconnect"
-			      "Connect")))))))))))))
+	       (:b (:a :href "/config?action=run" "Click here to run the collector."))))))
+      (who:htm (:br))
+
+      (when (null (remote-sources *collector*))
+	(warning-box
+	  "No sources have been defined!"))
+
+      (who:htm
+       (:h3 "Add a source")
+       (:form :action "config" :method "post"
+	      (:label :for "hostname" "Hostname: ")
+	      (:input :type "text" :size 20 :name "hostname")
+	      (:input :type "submit" :value "Add")))
+      (when (remote-sources *collector*)
+	(who:htm
+	 (:table
+	  :class "sources"
+	  (:tr (:th :colspan 3 "Remote Sources"))
+	  (:tr (:th "Hostname") (:th "Status") (:th "Options"))	 
+	  (dolist (source (remote-sources *collector*))
+	    (who:htm
+	     (:tr (:td (who:str (source-path source)))
+		  (:td (who:str
+			(if (connected-p source)
+			    "Connected"
+			    "Not Connected")))
+		  (:td
+		   (:a :href (format nil "/config?action=remove&source=~a" (source-path source))
+		       "Remove")
+		   (:a :href (format nil "/config?action=connect&source=~a" (source-path source))
+		       (who:str
+			(if (connected-p source)
+			    "Disconnect"
+			    "Connect")))))))))))))
