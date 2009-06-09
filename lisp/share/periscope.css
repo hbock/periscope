@@ -137,8 +137,9 @@ body>table {
   padding-left:10px;
 }
 #wrapper div {
+    /*
   margin-left:auto;
-  margin-right:auto;
+  margin-right:auto;*/
 }
 #wrapper h3,
 #wrapper h4 {
@@ -150,7 +151,6 @@ body>table {
   margin:0 15px 0 15px;
 }
 #wrapper img {
-  border:1px solid black;
 }
 div#wrapper a {
 }
@@ -225,4 +225,20 @@ div.stats td {
 div.stats td,
 div.stats th {
   padding:2px 4px 2px 4px;
+}
+
+div.warning {
+  border:2px solid black;
+  padding:5px;
+  padding-top:10px;
+  width:24em;
+  min-height:52px;
+  background-color:#ccc;
+  vertical-align:center;
+  text-align:center;
+}
+div.warning img {
+  float:left;
+  margin:4px;
+  border:0;
 }

@@ -32,6 +32,12 @@
 (defun stop-web ()
   (hunchentoot:stop *web-server*))
 
+(defmacro warning-box (&rest forms)
+  `(who:with-html-output (*standard-output*)
+     (:div :class "warning"
+	   (:img :src "/stylesheets/warning.png")
+	   ,@forms)))
+
 (defun generate-navigation ()
   "Generate Periscope's navigation."
   (with-html ()
