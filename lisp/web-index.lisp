@@ -49,3 +49,10 @@ time."))
 	 (:h3 "Special Thanks")
 	 (:ul
 	  (:li "Carter Bullard (QoSient, LLC)"))))))
+
+(defun web-default ()
+  (with-periscope-page ("Page not found")
+    (:h2 "Requested page not found!") (:br)
+    (:p (:i "I'm sorry, Dave. I'm afraid I can't do that."))))
+
+(setf hunchentoot:*default-handler* #'web-default)
