@@ -32,4 +32,5 @@
    (:file "argus-cffi")
    (:file "collector")
    (:file "web")
-   (:file "web-index")))
+   (:file "web-index")
+   (:file "web-sources")))
