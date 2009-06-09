@@ -46,12 +46,14 @@
 	(setf process_flow (callback receive-flow)))
     collector))
 
+(defun test-start-periscope ()
+  (start-web)
+  (setf *collector* (init-basic-collector)))
+
 (defun test-argus (&optional (file "argus.1"))
   (let ((collector (init-basic-collector)))
     (add-file collector file)
-    (run collector)
-    (stop collector)
-    1))
+    (run collector)))
 
 (hunchentoot:define-easy-handler (stop-page :uri "/stop") ()
   (stop *collector*)
@@ -62,13 +64,12 @@
 (hunchentoot:define-easy-handler (start-page :uri "/start") ()
   (setf *flows* 0
 	*ipv4* 0)
-  (start *collector*)
+  (run *collector*)
   (with-periscope-page ("Starting collector.")
     (:h3 "Collector started")
     "AYEEEEEEEEEEE"))
 
 (hunchentoot:define-easy-handler (test :uri "/test") (file remote)
-  
   (when file
     (test-argus file))
   (when remote
