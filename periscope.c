@@ -67,6 +67,10 @@ periscope_collector_run(struct PeriscopeCollector *collector)
    
    collector->running = 1;
 
+   /* Reset the parser state - if RaParseDone is 1, Argus client library will
+    * refuse to process any data sources. */
+   collector->parser->RaParseDone = 0;
+
    /* Process all local files first, before we try to handle remote connections. */
    periscope_argus_local_process(collector);
 
