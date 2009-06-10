@@ -21,6 +21,7 @@
 (defvar *flows* 0)
 (defvar *ipv4* 0)
 (defvar *collector* nil)
+(defvar *this-flow* nil)
 
 (defcallback receive-flow :void ((collector periscope-collector)
 				 (type :uchar)
@@ -32,10 +33,8 @@
      (incf *ipv4*)
      (let ((ip (get-ip (foreign-slot-value dsrs 'periscope-dsrs 'flow))))
        (with-foreign-slots ((ip-src ip-dst ip-proto) ip argus-ip-flow)
-	 (case (foreign-enum-keyword 'ip-protocols ip-proto :errorp nil)
-	   (:icmp (format t "ICMP!~%"))
-	   (:tcp (format t "TCP!~%"))
-	   (:udp (format t "UDP!~%"))))))
+	 (setf *this-flow*
+	       (make-instance 'flow :ip-source ip-src :ip-dest ip-dst :protocol ip-proto)))))
     (:ipv6 (format t "IPV6!~%")))
   
   (incf *flows*))
@@ -61,23 +60,9 @@
     (:h3 "Collector stopped")
     "Please put your trays in the upright position before landing Periscope."))
 
-(hunchentoot:define-easy-handler (start-page :uri "/start") ()
-  (setf *flows* 0
-	*ipv4* 0)
-  (run *collector*)
-  (with-periscope-page ("Starting collector.")
-    (:h3 "Collector started")
-    "AYEEEEEEEEEEE"))
-
-(hunchentoot:define-easy-handler (test :uri "/test") (file remote)
-  (when file
-    (test-argus file))
-  (when remote
-    (add-remote *collector* remote))
-  (with-periscope-page ("Testing Argus! (BOOM?)")
-    (:h3 "Testing the Argus processor...")
-    (when remote
-      (who:htm
-       (who:fmt "Added remote source ~a to collector!" remote)
-       (:br)))
-    (who:fmt "Processed ~a flows, with ~a IPv4!" *flows* *ipv4*)))
+(hunchentoot:define-easy-handler (test :uri "/test") ()
+  (with-periscope-page ("Test data")
+    (when *this-flow*
+      (with-slots (ip-source ip-dest protocol) *this-flow*
+	(who:fmt "IP source: ~a Destination: ~a ~a"
+		 (ip-string ip-source) (ip-string ip-dest) protocol)))))
