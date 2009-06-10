@@ -20,8 +20,8 @@
 
 (defvar *flows* 0)
 (defvar *ipv4* 0)
-(defvar *collector* nil)
 (defvar *this-flow* nil)
+(defvar *flow-list* nil)
 
 (defcallback receive-flow :void ((collector periscope-collector)
 				 (type :uchar)
@@ -32,9 +32,10 @@
     (:ipv4
      (incf *ipv4*)
      (let ((ip (get-ip (foreign-slot-value dsrs 'periscope-dsrs 'flow))))
-       (with-foreign-slots ((ip-src ip-dst ip-proto) ip argus-ip-flow)
-	 (setf *this-flow*
-	       (make-instance 'flow :ip-source ip-src :ip-dest ip-dst :protocol ip-proto)))))
+       (with-foreign-slots ((ip-src ip-dst ip-proto source-port dest-port) ip argus-ip-flow)
+	 (push (make-instance 'flow :ip-source ip-src :ip-dest ip-dst :port-source source-port
+			      :port-dest dest-port :protocol ip-proto)
+	       *flow-list*))))
     (:ipv6 (format t "IPV6!~%")))
   
   (incf *flows*))
@@ -62,7 +63,22 @@
 
 (hunchentoot:define-easy-handler (test :uri "/test") ()
   (with-periscope-page ("Test data")
-    (when *this-flow*
-      (with-slots (ip-source ip-dest protocol) *this-flow*
-	(who:fmt "IP source: ~a Destination: ~a ~a"
-		 (ip-string ip-source) (ip-string ip-dest) protocol)))))
+    (:h2 (who:fmt "Flow List (~d flows processed)" *flows*))
+    (when *flow-list*
+      (who:htm
+       (:div
+	:class "stats"
+	(:table
+	 (:tr (:th "Source") (:th "Destination") (:th "Protocol"))
+	 (dolist (flow *flow-list*)
+	   (with-slots (ip-source ip-dest port-source port-dest protocol) flow
+	     (who:htm
+	      (:tr
+	       (:td (who:fmt "~a:~d" (ip-string ip-source) port-source))
+	       (:td (who:fmt "~a:~d" (ip-string ip-dest) port-dest))
+	       (:td (who:str
+		     (case protocol
+		       (1 "ICMP")
+		       (2 "IGMP")
+		       (6 "TCP")
+		       (17 "UDP"))))))))))))))
