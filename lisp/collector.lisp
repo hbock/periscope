@@ -78,7 +78,7 @@
   (let ((ptr (%argus-remote-direct-connect (get-ptr collector) host)))
     (when (null-pointer-p ptr)
       (error "Failed to connect to host ~a!" host))
-    (let ((source (make-instance 'source :ptr ptr :path host :connected t)))
+    (let ((source (make-instance 'source :ptr ptr :path host)))
       (push source (remote-sources collector)))))
 
 (defmethod running-p ((collector collector))
