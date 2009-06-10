@@ -16,23 +16,13 @@
 ;;;; You should have received a copy of the GNU General Public License
 ;;;; along with periscope; if not, write to the Free Software
 ;;;; Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-(in-package :cl-user)
+(in-package :periscope)
 
-(asdf:defsystem periscope
-  :name "Periscope"
-  :author "Harry Bock <harry@oshean.org>"
-  :version "0.10.0-pre-alpha"
-  :description "Network auditing tool"
-  :depends-on (:cffi :hunchentoot :cl-who :trivial-garbage :bordeaux-threads)
-  :serial t
-  :components
-  ((:file "packages")
-   (:file "specials")
-   (:file "periscope-cffi")
-   (:file "argus-cffi")
-   (:file "collector")
-   (:file "flow")
-   (:file "utility")
-   (:file "web")
-   (:file "web-index")
-   (:file "web-sources")))
+(defun ip-string (ip)
+  (declare (type (unsigned-byte 32) ip))
+  (format nil "~d.~d.~d.~d"
+	  (ldb (byte 8 24) ip)
+	  (ldb (byte 8 16) ip)
+	  (ldb (byte 8  8) ip)
+	  (ldb (byte 8  0) ip)))
+

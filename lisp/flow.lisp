@@ -16,23 +16,11 @@
 ;;;; You should have received a copy of the GNU General Public License
 ;;;; along with periscope; if not, write to the Free Software
 ;;;; Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-(in-package :cl-user)
+(in-package :periscope)
 
-(asdf:defsystem periscope
-  :name "Periscope"
-  :author "Harry Bock <harry@oshean.org>"
-  :version "0.10.0-pre-alpha"
-  :description "Network auditing tool"
-  :depends-on (:cffi :hunchentoot :cl-who :trivial-garbage :bordeaux-threads)
-  :serial t
-  :components
-  ((:file "packages")
-   (:file "specials")
-   (:file "periscope-cffi")
-   (:file "argus-cffi")
-   (:file "collector")
-   (:file "flow")
-   (:file "utility")
-   (:file "web")
-   (:file "web-index")
-   (:file "web-sources")))
+(defclass flow ()
+  ((ip-source :initarg :ip-source :reader flow-ip-source :initform (error "Must supply source IP!"))
+   (ip-dest   :initarg :ip-dest   :reader flow-ip-dest :initform (error "Must supply destination IP!"))
+   (protocol  :initarg :protocol  :reader flow-protocol :initform (error "Must supply IP protocol!"))
+   (port-source :initarg :port-source :initform nil)
+   (port-dest :initarg :port-dest :initform nil)))
