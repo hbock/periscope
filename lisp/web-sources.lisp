@@ -27,7 +27,6 @@
        "Collector not initialized. This is a bug.")
       (return-from sources))
 
-    (who:fmt "Flows processed: ~a" *flows*)
     (when *collector*
       (cond
 	((string= action "add")
