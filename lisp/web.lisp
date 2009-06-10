@@ -32,6 +32,13 @@
 (defun stop-web ()
   (hunchentoot:stop *web-server*))
 
+(defun web-run-collector (&optional (collector *collector*))
+  "Helper function to run a collector from the web interface.
+Starts a separate thread to run the collector and handle its callbacks."
+  (bt:make-thread
+   (lambda ()
+     (run collector)) :name "Periscope Collector"))
+
 (defmacro warning-box (&rest forms)
   `(who:with-html-output (*standard-output*)
      (:div :class "warning"
@@ -83,4 +90,3 @@
 			"Periscope") " | "
 		    (:a :href "http://qosient.com/argus" :target "_blank"
 			"Argus")))))))))
-
