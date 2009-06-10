@@ -26,7 +26,7 @@
   (when (null *web-server*)
     (setf *web-server* (make-instance 'hunchentoot:acceptor :port port)))
   (hunchentoot:start *web-server*)
-  (push (hunchentoot:create-folder-dispatcher-and-handler "/stylesheets/" "share/")
+  (push (hunchentoot:create-folder-dispatcher-and-handler "/content/" "share/")
 	hunchentoot:*dispatch-table*))
 
 (defun stop-web ()
@@ -35,7 +35,7 @@
 (defmacro warning-box (&rest forms)
   `(who:with-html-output (*standard-output*)
      (:div :class "warning"
-	   (:img :src "/stylesheets/warning.png")
+	   (:img :src "/content/warning.png")
 	   ,@forms)))
 
 (defun generate-navigation ()
@@ -60,7 +60,7 @@
      (:html
       (:head
        (:title (who:fmt "Periscope - ~a" ,title))
-       (:link :href "/stylesheets/periscope.css"
+       (:link :href "/content/periscope.css"
 	      :rel "stylesheet"
 	      :type "text/css"))
       (:body
