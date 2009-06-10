@@ -19,51 +19,64 @@
 (in-package :periscope)
 
 (hunchentoot:define-easy-handler (sources :uri "/config") (action source)
-  (with-periscope-page ("Argus Input Sources")
+  (with-periscope-page ("Control Panel")
     (:h2 "Periscope Control Panel")
     (:br)
     (unless *collector*
       (warning-box
-	"Collector not initialized."))
+       "Collector not initialized. This is a bug.")
+      (return-from sources))
 
+    (who:fmt "Flows processed: ~a" *flows*)
     (when *collector*
-      (unless (running-p *collector*)
+      (cond
+	((string= action "add")
+	 (handler-case
+	     (add-remote *collector* source)
+	   (simple-error (c)
+	     (who:fmt "Error adding source: ~a" c)))))
+      (when (not (running-p *collector*))
 	(if (string= action "run")
-	    (run *collector*)
-	    (warning-box
-	      (who:htm
-	       "The collector is not running." (:br)
-	       (:b (:a :href "/config?action=run" "Click here to run the collector."))))))
-      (who:htm (:br))
-
-      (when (null (remote-sources *collector*))
-	(warning-box
-	  "No sources have been defined!"))
+	    (web-run-collector *collector*)
+	    (if (null (remote-sources *collector*))
+		(warning-box
+		 (:p "The collector is not running, and no sources have been defined.")
+		 (:p "Please add one or more sources below before starting the collector."))
+		(warning-box
+		 "The collector is not running." (:br)
+		 (:b (:a :href "/config?action=run" "Click here to run the collector."))))))
 
       (who:htm
+       (:br)
        (:h3 "Add a source")
        (:form :action "config" :method "post"
-	      (:label :for "hostname" "Hostname: ")
-	      (:input :type "text" :size 20 :name "hostname")
-	      (:input :type "submit" :value "Add")))
-      (when (remote-sources *collector*)
-	(who:htm
-	 (:table
-	  :class "sources"
-	  (:tr (:th :colspan 3 "Remote Sources"))
-	  (:tr (:th "Hostname") (:th "Status") (:th "Options"))	 
-	  (dolist (source (remote-sources *collector*))
-	    (who:htm
-	     (:tr (:td (who:str (source-path source)))
-		  (:td (who:str
-			(if (connected-p source)
-			    "Connected"
-			    "Not Connected")))
-		  (:td
-		   (:a :href (format nil "/config?action=remove&source=~a" (source-path source))
-		       "Remove")
-		   (:a :href (format nil "/config?action=connect&source=~a" (source-path source))
-		       (who:str
-			(if (connected-p source)
-			    "Disconnect"
-			    "Connect")))))))))))))
+	      (:label :for "source" "Hostname: ")
+	      (:input :type "text" :size 20 :name "source")
+	      (:input :type "hidden" :name "action" :value "add")
+	      (:input :type "submit" :value "Add"))
+       (:br))
+      
+      (print-remote-sources *collector*))))
+
+(defun print-remote-sources (&optional (collector *collector*))
+  (when (remote-sources collector)
+    (who:with-html-output (*standard-output*)
+      (:table
+       :class "sources"
+       (:tr (:th :colspan 3 "Remote Sources"))
+       (:tr (:th "Hostname") (:th "Status") (:th "Options"))	 
+       (dolist (source (remote-sources collector))
+	 (who:htm
+	  (:tr (:td (who:str (source-path source)))
+	       (:td (who:str
+		     (if (connected-p source)
+			 "Connected"
+			 "Not Connected")))
+	       (:td
+		(:a :href (format nil "/config?action=remove&source=~a" (source-path source))
+		    "Remove") " "
+		(:a :href (format nil "/config?action=connect&source=~a" (source-path source))
+		    (who:str
+		     (if (connected-p source)
+			 "Disconnect"
+			 "Connect")))))))))))
