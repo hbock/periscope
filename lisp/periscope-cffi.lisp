@@ -83,7 +83,7 @@
   (collector periscope-collector)
   (hoststr :string))
 
-(defcfun ("periscope_argus_remote_direct_connect" %argus-remote-direct-connect) :int
+(defcfun ("periscope_argus_remote_direct_connect" %argus-remote-direct-connect) :pointer
   (collector periscope-collector)
   (hoststr :string))
 

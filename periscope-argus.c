@@ -190,7 +190,7 @@ periscope_argus_remote_add(struct PeriscopeCollector *collector, char *hoststr)
    return (struct ArgusInput *)parser->ArgusRemoteHosts->end;
 }
 
-int
+struct ArgusInput *
 periscope_argus_remote_direct_connect(struct PeriscopeCollector *collector, char *hoststr)
 {
    struct ArgusInput *input = periscope_argus_remote_add(collector, hoststr);
@@ -199,9 +199,14 @@ periscope_argus_remote_direct_connect(struct PeriscopeCollector *collector, char
       ArgusRemoveFromQueue(collector->parser->ArgusRemoteHosts,
                            (struct ArgusQueueHeader *)input, ARGUS_LOCK);
    } else {
-      return -1;
+      return NULL;
    }
-   return periscope_argus_remote_connect(collector, input);
+
+   if(periscope_argus_remote_connect(collector, input)) {
+      /* FIXME: resource allocation? */
+      return NULL;
+   }
+   return input;
 }
 
 int

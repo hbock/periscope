@@ -73,10 +73,13 @@
 
 (defmethod connect ((collector collector) (host string))
   "Connect directly to a remote Argus server at HOST."
-  (when (minusp (%argus-remote-direct-connect (get-ptr collector) host))
-    (error "Failed to connect to host ~a!" host))
-  (let ((source (make-instance 'source :path host :connected t)))
-    (push source (remote-sources collector))))
+  (when (not (running-p collector))
+    (error "Can't direct connect to hosts when collector is not running!"))
+  (let ((ptr (%argus-remote-direct-connect (get-ptr collector) host)))
+    (when (null-pointer-p ptr)
+      (error "Failed to connect to host ~a!" host))
+    (let ((source (make-instance 'source :ptr ptr :path host :connected t)))
+      (push source (remote-sources collector)))))
 
 (defmethod running-p ((collector collector))
   (plusp (%collector-running-p (get-ptr collector))))

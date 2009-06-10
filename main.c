@@ -166,7 +166,7 @@ void sighandler(int signal)
    case SIGHUP:
       printf("Attempting asynchronous connection to 127.0.0.1...\n");
       
-      if(periscope_argus_remote_direct_connect(&g_collector, "127.0.0.1") < 0)
+      if(periscope_argus_remote_direct_connect(&g_collector, "127.0.0.1") == NULL)
          printf("Asynchronous connect failed!\n");
 
       break;
