@@ -87,6 +87,9 @@
   (collector periscope-collector)
   (hoststr :string))
 
+(defcfun ("periscope_argus_remote_is_connected" %argus-connected-p) :int
+  (input :pointer))
+
 (defmacro with-collector-callbacks (callbacks collector &body body)
   `(with-foreign-slots ((,@callbacks)
 			(foreign-slot-value (get-ptr ,collector) 'periscope-collector 'callbacks)

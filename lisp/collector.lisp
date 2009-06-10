@@ -24,8 +24,7 @@
 
 (defclass source ()
   ((ptr :initarg :ptr :initform nil :accessor get-ptr)
-   (path :initarg :path :initform nil :accessor source-path)
-   (connected :initarg :connected :initform nil :accessor connected-p)))
+   (path :initarg :path :initform nil :accessor source-path)))
 
 (defmethod initialize-instance :after ((object collector) &key)
   (let ((ptr (foreign-alloc 'periscope-collector)))
@@ -43,6 +42,7 @@
     (error "Collector is already running."))
   (when (minusp (%collector-run (get-ptr object)))
     (error "Failed to start collector."))
+  (setf (remote-sources object) nil)
   object)
 
 (defmethod stop ((object collector))
@@ -55,7 +55,7 @@
   (let ((ptr (%argus-remote-add (get-ptr collector) host)))
     (when (null-pointer-p ptr)
       (error "Error adding host ~a to the collector." host))
-    (let ((source (make-instance 'source :ptr ptr :path host :connected nil)))
+    (let ((source (make-instance 'source :ptr ptr :path host)))
       (push source (remote-sources collector)))))
 
 (defgeneric add-file (collector file)
@@ -83,3 +83,6 @@
 
 (defmethod running-p ((collector collector))
   (plusp (%collector-running-p (get-ptr collector))))
+
+(defmethod connected-p ((object source))
+  (plusp (%argus-connected-p (get-ptr object))))

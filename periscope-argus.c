@@ -387,6 +387,12 @@ periscope_argus_close_input(struct PeriscopeCollector *collector,
    return 0;
 }
 
+int
+periscope_argus_remote_is_connected(struct ArgusInput *input)
+{
+   return (input != NULL && input->fd != -1);
+}
+
 static int
 argus_close_remote(struct PeriscopeCollector *collector)
 {

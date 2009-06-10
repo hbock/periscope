@@ -115,7 +115,7 @@ periscope_argus_remote_direct_connect(struct PeriscopeCollector *collector, char
 
 int periscope_argus_remote_connect(struct PeriscopeCollector *collector, struct ArgusInput *remote);
 int periscope_argus_remote_process(struct PeriscopeCollector *collector);
-
+int periscope_argus_remote_is_connected(struct ArgusInput *input);
 int periscope_argus_close_input(struct PeriscopeCollector *collector, struct ArgusInput *input);
 
 /* Helper macros to access some Argus client data. */
