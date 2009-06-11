@@ -22,6 +22,7 @@
 
 (defvar *web-port* 20570)
 (defvar *web-server* nil)
+(defvar *web-show-diag* nil)
 
 (defvar *collector* nil)
 

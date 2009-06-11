@@ -33,7 +33,7 @@
 	 (handler-case
 	     (add-remote *collector* source)
 	   (simple-error (c)
-	     (who:fmt "Error adding source: ~a" c)))))
+	     (fmt "Error adding source: ~a" c)))))
       (when (not (running-p *collector*))
 	(if (string= action "run")
 	    (web-run-collector *collector*)
@@ -45,7 +45,7 @@
 		 "The collector is not running." (:br)
 		 (:b (:a :href "/config?action=run" "Click here to run the collector."))))))
 
-      (who:htm
+      (htm
        (:br)
        (:h3 "Add a source")
        (:form :action "config" :method "post"
@@ -55,19 +55,22 @@
 	      (:input :type "submit" :value "Add"))
        (:br))
       
-      (print-remote-sources *collector*))))
+      (print-remote-sources *collector*))
+    
+    (when *web-show-diag*
+      (htm (:a :href "/uuddlrlrbastart" "Diagnostics Panel")))))
 
 (defun print-remote-sources (&optional (collector *collector*))
   (when (remote-sources collector)
-    (who:with-html-output (*standard-output*)
+    (with-html-output (*standard-output*)
       (:table
        :class "sources"
        (:tr (:th :colspan 3 "Remote Sources"))
        (:tr (:th "Hostname") (:th "Status") (:th "Options"))	 
        (dolist (source (remote-sources collector))
-	 (who:htm
-	  (:tr (:td (who:str (source-path source)))
-	       (:td (who:str
+	 (htm
+	  (:tr (:td (str (source-path source)))
+	       (:td (str
 		     (if (connected-p source)
 			 "Connected"
 			 "Not Connected")))
@@ -75,7 +78,7 @@
 		(:a :href (format nil "/config?action=remove&source=~a" (source-path source))
 		    "Remove") " "
 		(:a :href (format nil "/config?action=connect&source=~a" (source-path source))
-		    (who:str
+		    (str
 		     (if (connected-p source)
 			 "Disconnect"
 			 "Connect")))))))))))

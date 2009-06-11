@@ -262,3 +262,18 @@ table.sources td {
   border:1px solid black;
   padding:5px;
 }
+
+table.options {
+}
+
+table.options td,
+table.options th {
+  border:1px solid black;
+  padding:5px;
+  background-color:#ddd;
+}
+
+table.options th {
+  background-color:cyan;
+}
+
