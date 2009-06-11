@@ -19,7 +19,7 @@
 (in-package :cl-user)
 
 (defpackage :periscope
-  (:use :common-lisp :cffi))
+  (:use :common-lisp :cffi :cl-who))
 
 (in-package :periscope)
 
