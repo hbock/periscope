@@ -19,7 +19,13 @@
 (in-package :periscope)
 
 (defvar *periscope-version* "0.9.90 (pre-alpha)")
+
 (defvar *web-port* 20570)
 (defvar *web-server* nil)
 
 (defvar *collector* nil)
+
+(defconstant +ip-proto-icmp+ 1)
+(defconstant +ip-proto-igmp+ 2)
+(defconstant +ip-proto-tcp+  6)
+(defconstant +ip-proto-udp+  17)
