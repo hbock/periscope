@@ -26,6 +26,9 @@
 
 (defvar *collector* nil)
 
+(defvar *swank-port* 20571)
+(defvar *enable-swank-p* nil)
+
 (defconstant +ip-proto-icmp+ 1)
 (defconstant +ip-proto-igmp+ 2)
 (defconstant +ip-proto-tcp+  6)
