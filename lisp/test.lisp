@@ -70,7 +70,7 @@
 
 (hunchentoot:define-easy-handler (test :uri "/test") ()
   (with-periscope-page ("Test data")
-    (:h2 (who:fmt "Flow List (~d flows processed)" *flows*))
+    (:h2 (who:fmt "Flow List (~d flows processed)" (length *flow-list*)))
     (when *flow-list*
       (who:htm
        (:div
@@ -80,20 +80,4 @@
 	 (:tr (:th "IP") (:th "Port") (:th "Packets") (:th "IP") (:th "Port") (:th "Packets")
 	      (:th "Protocol"))
 	 (dolist (flow *flow-list*)
-	   (with-slots (ip-source ip-dest port-source port-dest protocol
-				  packets-source packets-dest
-				  bytes-source bytes-dest) flow
-	     (who:htm
-	      (:tr
-	       (:td (str (ip-string ip-source)))
-	       (:td (fmt "~d" port-source))
-	       (:td (fmt "~d" packets-source))
-	       (:td (str (ip-string ip-dest)))
-	       (:td (fmt "~d" port-dest))
-	       (:td (fmt "~d" packets-dest))
-	       (:td (who:str
-		     (case protocol
-		       (1 "ICMP")
-		       (2 "IGMP")
-		       (6 "TCP")
-		       (17 "UDP"))))))))))))))
+	   (print-html flow))))))))
