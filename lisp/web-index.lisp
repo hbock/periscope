@@ -19,8 +19,8 @@
 (in-package :periscope)
 
 (hunchentoot:define-easy-handler (index :uri "/") ()
-  (with-periscope-page ("Testing")
-    (:h3 (who:fmt "Welcome to Periscope, version ~a!" *periscope-version*))
+  (with-periscope-page ("Home")
+    (:h2 (who:fmt "Welcome to Periscope, version ~a!" *periscope-version*))
     "This is a pre-release version of what will eventually become Periscope 0.10.0, merged with
 Argus client support.  For now, you should consider this release PRE-ALPHA software - it is
 NOT meant for production use and will not be for some time; YMMV on any and all features within
