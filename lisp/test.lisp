@@ -31,11 +31,17 @@
   (case (foreign-enum-keyword 'argus-flow-types type :errorp nil)
     (:ipv4
      (incf *ipv4*)
-     (let ((ip (get-ip (foreign-slot-value dsrs 'periscope-dsrs 'flow))))
+     (let ((ip (get-ip (get-flow dsrs))))
        (with-foreign-slots ((ip-src ip-dst ip-proto source-port dest-port) ip argus-ip-flow)
-	 (push (make-instance 'flow :ip-source ip-src :ip-dest ip-dst :port-source source-port
-			      :port-dest dest-port :protocol ip-proto)
-	       *flow-list*))))
+	 (multiple-value-bind (src-packets src-bytes) (source-metrics dsrs)
+	   (multiple-value-bind (dst-packets dst-bytes) (dest-metrics dsrs)
+	     (push (make-instance 'flow
+				  :ip-source ip-src :ip-dest ip-dst
+				  :port-source source-port :port-dest dest-port
+				  :protocol ip-proto
+				  :packets-source src-packets :packets-dest dst-packets
+				  :bytes-source src-bytes :bytes-dest dst-bytes)
+		   *flow-list*))))))
     (:ipv6 (format t "IPV6!~%")))
   
   (incf *flows*))
@@ -51,6 +57,7 @@
   (setf *collector* (init-basic-collector)))
 
 (defun test-argus (&optional (file "argus.1"))
+  (setf *flow-list* nil)
   (let ((collector (init-basic-collector)))
     (add-file collector file)
     (run collector)))
@@ -69,13 +76,21 @@
        (:div
 	:class "stats"
 	(:table
-	 (:tr (:th "Source") (:th "Destination") (:th "Protocol"))
+	 (:tr (:th :colspan 3 "Source") (:th :colspan 3 "Destination") (:th "Flow information"))
+	 (:tr (:th "IP") (:th "Port") (:th "Packets") (:th "IP") (:th "Port") (:th "Packets")
+	      (:th "Protocol"))
 	 (dolist (flow *flow-list*)
-	   (with-slots (ip-source ip-dest port-source port-dest protocol) flow
+	   (with-slots (ip-source ip-dest port-source port-dest protocol
+				  packets-source packets-dest
+				  bytes-source bytes-dest) flow
 	     (who:htm
 	      (:tr
-	       (:td (who:fmt "~a:~d" (ip-string ip-source) port-source))
-	       (:td (who:fmt "~a:~d" (ip-string ip-dest) port-dest))
+	       (:td (str (ip-string ip-source)))
+	       (:td (fmt "~d" port-source))
+	       (:td (fmt "~d" packets-source))
+	       (:td (str (ip-string ip-dest)))
+	       (:td (fmt "~d" port-dest))
+	       (:td (fmt "~d" packets-dest))
 	       (:td (who:str
 		     (case protocol
 		       (1 "ICMP")
