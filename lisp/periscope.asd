@@ -35,4 +35,5 @@
    (:file "utility")
    (:file "web")
    (:file "web-index")
-   (:file "web-sources")))
+   (:file "web-sources")
+   (:file "diagnostics")))
