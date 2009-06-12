@@ -58,6 +58,17 @@
   (hdr argus-dsr-header)
   (flow-un argus-flow-union))
 
+(defcstruct argus-uni-stats
+  #+cffi-features:no-long-long (error "No long long support! Required for statistics.")
+  (packets  :long-long)
+  (bytes    :long-long)
+  (appbytes :long-long))
+
+(defcstruct argus-metrics
+  (hdr argus-dsr-header)
+  (source-stats argus-uni-stats)
+  (dest-stats argus-uni-stats))
+
 (defcenum argus-flow-types
   (:ipv4 #x01)
   (:ipv6 #x02)
@@ -83,8 +94,28 @@
   (:src-reset  #x000001000)
   (:dest-reset #x000002000))
 
-(declaim (inline get-icmp get-ip))
+(declaim (inline get-icmp get-ip get-flow get-metrics))
 (defun get-ip (flow)
   (foreign-slot-value (foreign-slot-value flow 'argus-flow 'flow-un) 'argus-flow-union 'ip))
 (defun get-icmp (flow)
   (foreign-slot-value (foreign-slot-value flow 'argus-flow 'flow-un) 'argus-flow-union 'icmp))
+(defun get-flow (dsrs)
+  (foreign-slot-value dsrs 'periscope-dsrs 'flow))
+(defun get-metrics (dsrs)
+  (foreign-slot-value dsrs 'periscope-dsrs 'metric))
+
+(defun source-metrics (dsrs)
+  (let ((stats
+	 (foreign-slot-value
+	  (foreign-slot-value dsrs 'periscope-dsrs 'metric)
+	  'argus-metrics 'source-stats)))
+    (with-foreign-slots ((packets bytes appbytes) stats argus-uni-stats)
+      (values packets bytes appbytes))))
+
+(defun dest-metrics (dsrs)
+  (let ((stats
+	 (foreign-slot-value
+	  (foreign-slot-value dsrs 'periscope-dsrs 'metric)
+	  'argus-metrics 'dest-stats)))
+    (with-foreign-slots ((packets bytes appbytes) stats argus-uni-stats)
+      (values packets bytes appbytes))))
