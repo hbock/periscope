@@ -26,7 +26,7 @@
 		   (:tr (:th "Option") (:th "Setting"))
 		   (:tr (:td "Enable Lisp backtraces in front-end")
 			(:td (y-or-n-radio "showbt" hunchentoot:*show-lisp-errors-p*)))
-		   (:tr (:td "Show diagnostics panel in " (:a :href "/config" "Control Panel"))
+		   (:tr (:td "Show diagnostics panel in sidebar")
 			(:td (y-or-n-radio "showdiag" *web-show-diag*)))
 		   (:tr (:td "Enable SWANK support for this image")
 			(:td (y-or-n-radio "swank" *enable-swank-p*)))

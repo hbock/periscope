@@ -55,10 +55,7 @@
 	      (:input :type "submit" :value "Add"))
        (:br))
       
-      (print-remote-sources *collector*))
-    
-    (when *web-show-diag*
-      (htm (:a :href "/uuddlrlrbastart" "Diagnostics Panel")))))
+      (print-remote-sources *collector*))))
 
 (defun print-remote-sources (&optional (collector *collector*))
   (when (remote-sources collector)

@@ -60,7 +60,8 @@ Starts a separate thread to run the collector and handle its callbacks."
   "Generate Periscope's navigation."
   (with-html ()
     (:ul
-     (:li (:a :href "/" "Traffic Overview"))
+     (:li (:a :href "/" "Periscope Home"))
+     (:li (:a :href "/traffic" "Traffic Overview"))
      (:li :class "root"
           (:a :href "#" "Traffic Pattern Reports")
           (:ul
@@ -70,7 +71,9 @@ Starts a separate thread to run the collector and handle its callbacks."
           (:ul
 	   (:li "Nothing to see here yet!")))
      (:li (:a :href "/search" "Search Logs"))
-     (:li (:a :href "/config" "Control Panel")))))
+     (:li (:a :href "/config" "Control Panel"))
+     (when *web-show-diag*
+       (htm (:li (:a :href "/uuddlrlrbastart" "Diagnostics Panel")))))))
 
 (defmacro with-periscope-page ((title) &body body)
   "Generate a Periscope-template page."
