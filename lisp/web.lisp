@@ -45,6 +45,17 @@ Starts a separate thread to run the collector and handle its callbacks."
 	   (:img :src "/content/warning.png")
 	   ,@forms)))
 
+(defun y-or-n-radio (name default &key (on "On") (off "Off"))
+  (with-html-output (*standard-output*)
+    (:label :for name (str on))
+    (:input :type "radio" :name name :value "true" :checked default)
+    (:label :for name (str off))
+    (:input :type "radio" :name name :value "false" :checked (not default))))
+
+(defun input (name default &key (size 20))
+  (with-html-output (*standard-output*)
+    (:input :type "text" :name name :value default :size size)))
+
 (defun generate-navigation ()
   "Generate Periscope's navigation."
   (with-html ()

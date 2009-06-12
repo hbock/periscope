@@ -19,6 +19,7 @@
 (in-package :periscope)
 
 (defvar *periscope-version* "0.9.90 (pre-alpha)")
+(defvar *compilation-time* (get-universal-time))
 
 (defvar *web-port* 20570)
 (defvar *web-server* nil)
