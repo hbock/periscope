@@ -85,12 +85,15 @@ and your child.  Unfortunately, we cannot reboot your child.")
     (diag-image-parameters)
     (diag-settings-form)))
 
-(hunchentoot:define-easy-handler (set-diag :uri "/set-diag") (showbt showdiag swank swankport)
+(hunchentoot:define-easy-handler (set-diag :uri "/set-diag")
+    (showbt showdiag swank (swankport :parameter-type 'integer))
   (flet ((string->bool (string) (string= string "true")))
-    (setf hunchentoot:*show-lisp-errors-p* (string->bool showbt))
-    (setf *web-show-diag* (string->bool showdiag))
-    (setf *enable-swank-p* (string->bool swank))
-    (let ((port (parse-integer swankport :junk-allowed t)))
-      (when (and (> port 1024) (not (= port *web-port*)))
-	(setf *swank-port* port))))
+    (when showbt
+      (setf hunchentoot:*show-lisp-errors-p* (string->bool showbt)))
+    (when showdiag
+      (setf *web-show-diag* (string->bool showdiag)))
+    (when swank
+      (setf *enable-swank-p* (string->bool swank)))
+    (when (and swankport (> swankport 1024) (not (= swankport *web-port*)))
+      (setf *swank-port* swankport)))
   (hunchentoot:redirect "/uuddlrlrbastart"))
