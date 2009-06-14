@@ -30,6 +30,8 @@
 (defvar *swank-port* 20571)
 (defvar *enable-swank-p* nil)
 
+(defvar *notable-ports* (list 22 53 80 443 51413))
+
 (defconstant +ip-proto-icmp+ 1)
 (defconstant +ip-proto-igmp+ 2)
 (defconstant +ip-proto-tcp+  6)
