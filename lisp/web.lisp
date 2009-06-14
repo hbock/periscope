@@ -65,7 +65,9 @@ Starts a separate thread to run the collector and handle its callbacks."
      (:li :class "root"
           (:a :href "#" "Traffic Pattern Reports")
           (:ul
-           (:li "Nothing to see here yet!")))
+	   (loop :for (type description) :in
+	      (sort (copy-seq *report-list*) #'string< :key #'second) :do
+	      (htm (:li (:a :href (format nil "/~a" (string-downcase type)) (str description)))))))
      (:li :class "root"
           (:a :href "#" "Periodic Reports")
           (:ul

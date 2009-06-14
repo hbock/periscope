@@ -20,8 +20,6 @@
 
 (defvar *flows* 0)
 (defvar *ipv4* 0)
-(defvar *this-flow* nil)
-(defvar *flow-list* nil)
 
 (defcallback receive-flow :void ((collector periscope-collector)
 				 (type :uchar)
@@ -68,7 +66,7 @@
     (:h3 "Collector stopped")
     "Please put your trays in the upright position before landing Periscope."))
 
-(hunchentoot:define-easy-handler (test :uri "/test") ()
+(define-report (test "Last 100 Flows") ()
   (with-periscope-page ("Test data")
     (:h2 (who:fmt "Flow List (~d flows processed)" (length *flow-list*)))
     (when *flow-list*
@@ -79,5 +77,5 @@
 	 (:tr (:th :colspan 3 "Source") (:th :colspan 3 "Destination") (:th "Flow information"))
 	 (:tr (:th "IP") (:th "Port") (:th "Packets") (:th "IP") (:th "Port") (:th "Packets")
 	      (:th "Protocol"))
-	 (dolist (flow *flow-list*)
+	 (loop :for flow :in *flow-list* :repeat 100 :do
 	   (print-html flow))))))))

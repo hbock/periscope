@@ -18,6 +18,10 @@
 ;;;; Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 (in-package :periscope)
 
+;; Temporary vars (will go away eventually)
+(defvar *flow-list* nil)
+
+;; Version and compilation time
 (defvar *periscope-version* "0.9.90 (pre-alpha)")
 (defvar *compilation-time* (get-universal-time))
 
@@ -30,6 +34,7 @@
 (defvar *swank-port* 20571)
 (defvar *enable-swank-p* nil)
 
+(defvar *report-list* nil)
 (defvar *notable-ports* (list 22 53 80 443 51413))
 
 (defconstant +ip-proto-icmp+ 1)

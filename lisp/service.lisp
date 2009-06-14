@@ -71,8 +71,9 @@
 		 (:td (str (bytes-dest service)))
 		 (:td (str (packets-dest service)))))))))))
 
-(hunchentoot:define-easy-handler (service :uri "/service") (time)
+(define-report (service "Service Type") ()
   (with-periscope-page ("Service Statistics")
+    (:h2 "Service Statistics")
     (print-html
      (make-instance 'service :flows *flow-list*))))
 

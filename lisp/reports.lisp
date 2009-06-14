@@ -25,3 +25,15 @@
 
 (defgeneric print-html (object &key)
   (:documentation "Print a report object in HTML format."))
+
+(defmacro define-report ((type description) lambda-list &body body)
+  `(progn
+     (defun ,type (,@lambda-list)
+       ,@body)
+
+     (setf *report-list*
+	   (delete-if (lambda (report) (eql (first report) (quote ,type))) *report-list*))
+     (push (list (quote ,type) ,description) *report-list*)
+     (push (hunchentoot:create-regex-dispatcher
+	    ,(format nil "\/~a$" (string-downcase type)) (function ,type))
+	   hunchentoot:*dispatch-table*)))
