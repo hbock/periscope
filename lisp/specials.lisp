@@ -34,7 +34,7 @@
 (defvar *swank-port* 20571)
 (defvar *enable-swank-p* nil)
 
-(defvar *report-list* nil)
+(defvar *report-handler-list* nil)
 (defvar *notable-ports* (list 22 53 80 443 51413))
 
 (defconstant +ip-proto-icmp+ 1)

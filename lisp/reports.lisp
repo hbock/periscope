@@ -20,20 +20,26 @@
 
 (defclass report ()
   ((time :reader report-time :initform (get-universal-time))
-   (generated :reader generation-time :initform (get-universal-time))
-   (handler :initarg :handler :initform nil)))
+   (generated :reader generation-time :initform (get-universal-time))))
 
 (defgeneric print-html (object &key)
   (:documentation "Print a report object in HTML format."))
 
-(defmacro define-report ((type description) lambda-list &body body)
+(defun report-handlers (request)
+  "Handle Periscope-specific report requests. Returns the report's handler function as
+defined using DEFINE-REPORT-HANDLER."
+  (loop :for (uri desc handler) :in *report-handler-list*
+     :when (string= (hunchentoot:script-name request) (format nil "/~a" uri))
+     :do (return handler)))
+
+(defmacro define-report-handler ((type description) lambda-list &body body)
+  "Define a Periscope report page as if by DEFUN."
   `(progn
      (defun ,type (,@lambda-list)
        ,@body)
 
-     (setf *report-list*
-	   (delete-if (lambda (report) (eql (first report) (quote ,type))) *report-list*))
-     (push (list (quote ,type) ,description) *report-list*)
-     (push (hunchentoot:create-regex-dispatcher
-	    ,(format nil "\/~a$" (string-downcase type)) (function ,type))
-	   hunchentoot:*dispatch-table*)))
+     (setf *report-handler-list*
+	   (delete-if (lambda (report) (eql (first report) (quote ,type))) *report-handler-list*))
+     (unless (find #'report-handlers hunchentoot:*dispatch-table*)
+       (push #'report-handlers hunchentoot:*dispatch-table*))
+     (push (list (quote ,type) ,description (function ,type)) *report-handler-list*)))
