@@ -26,3 +26,25 @@
 	  (ldb (byte 8  8) ip)
 	  (ldb (byte 8  0) ip)))
 
+(defun create-service-cache ()
+  (clrhash *service-cache*)
+  (with-open-file (services "/etc/services" :direction :input)
+    (loop :for line = (read-line services nil)
+       :while line :do
+       (cl-ppcre:do-register-groups (name (#'parse-integer port) protocol)
+	   ("([a-zA-Z\\d-+./]+)[ \\t\\n\\r]+(\\d+)/(udp|tcp)" line)
+	 (let ((service-names (gethash port *service-cache* (cons nil nil))))
+	   (cond ((string= protocol "tcp")
+		  (setf (car service-names) name))
+		 ((string= protocol "udp")
+		  (setf (cdr service-names) name))
+		 (t (error "Unknown protocol ~a!" protocol)))
+	   (setf (gethash port *service-cache*) service-names))))))
+
+(defun service-name (port &key (protocol :tcp))
+  (when (zerop (hash-table-count *service-cache*))
+    (create-service-cache))
+  (let ((service-names (gethash port *service-cache*)))
+    (ecase protocol
+      (:tcp (car service-names))
+      (:udp (cdr service-names)))))
