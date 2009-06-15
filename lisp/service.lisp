@@ -65,7 +65,7 @@
       (with-slots (hash) object
 	(loop :for port :being :the :hash-keys :in hash :using (:hash-value service) :do
 	   (htm
-	    (:tr (:td (str port))
+	    (:tr (:td (str (or (service-name port) port)))
 		 (:td (str (bytes-source service)))
 		 (:td (str (packets-source service)))
 		 (:td (str (bytes-dest service)))
