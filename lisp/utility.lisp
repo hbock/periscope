@@ -46,5 +46,5 @@
     (create-service-cache))
   (let ((service-names (gethash port *service-cache*)))
     (ecase protocol
-      (:tcp (car service-names))
-      (:udp (cdr service-names)))))
+      ((:tcp #.+ip-proto-tcp+) (car service-names))
+      ((:udp #.+ip-proto-udp+) (cdr service-names)))))
