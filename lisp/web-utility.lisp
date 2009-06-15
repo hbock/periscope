@@ -16,32 +16,18 @@
 ;;;; You should have received a copy of the GNU General Public License
 ;;;; along with periscope; if not, write to the Free Software
 ;;;; Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-(in-package :cl-user)
+(in-package :periscope)
 
-(asdf:defsystem periscope
-  :name "Periscope"
-  :author "Harry Bock <harry@oshean.org>"
-  :version "0.10.0-pre-alpha"
-  :description "Network auditing tool"
-  :depends-on (:cffi
-	       :cl-who
-	       :cl-ppcre
-	       :hunchentoot
-	       :trivial-garbage
-	       :bordeaux-threads)
-  :serial t
-  :components
-  ((:file "packages")
-   (:file "specials")
-   (:file "periscope-cffi")
-   (:file "argus-cffi")
-   (:file "collector")
-   (:file "utility")
-   (:file "reports")
-   (:file "flow")
-   (:file "web")
-   (:file "web-index")
-   (:file "web-sources")
-   (:file "web-utility")
-   (:file "service")
-   (:file "diagnostics")))
+(hunchentoot:define-easy-handler (service-names :uri "/service-names") ()
+  (when (zerop (hash-table-count *service-cache*))
+    (create-service-cache))
+
+  (with-periscope-page ("DARPA Internet Service Names")
+    (:h2 "Table of DARPA Internet Service Names")
+    (:p "As specified in the system services file.")
+
+    (:table
+     :class "sources"
+     (:tr (:th "Port Number") (:th "TCP Service") (:th "UDP Service"))
+     (loop :for port :being :the :hash-keys :in *service-cache* :using (:hash-value names) :do
+	(htm (:tr (:td (str port)) (:td (str (car names))) (:td (str (cdr names)))))))))
