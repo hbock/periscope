@@ -41,7 +41,7 @@
    (:file "flow")
    (:file "web")
    (:file "web-index")
-   (:file "web-sources")
+   (:file "web-config")
    (:file "web-utility")
    (:file "service")
    (:file "diagnostics")))
