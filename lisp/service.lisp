@@ -28,11 +28,11 @@
    (packets-dest :accessor packets-dest :initform 0)))
 
 (defmethod initialize-instance :after ((object service) &key
-				       (flows (error "Need flowz!"))
+				       (flow-list (error "Need flowz!"))
 				       (ports *notable-ports*))
   (with-slots (hash) object
     (setf hash (make-hash-table :size (length ports)))
-    (dolist (flow flows)
+    (dolist (flow flow-list)
       (with-slots (protocol port-source port-dest bytes-source bytes-dest
 			    packets-source packets-dest) flow
 	(case protocol
@@ -66,15 +66,15 @@
 	(loop :for port :being :the :hash-keys :in hash :using (:hash-value service) :do
 	   (htm
 	    (:tr (:td (str (or (service-name port) port)))
-		 (:td (str (bytes-source service)))
-		 (:td (str (packets-source service)))
-		 (:td (str (bytes-dest service)))
-		 (:td (str (packets-dest service)))))))))))
+		 (:td (str (byte-string (bytes-source service))))
+		 (:td (fmt "~:d" (packets-source service)))
+		 (:td (str (byte-string (bytes-dest service))))
+		 (:td (fmt "~:d" (packets-dest service)))))))))))
 
 (define-report-handler (service "/service" "Service Type") ()
   (with-periscope-page ("Service Statistics")
     (:h2 "Service Statistics")
     (print-html
-     (make-instance 'service :flows *flow-list*))))
+     (make-instance 'service :flow-list *flow-list*))))
 
 
