@@ -1,0 +1,87 @@
+--- argus-clients-3.0.2.beta.8/configure.in	2009-04-24 11:37:51.000000000 -0400
++++ argus-periscope/configure.in	2009-06-19 11:01:53.001340430 -0400
+@@ -2,26 +2,33 @@
+ bs
+ 
+ dnl
+-AC_INIT(common/argus_main.c)
++AC_INIT
++AC_CONFIG_SRCDIR([common/argus_main.c])
+ 
+ dnl all our local stuff like install scripts and include files
+ dnl is in there
+ AC_CONFIG_AUX_DIR(config)
+ 
+-AC_CANONICAL_SYSTEM
++dnl Include Argus-specific tests and macros
++AC_CONFIG_MACRO_DIR([m4])
+ 
+-AC_LBL_C_INIT(V_CCOPT, V_INCLS)
++AC_CANONICAL_TARGET
++
++AC_LBL_C_INIT([V_CCOPT], [V_INCLS])
+ AC_C_INLINE
+ 
+ dnl where we install our stuff ...
+ AC_PREFIX_DEFAULT( /usr/local )
+ 
+ dnl Minimum Autoconf version required.
+-AC_PREREQ(2.13)
++AC_PREREQ(2.61)
++LT_PREREQ([2.2.4])
+ 
+ AC_PROG_CC
+ AC_PROG_CPP
+-AC_PROG_RANLIB
++
++LT_INIT
++AC_SUBST([LIBTOOL_DEPS])
+ 
+ AC_QOSIENT_LEX_AND_YACC(V_LEX, V_YACC, argus_)
+ 
+@@ -189,7 +196,7 @@
+ fi
+ 
+ 
+-AC_HAVE_HEADERS(sys/sockio.h string.h fcntl.h sys/file.h syslog.h)
++AC_CHECK_HEADERS([sys/sockio.h string.h fcntl.h sys/file.h syslog.h])
+ AC_CHECK_FUNCS(ether_hostton strerror strtof srandomdev)
+ 
+ CURSESLIB=""
+@@ -259,11 +266,7 @@
+ sinix*)
+ 	AC_MSG_CHECKING(if SINIX compiler defines sinix)
+ 	AC_CACHE_VAL(ac_cv_cc_sinix_defined,
+-		AC_TRY_COMPILE(
+-		    [],
+-		    [int i = sinix;],
+-		    ac_cv_cc_sinix_defined=yes,
+-		    ac_cv_cc_sinix_defined=no))
++		AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[]], [[int i = sinix;]])],[ac_cv_cc_sinix_defined=yes],[ac_cv_cc_sinix_defined=no]))
+ 	    AC_MSG_RESULT($ac_cv_cc_sinix_defined)
+ 	    if test "$ac_cv_cc_sinix_defined" = "no" ; then
+ 		    AC_DEFINE(sinix)
+@@ -313,10 +316,9 @@
+ AC_SUBST(INSTALL_BIN)
+ 
+ AC_PROG_INSTALL
+-AC_STDC_HEADERS
++AC_HEADER_STDC
+ 
+-AC_OUTPUT(
+-   Makefile
++AC_CONFIG_FILES([Makefile
+    ./common/Makefile
+    ./clients/Makefile
+    ./ragraph/Makefile
+@@ -324,7 +326,9 @@
+    ./radium/Makefile
+    ./radump/Makefile
+    ./ramysql/Makefile
+-)
++   ./periscope/Makefile
++])
++AC_OUTPUT
+ 
+ if test -f .devel ; then
+ 	make depend
