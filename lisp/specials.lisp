@@ -38,6 +38,8 @@
 (defvar *notable-ports* (list 22 53 80 443 51413))
 (defvar *service-cache* (make-hash-table :test #'equal :size 500))
 
+(defvar *internal-network* #x0a000000)
+(defvar *internal-netmask* #x0affff00)
 (defconstant +ip-proto-icmp+ 1)
 (defconstant +ip-proto-igmp+ 2)
 (defconstant +ip-proto-tcp+  6)
