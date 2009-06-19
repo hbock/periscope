@@ -70,12 +70,36 @@
   (with-periscope-page ("Test data")
     (:h2 (who:fmt "Flow List (~d flows processed)" (length *flow-list*)))
     (when *flow-list*
-      (who:htm
-       (:div
-	:class "stats"
-	(:table
-	 (:tr (:th :colspan 3 "Source") (:th :colspan 3 "Destination") (:th "Flow information"))
-	 (:tr (:th "IP") (:th "Port") (:th "Packets") (:th "IP") (:th "Port") (:th "Packets")
-	      (:th "Protocol"))
-	 (loop :for flow :in *flow-list* :repeat 100 :do
-	    (print-html flow))))))))
+      (let ((report (make-instance 'periodic-report :flow-list *flow-list*)))
+	(who:htm
+	 (:h3 (fmt "Report generated at ~a" (utc-date-string (report-time report))))
+	 (:div
+	  :class "stats"
+	  (:table
+	   (:tr (:th "") (:th "Packets") (:th "Bytes") (:th "Flows"))
+	   (:tr (:th "Total")
+		(:td (fmt "~:d" (total-packets report)))
+		(:td (str (byte-string (total-bytes report))))
+		(:td (fmt "~:d" (total-flows report))))
+	   (:tr (:th "Internal Only")
+		(:td (fmt "~:d" (internal-packets report)))
+		(:td (str (byte-string (internal-bytes report))))
+		(:td (fmt "~:d" 0)))
+	   (:tr (:th "External Only")
+		(:td (fmt "~:d" (external-packets report)))
+		(:td (str (byte-string (external-bytes report))))
+		(:td (fmt "~:d" 0)))
+	   (:tr (:th "Incoming")
+		(:td (fmt "~:d" (incoming-packets report)))
+		(:td (str (byte-string (incoming-bytes report))))
+		(:td (fmt "~:d" 0)))
+	   (:tr (:th "Outgoing")
+		(:td (fmt "~:d" (outgoing-packets report)))
+		(:td (str (byte-string (outgoing-bytes report))))
+		(:td (fmt "~:d" 0))))
+	  (:table
+	   (:tr (:th :colspan 3 "Source") (:th :colspan 3 "Destination") (:th "Flow information"))
+	   (:tr (:th "IP") (:th "Port") (:th "Packets") (:th "IP") (:th "Port") (:th "Packets")
+		(:th "Protocol"))
+	   (loop :for flow :in *flow-list* :repeat 100 :do
+	      (print-html flow)))))))))
