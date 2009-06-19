@@ -29,6 +29,26 @@
    (bytes-source   :initarg :bytes-source :initform 0)
    (bytes-dest     :initarg :bytes-dest :initform 0)))
 
+(defmethod incoming-p ((object flow) &key (network *internal-network*) (netmask *internal-netmask*))
+  (with-slots (ip-source ip-dest) object
+    (and (network-member-p ip-dest network netmask)
+	 (not (network-member-p ip-source network netmask)))))
+
+(defmethod outgoing-p ((object flow) &key (network *internal-network*) (netmask *internal-netmask*))
+  (with-slots (ip-source ip-dest) object
+    (and (network-member-p ip-source network netmask)
+	 (not (network-member-p ip-dest network netmask)))))
+
+(defmethod classify ((object flow) &key (network *internal-network*) (netmask *internal-netmask*))
+  (with-slots (ip-source ip-dest) object
+    (cond ((network-member-p ip-source network netmask)
+	   (if (network-member-p ip-dest network netmask)
+	       :internal-only
+	       :outgoing))
+	  ((network-member-p ip-dest network netmask)
+	   :incoming)
+	  (t :external-only))))
+
 (let ((row-switch t))
   (defmethod print-html ((object flow) &key)
     (setf row-switch (not row-switch))
