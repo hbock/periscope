@@ -26,6 +26,9 @@
 	  (ldb (byte 8  8) ip)
 	  (ldb (byte 8  0) ip)))
 
+(defun network-member-p (ip network netmask)
+  (= network (logand ip netmask)))
+
 (defun create-service-cache ()
   (clrhash *service-cache*)
   (with-open-file (services "/etc/services" :direction :input)
