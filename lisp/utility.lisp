@@ -57,3 +57,9 @@
 	 '((1099511627776 "TB") (1073741824 "GB") (1048576 "MB") (1024 "kB"))
 	 :when (>= bytes boundary) :do
 	 (return (format nil "~v$ ~a" precision (/ bytes boundary) name)))))
+
+(defun utc-date-string (&optional (time (get-universal-time)))
+  (multiple-value-bind (sec minute hour date month year)
+      (decode-universal-time time)
+    (declare (ignore sec))
+    (format nil "~4,'0d-~2,'0d-~2,'0d ~2,'0d:~2,'0d" year month date hour minute)))
