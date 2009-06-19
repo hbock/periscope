@@ -48,3 +48,12 @@
     (ecase protocol
       ((:tcp #.+ip-proto-tcp+) (car service-names))
       ((:udp #.+ip-proto-udp+) (cdr service-names)))))
+
+(defun byte-string (bytes &optional (precision 2))
+  (declare (type integer precision))
+  (if (< bytes 1024)
+      (format nil "~:d B" bytes)
+      (loop :for (boundary name) :in
+	 '((1099511627776 "TB") (1073741824 "GB") (1048576 "MB") (1024 "kB"))
+	 :when (>= bytes boundary) :do
+	 (return (format nil "~v$ ~a" precision (/ bytes boundary) name)))))
