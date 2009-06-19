@@ -19,6 +19,7 @@
 (in-package :periscope)
 
 (defun ip-string (ip)
+  "Convert an IPv4 address from an integer to a string in dotted quad notation."
   (declare (type (unsigned-byte 32) ip))
   (format nil "~d.~d.~d.~d"
 	  (ldb (byte 8 24) ip)
@@ -27,6 +28,7 @@
 	  (ldb (byte 8  0) ip)))
 
 (defun network-member-p (ip network netmask)
+  "Returns true if IP is a member of the IPv4 network specified by NETWORK and NETMASK."
   (= network (logand ip netmask)))
 
 (defun create-service-cache (&optional (service-file (pathname "/etc/services")))
@@ -58,6 +60,8 @@ services file (default is /etc/services)."
       ((:udp #.+ip-proto-udp+) (cdr service-names)))))
 
 (defun byte-string (bytes &optional (precision 2))
+  "Convert BYTES from an integer to a size string, optionally specifying the precision in
+digits following the decimal point."
   (declare (type integer precision))
   (if (< bytes 1024)
       (format nil "~:d B" bytes)
@@ -67,6 +71,7 @@ services file (default is /etc/services)."
 	 (return (format nil "~v$ ~a" precision (/ bytes boundary) name)))))
 
 (defun utc-date-string (&optional (time (get-universal-time)))
+  "Convert a universal time to an ISO8661 date string."
   (multiple-value-bind (sec minute hour date month year)
       (decode-universal-time time)
     (declare (ignore sec))
