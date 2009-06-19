@@ -52,24 +52,32 @@ Starts a separate thread to run the collector and handle its callbacks."
     (:label :for name (str off))
     (:input :type "radio" :name name :value "false" :checked (not default))))
 
-(defun input (name default &key (size 20))
+(defun input (name default &key (size 20) label)
   (with-html-output (*standard-output*)
+    (when label
+      (htm (:label :for name (str label))))
     (:input :type "text" :name name :value default :size size)))
 
 (defun generate-navigation ()
-  "Generate Periscope's navigation."
+  "Generate Periscope's navigation sidebar."
   (with-html ()
     (:ul
      (:li (:a :href "/" "Periscope Home"))
      (:li (:a :href "/traffic" "Traffic Overview"))
      (:li :class "root"
-          (:a :href "#" "Traffic Pattern Reports")
+          "Traffic Pattern Reports"
           (:ul
-           (:li "Nothing to see here yet!")))
+	   (loop :for (type uri description) :in
+	      (sort (copy-seq *report-handler-list*) #'string< :key #'third) :do
+	      (htm (:li (:a :href uri (str description)))))))
      (:li :class "root"
-          (:a :href "#" "Periodic Reports")
+          "Periodic Reports"
           (:ul
 	   (:li "Nothing to see here yet!")))
+     (:li :class "root"
+          "Utilities"
+          (:ul
+	   (:li (:a :href "/service-names" "Service Names"))))
      (:li (:a :href "/search" "Search Logs"))
      (:li (:a :href "/config" "Control Panel"))
      (when *web-show-diag*

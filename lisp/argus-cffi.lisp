@@ -64,10 +64,11 @@
   (bytes    :long-long)
   (appbytes :long-long))
 
-(defcstruct argus-metrics
-  (hdr argus-dsr-header)
-  (source-stats argus-uni-stats)
-  (dest-stats argus-uni-stats))
+(defcstruct (argus-metrics)
+  ;; I have to specify this manually for this to work on 64-bit SBCL.
+  ;; Might have something to do with :long-long and padding?
+  (source-stats argus-uni-stats :offset 4)
+  (dest-stats argus-uni-stats   :offset 28))
 
 (defcenum argus-flow-types
   (:ipv4 #x01)

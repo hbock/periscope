@@ -18,27 +18,16 @@
 ;;;; Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 (in-package :periscope)
 
-;; Temporary vars (will go away eventually)
-(defvar *flow-list* nil)
+(hunchentoot:define-easy-handler (service-names :uri "/service-names") ()
+  (when (zerop (hash-table-count *service-cache*))
+    (create-service-cache))
 
-;; Version and compilation time
-(defvar *periscope-version* "0.9.90 (pre-alpha)")
-(defvar *compilation-time* (get-universal-time))
+  (with-periscope-page ("DARPA Internet Service Names")
+    (:h2 "Table of DARPA Internet Service Names")
+    (:p "As specified in the system services file.")
 
-(defvar *web-port* 20570)
-(defvar *web-server* nil)
-(defvar *web-show-diag* nil)
-
-(defvar *collector* nil)
-
-(defvar *swank-port* 20571)
-(defvar *enable-swank-p* nil)
-
-(defvar *report-handler-list* nil)
-(defvar *notable-ports* (list 22 53 80 443 51413))
-(defvar *service-cache* (make-hash-table :test #'equal :size 500))
-
-(defconstant +ip-proto-icmp+ 1)
-(defconstant +ip-proto-igmp+ 2)
-(defconstant +ip-proto-tcp+  6)
-(defconstant +ip-proto-udp+  17)
+    (:table
+     :class "sources"
+     (:tr (:th "Port Number") (:th "TCP Service") (:th "UDP Service"))
+     (loop :for port :being :the :hash-keys :in *service-cache* :using (:hash-value names) :do
+	(htm (:tr (:td (str port)) (:td (str (car names))) (:td (str (cdr names)))))))))

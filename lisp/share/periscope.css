@@ -116,7 +116,7 @@ body>table {
   margin-left:auto;
   margin-right:auto;
   margin-top:10px;
-  width:98%;
+  width:88%;
   border-collapse:collapse;
 }
 #body {
@@ -249,6 +249,7 @@ table.sources {
   border:1px solid black;
   color:#000;
   text-align:center;
+  font-size:small;
 }
 
 table.sources th {

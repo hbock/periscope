@@ -22,15 +22,15 @@
   ((ip-source :initarg :ip-source :reader flow-ip-source :initform (error "Must supply source IP!"))
    (ip-dest   :initarg :ip-dest   :reader flow-ip-dest :initform (error "Must supply destination IP!"))
    (protocol  :initarg :protocol  :reader flow-protocol :initform (error "Must supply IP protocol!"))
-   (port-source :initarg :port-source :initform nil)
-   (port-dest   :initarg :port-dest :initform nil)
+   (port-source :initarg :port-source :reader flow-port-source :initform nil)
+   (port-dest   :initarg :port-dest :reader flow-port-dest :initform nil)
    (packets-source :initarg :packets-source :initform 0)
    (packets-dest    :initarg :packets-dest :initform 0)
    (bytes-source   :initarg :bytes-source :initform 0)
    (bytes-dest     :initarg :bytes-dest :initform 0)))
 
 (let ((row-switch t))
-  (defmethod print-html ((object flow))
+  (defmethod print-html ((object flow) &key)
     (setf row-switch (not row-switch))
     (with-slots (ip-source ip-dest port-source port-dest protocol
 			   packets-source packets-dest
