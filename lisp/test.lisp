@@ -66,7 +66,7 @@
     (:h3 "Collector stopped")
     "Please put your trays in the upright position before landing Periscope."))
 
-(define-report-handler (test "Last 100 Flows") ()
+(define-report-handler (test "/test" "Last 100 Flows") ()
   (with-periscope-page ("Test data")
     (:h2 (who:fmt "Flow List (~d flows processed)" (length *flow-list*)))
     (when *flow-list*
@@ -78,4 +78,4 @@
 	 (:tr (:th "IP") (:th "Port") (:th "Packets") (:th "IP") (:th "Port") (:th "Packets")
 	      (:th "Protocol"))
 	 (loop :for flow :in *flow-list* :repeat 100 :do
-	   (print-html flow))))))))
+	    (print-html flow))))))))

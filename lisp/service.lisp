@@ -71,7 +71,7 @@
 		 (:td (str (bytes-dest service)))
 		 (:td (str (packets-dest service)))))))))))
 
-(define-report-handler (service "Service Type") ()
+(define-report-handler (service "/service" "Service Type") ()
   (with-periscope-page ("Service Statistics")
     (:h2 "Service Statistics")
     (print-html

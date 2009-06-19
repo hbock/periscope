@@ -28,18 +28,21 @@
 (defun report-handlers (request)
   "Handle Periscope-specific report requests. Returns the report's handler function as
 defined using DEFINE-REPORT-HANDLER."
-  (loop :for (uri desc handler) :in *report-handler-list*
-     :when (string= (hunchentoot:script-name request) (format nil "/~a" uri))
+  (loop :for (symbol uri desc handler) :in *report-handler-list*
+     :when (string-equal (hunchentoot:script-name request) uri)
      :do (return handler)))
 
-(defmacro define-report-handler ((type description) lambda-list &body body)
+(defmacro define-report-handler ((type uri description) lambda-list &body body)
   "Define a Periscope report page as if by DEFUN."
   `(progn
      (defun ,type (,@lambda-list)
        ,@body)
 
      (setf *report-handler-list*
-	   (delete-if (lambda (report) (eql (first report) (quote ,type))) *report-handler-list*))
+	   (delete-if (lambda (report)
+			(or (eql (first report) (quote ,type))
+			    (string-equal (second report) ,uri)))
+		      *report-handler-list*))
      (unless (find #'report-handlers hunchentoot:*dispatch-table*)
        (push #'report-handlers hunchentoot:*dispatch-table*))
-     (push (list (quote ,type) ,description (function ,type)) *report-handler-list*)))
+     (push (list (quote ,type) ,uri ,description (function ,type)) *report-handler-list*)))

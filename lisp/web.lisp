@@ -52,8 +52,10 @@ Starts a separate thread to run the collector and handle its callbacks."
     (:label :for name (str off))
     (:input :type "radio" :name name :value "false" :checked (not default))))
 
-(defun input (name default &key (size 20))
+(defun input (name default &key (size 20) label)
   (with-html-output (*standard-output*)
+    (when label
+      (htm (:label :for name (str label))))
     (:input :type "text" :name name :value default :size size)))
 
 (defun generate-navigation ()
@@ -65,9 +67,9 @@ Starts a separate thread to run the collector and handle its callbacks."
      (:li :class "root"
           "Traffic Pattern Reports"
           (:ul
-	   (loop :for (type description) :in
-	      (sort (copy-seq *report-handler-list*) #'string< :key #'second) :do
-	      (htm (:li (:a :href (format nil "/~a" (string-downcase type)) (str description)))))))
+	   (loop :for (type uri description) :in
+	      (sort (copy-seq *report-handler-list*) #'string< :key #'third) :do
+	      (htm (:li (:a :href uri (str description)))))))
      (:li :class "root"
           "Periodic Reports"
           (:ul
