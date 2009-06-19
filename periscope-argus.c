@@ -145,10 +145,9 @@ periscope_argus_client_init(struct PeriscopeCollector *collector)
      return -1;
    }
 
-   /* This is a hack - ArgusParserStruct has no agnostic pointer field for an application-
-    * specific context, so this will have to do for now.  grepping through the source
-    * shows that this pointer is untouched if RaClearConfiguration is never called. */
-   collector->parser->RaFlowModelFile = (char *)collector;
+   /* Set up our private data in the Argus parser - needed for when Argus
+    * calls into Periscope. */
+   collector->parser->ArgusClientContext = collector;
    
    return 0;
 }

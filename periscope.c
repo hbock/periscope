@@ -136,7 +136,7 @@ void
 RaProcessRecord (struct ArgusParserStruct *parser,
                  struct ArgusRecordStruct *argus)
 {
-   struct PeriscopeCollector *collector = (struct PeriscopeCollector *)parser->RaFlowModelFile;
+   struct PeriscopeCollector *collector = (struct PeriscopeCollector *)parser->ArgusClientContext;
    
    switch (record_type(argus)) {
       case ARGUS_MAR:
