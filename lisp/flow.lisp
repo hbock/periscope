@@ -39,10 +39,10 @@
 	(:tr :class (if row-switch "rowa" "rowb")
 	     (:td (str (ip-string ip-source)))
 	     (:td (fmt "~d" port-source))
-	     (:td (fmt "~d" packets-source))
+	     (:td (fmt "~:d" packets-source))
 	     (:td (str (ip-string ip-dest)))
 	     (:td (fmt "~d" port-dest))
-	     (:td (fmt "~d" packets-dest))
+	     (:td (fmt "~:d" packets-dest))
 	     (:td (str (case protocol
 			 (1 "ICMP")
 			 (2 "IGMP")
