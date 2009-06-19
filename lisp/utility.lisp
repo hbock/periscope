@@ -29,9 +29,12 @@
 (defun network-member-p (ip network netmask)
   (= network (logand ip netmask)))
 
-(defun create-service-cache ()
+(defun create-service-cache (&optional (service-file (pathname "/etc/services")))
+  "Generate the Internet service name cache for use with SERVICE-NAME.  SERVICE-FILE
+is parsed to create the cache; by default, it is created using the system file
+/etc/services."
   (clrhash *service-cache*)
-  (with-open-file (services "/etc/services" :direction :input)
+  (with-open-file (services service-file :direction :input)
     (loop :for line = (read-line services nil)
        :while line :do
        (cl-ppcre:do-register-groups (name (#'parse-integer port) protocol)
@@ -45,6 +48,8 @@
 	   (setf (gethash port *service-cache*) service-names))))))
 
 (defun service-name (port &key (protocol :tcp))
+  "Return the Internet service name for a given PORT and PROTOCOL basic on the system 
+services file (default is /etc/services)."
   (when (zerop (hash-table-count *service-cache*))
     (create-service-cache))
   (let ((service-names (gethash port *service-cache*)))
