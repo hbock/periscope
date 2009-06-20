@@ -33,15 +33,20 @@
   :components
   ((:file "packages")
    (:file "specials")
+   ;; Foreign function interface for libperiscope/Argus
    (:file "periscope-cffi")
    (:file "argus-cffi")
    (:file "collector")
    (:file "utility")
+   ;; Central classes
    (:file "reports")
    (:file "flow")
+   ;; Web interface
    (:file "web")
    (:file "web-index")
    (:file "web-config")
    (:file "web-utility")
-   (:file "service")
-   (:file "diagnostics")))
+   (:file "diagnostics")
+   ;; Reports
+   (:file "periodic-report")
+   (:file "service")))
