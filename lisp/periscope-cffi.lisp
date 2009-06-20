@@ -19,7 +19,7 @@
 (in-package :periscope)
 
 (define-foreign-library libperiscope
-  (:unix "/home/hbock/development/argus-periscope/periscope/.libs/libperiscope.so"))
+  (:unix "libperiscope.so"))
 
 (use-foreign-library libperiscope)
 
