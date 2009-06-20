@@ -1,0 +1,51 @@
+How to build and hack on Periscope
+==================================
+
+1. Building libperiscope
+------------------------
+
+ Prerequisites:
+   - periscope-ac302b8
+     - (f)lex
+     - yacc/bison
+     - libtool
+   - A Common Lisp environment supported by Periscope and all packages it depends on
+     (currently only recent SBCL has been tested, but it should be portable).
+     - CFFI (http://common-lisp.net/project/cffi)
+     - CL-WHO (http://weitz.de/cl-who)
+     - CL-PPCRE (http://weitz.de/cl-ppcre)
+     - Hunchentoot 1.0.0 (http://weitz.de/hunchentoot)
+     - trivial-garbage (http://www.cliki.net/trivial-garbage)
+     - bordeaux-threads (http://common-lisp.net/project/bordeaux-threads)
+   - Emacs and SLIME
+
+2. Tweaking periscope-test
+--------------------------
+ periscope-test is a C driver designed to test libperiscope, along with the shared library
+ build of libargus_client and any features of Argus that are not fully understood
+ or may have changed across client releases.
+
+3. Setting up SLIME
+-------------------
+  Depending on where you installed the periscope and argus shared libraries, you may have
+  to specify the LD_LIBRARY_PATH environment variable to actually load them.
+
+  ** This must be done BEFORE you start any process that starts a Lisp image!
+
+  If using emacs + SLIME (which forks an inferior lisp that inherits LD_LIBRARY_PATH):
+    $ LD_LIBRARY_PATH=/usr/local/lib emacs -nw
+  If using SBCL directly (not recommended) :
+    $ LD_LIBRARY_PATH=/usr/local/lib sbcl
+
+4. Starting Periscope in SLIME
+------------------------------
+  CL-USER> (require 'periscope)
+  ....
+  CL-USER> (in-package :periscope)
+  PERISCOPE>
+  
+  Now compile test.lisp by opening it in Emacs and hitting C-c C-k, then:
+  PERISCOPE> (test-start-periscope)
+
+  This will bring up the web interface and no sources.
+  

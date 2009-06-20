@@ -1,0 +1,25 @@
+Periscope
+---------
+
+The Periscope project was originally started and written by Brandon Edens, of OSHEAN, Inc.
+It was further developed by Harry Bock and Tyler Whittaker, also of OSHEAN, until early
+2009, when the decision was made to transition away from monitoring directly in Periscope
+to monitoring with the mature and widely-used Argus server.
+
+Current Authors (Argus client):
+-------------------------------
+
+Harry Bock <harry@oshean.org>
+  * libperiscope - wrapper library written on top of argus-clients
+  * periscope-test - C test driver
+  * periscope - Full Common Lisp application implementation
+
+Special Thanks:
+---------------
+
+Carter Bullard, QoSient, LLC
+  * Lead developer of Argus server and Argus clients.
+
+For more information about the Argus project, please visit http://qosient.com/argus .
+Argus is the work of many important developers and users; please see the Argus
+CREDITS file in the root directory of the Argus source code for a full list of credits.
