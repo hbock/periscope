@@ -85,21 +85,21 @@ YACC = @V_YACC@
 LIB = @INSTALL_LIB@/libargus_client.la
 
 SRC =	periscope-argus.c periscope.c
-PROGS = @INSTALL_BIN@/periscope
+PROGS = @INSTALL_BIN@/periscope-test
 
 OBJ = $(SRC:.c=.lo)
 
 all: $(PROGS)
 
-@INSTALL_BIN@/periscope: $(OBJ) main.o $(LIB)
+@INSTALL_BIN@/periscope-test: $(OBJ) $(LIB)
 	libtool --tag=disable-static --mode=link $(CC) $(CCOPT) -o libperiscope.la -rpath \
-	                    $(DESTDIR)$(LIBDEST) $(OBJ) $(LIB) $(COMPATLIB)
-	libtool --mode=link $(CC) $(CCOPT) -o $@ main.o libperiscope.la
+			$(LIBDEST) $(OBJ) $(LIB)  $(COMPATLIB)
+	libtool --mode=link $(CC) $(CFLAGS) $(CCOPT) -o $@ periscope-test.c libperiscope.la
 
 # We would like to say "OBJ = $(SRC:.c=.o)" but Ultrix's make cannot
 # hack the extra indirection
 
-CLEANFILES = $(OBJ) $(PROGS)
+CLEANFILES = $(OBJ) $(PROGS) libperiscope.la
 
 install: force all
 	[ -d $(DESTDIR) ] || \
@@ -108,7 +108,8 @@ install: force all
 	[ -d $(BINDIR) ] || \
 		(mkdir -p $(BINDIR); chmod 755 $(BINDIR))
 
-	$(INSTALL) $(srcdir)/../bin/periscope $(BINDIR)
+	libtool --mode=install $(INSTALL) $(srcdir)/../bin/periscope-test $(BINDIR)
+	libtool --mode=install $(INSTALL) libperiscope.la $(LIBDEST)/libperiscope.la
 
 clean:
 	rm -f $(CLEANFILES)
