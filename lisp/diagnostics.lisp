@@ -82,6 +82,10 @@
      "This test suite will do many evil things and may crash your Lisp, your browser, 
 and your child.  Unfortunately, we cannot reboot your child.")
 
+    (when (running-p *collector*)
+      (htm
+       (:p (:a :href "/stop" "Stop") "the running collector.")))
+    
     (diag-image-parameters)
     (diag-settings-form)))
 
@@ -97,3 +101,9 @@ and your child.  Unfortunately, we cannot reboot your child.")
     (when (and swankport (> swankport 1024) (not (= swankport *web-port*)))
       (setf *swank-port* swankport)))
   (hunchentoot:redirect "/uuddlrlrbastart"))
+
+(hunchentoot:define-easy-handler (stop-page :uri "/stop") ()
+  (stop *collector*)
+  (with-periscope-page ("Stopping collector.")
+    (:h3 "Collector stopped")
+    "Please put your trays in the upright position before landing Periscope."))

@@ -18,9 +18,6 @@
 ;;;; Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 (in-package :periscope)
 
-(defvar *flows* 0)
-(defvar *ipv4* 0)
-
 (defcallback receive-flow :void ((collector periscope-collector)
 				 (type :uchar)
 				 (record :pointer)
@@ -29,7 +26,6 @@
   
   (case (foreign-enum-keyword 'argus-flow-types type :errorp nil)
     (:ipv4
-     (incf *ipv4*)
      (let ((ip (get-ip (get-flow dsrs))))
        (with-foreign-slots ((ip-src ip-dst ip-proto source-port dest-port) ip argus-ip-flow)
 	 (multiple-value-bind (src-packets src-bytes) (source-metrics dsrs)
@@ -45,9 +41,7 @@
 		   (with-slots (vlan-source vlan-dest) flow
 		     (setf vlan-source sid
 			   vlan-dest did))))
-	       (push flow *flow-list*))))))))
-  
-  (incf *flows*))
+	       (push flow *flow-list*)))))))))
 
 (defun init-basic-collector ()
   (let ((collector (make-instance 'collector)))
@@ -64,12 +58,6 @@
   (let ((collector (init-basic-collector)))
     (add-file collector file)
     (run collector)))
-
-(hunchentoot:define-easy-handler (stop-page :uri "/stop") ()
-  (stop *collector*)
-  (with-periscope-page ("Stopping collector.")
-    (:h3 "Collector stopped")
-    "Please put your trays in the upright position before landing Periscope."))
 
 (define-report-handler (test "/test" "Last 100 Flows") ()
   (with-periscope-page ("Test data")
