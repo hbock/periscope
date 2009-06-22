@@ -45,25 +45,28 @@
 	     (:b (:a :href "/config?action=run" "Click here to run the collector.")))))
 
       (htm
-       (:p
-	(:h2 "Network Configuration")
 	(:form
 	 :action "/set-config" :method "post"
-	 (input "web-port" *web-port* :label "Web interface port: ")
-	 (:br)
-	 (input "ports" (format nil "~{~a~^, ~}" *notable-ports*) :label "Notable ports: ")
-	 (:br)
-	 (:input :type "submit" :value "Apply Configuration")))
-       (:p
-	(:h2 "Sources Configuration")
-	(:h3 "Add a source")
-	(:form
-	 :action "/set-config" :method "post"
-	 (:label :for "source" "Hostname: ")
-	 (:input :type "text" :size 20 :name "source")
-	 (:input :type "hidden" :name "action" :value "add")
-	 (:input :type "submit" :value "Add")
-	 (:br))))
+	 (:p
+	  (:h2 "Monitoring Configuration")
+	  (input "filter" (if *collector* (filter *collector*) "") :label "Traffic filter:"))
+	 (:p
+	  (:h2 "Network Configuration")
+	  (input "web-port" *web-port* :label "Web interface port: ")
+	  (:br)
+	  (input "ports" (format nil "~{~a~^, ~}" *notable-ports*) :label "Notable ports: ")
+	  (:br))
+	 (:input :type "submit" :value "Apply Configuration"))
+	(:p
+	 (:h2 "Sources Configuration")
+	 (:h3 "Add a source")
+	 (:form
+	  :action "/set-config" :method "post"
+	  (:label :for "source" "Hostname: ")
+	  (:input :type "text" :size 20 :name "source")
+	  (:input :type "hidden" :name "action" :value "add")
+	  (:input :type "submit" :value "Add")
+	  (:br))))
       
       (print-remote-sources *collector*))))
 
