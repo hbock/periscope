@@ -47,3 +47,4 @@
 (defconstant +ip-proto-udp+  17)
 
 (defconstant +vlan-none+ 0)
+(defconstant +vlan-vid-mask+ #x0FFF)
