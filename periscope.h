@@ -105,6 +105,9 @@ int periscope_argus_client_init(struct PeriscopeCollector *collector);
 int periscope_argus_client_stop(struct PeriscopeCollector *collector);
 int periscope_argus_client_free(struct PeriscopeCollector *collector);
 
+int periscope_argus_set_filter(struct PeriscopeCollector *collector, char *filter);
+const char *periscope_argus_get_filter(struct PeriscopeCollector *collector);
+
 int periscope_argus_local_add(struct PeriscopeCollector *collector, char *pathname);
 int periscope_argus_local_process(struct PeriscopeCollector *collector);
 

@@ -343,6 +343,29 @@ periscope_argus_remote_connect_all(struct PeriscopeCollector *collector)
 }
 
 int
+periscope_argus_set_filter(struct PeriscopeCollector *collector, char *filter)
+{
+   struct ArgusParserStruct *parser = collector->parser;
+   if(ArgusFilterCompile(&parser->ArgusFilterCode, filter, 0) < 0) {
+      return -1;
+   }
+
+   /* Save (and overwrite if necessary) old filter definition. */
+   if(parser->ArgusRemoteFilter != NULL)
+      free(parser->ArgusRemoteFilter);
+   
+   parser->ArgusRemoteFilter = strdup(filter);
+
+   return 0;
+}
+
+const char *
+periscope_argus_get_filter(struct PeriscopeCollector *collector)
+{
+   return collector->parser->ArgusRemoteFilter;
+}
+
+int
 periscope_argus_remote_process(struct PeriscopeCollector *collector)
 {
    struct ArgusParserStruct *parser = collector->parser;
