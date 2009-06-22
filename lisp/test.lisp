@@ -39,8 +39,8 @@
 	       (unless (null-pointer-p (get-vlan dsrs))
 		 (with-foreign-slots ((sid did) (get-vlan dsrs) argus-vlan)
 		   (with-slots (vlan-source vlan-dest) flow
-		     (setf vlan-source sid
-			   vlan-dest did))))
+		     (setf vlan-source (logand sid +vlan-vid-mask+)
+			   vlan-dest (logand did +vlan-vid-mask+)))))
 	       (push flow *flow-list*)))))))))
 
 (defun init-basic-collector ()
@@ -53,9 +53,11 @@
   (start-web)
   (setf *collector* (init-basic-collector)))
 
-(defun test-argus (&optional (file "argus.1"))
+(defun test-argus (&optional (file "argus.1") filter)
   (setf *flow-list* nil)
   (let ((collector (init-basic-collector)))
+    (when filter
+      (setf (filter collector) filter))
     (add-file collector file)
     (run collector)))
 
@@ -76,8 +78,9 @@
 	   (print-html (incoming report) :title "Incoming")
 	   (print-html (outgoing report) :title "Outgoing"))
 	  (:table
-	   (:tr (:th :colspan 3 "Source") (:th :colspan 3 "Destination") (:th "Flow information"))
-	   (:tr (:th "IP") (:th "Port") (:th "Packets") (:th "IP") (:th "Port") (:th "Packets")
+	   (:tr (:th :colspan 4 "Source") (:th :colspan 4 "Destination") (:th "Flow information"))
+	   (:tr (:th "IP") (:th "Port") (:th "Packets") (:th "VLAN")
+		(:th "IP") (:th "Port") (:th "Packets") (:th "VLAN")
 		(:th "Protocol"))
 	   (loop :for flow :in *flow-list* :repeat 100 :do
 	      (print-html flow)))))))))
