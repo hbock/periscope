@@ -26,6 +26,7 @@
 				 (record :pointer)
 				 (dsrs periscope-dsrs))
   (declare (ignore collector record))
+  
   (case (foreign-enum-keyword 'argus-flow-types type :errorp nil)
     (:ipv4
      (incf *ipv4*)
@@ -33,14 +34,18 @@
        (with-foreign-slots ((ip-src ip-dst ip-proto source-port dest-port) ip argus-ip-flow)
 	 (multiple-value-bind (src-packets src-bytes) (source-metrics dsrs)
 	   (multiple-value-bind (dst-packets dst-bytes) (dest-metrics dsrs)
-	     (push (make-instance 'flow
-				  :ip-source ip-src :ip-dest ip-dst
-				  :port-source source-port :port-dest dest-port
-				  :protocol ip-proto
-				  :packets-source src-packets :packets-dest dst-packets
-				  :bytes-source src-bytes :bytes-dest dst-bytes)
-		   *flow-list*))))))
-    (:ipv6 (format t "IPV6!~%")))
+	     (let ((flow (make-instance 'flow
+					:ip-source ip-src :ip-dest ip-dst
+					:port-source source-port :port-dest dest-port
+					:protocol ip-proto
+					:packets-source src-packets :packets-dest dst-packets
+					:bytes-source src-bytes :bytes-dest dst-bytes)))
+	       (unless (null-pointer-p (get-vlan dsrs))
+		 (with-foreign-slots ((sid did) (get-vlan dsrs) argus-vlan)
+		   (with-slots (vlan-source vlan-dest) flow
+		     (setf vlan-source sid
+			   vlan-dest did))))
+	       (push flow *flow-list*))))))))
   
   (incf *flows*))
 
