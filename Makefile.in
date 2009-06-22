@@ -91,7 +91,7 @@ OBJ = $(SRC:.c=.lo)
 
 all: $(PROGS)
 
-@INSTALL_BIN@/periscope-test: $(OBJ) $(LIB)
+@INSTALL_BIN@/periscope-test: $(OBJ) $(LIB) periscope-test.c
 	libtool --tag=disable-static --mode=link $(CC) $(CCOPT) -o libperiscope.la -rpath \
 			$(LIBDEST) $(OBJ) $(LIB)  $(COMPATLIB)
 	libtool --mode=link $(CC) $(CFLAGS) $(CCOPT) -o $@ periscope-test.c libperiscope.la
