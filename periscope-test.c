@@ -55,6 +55,10 @@ process_flow(struct PeriscopeCollector *collector,
       inet_ntop(AF_INET, (struct in_addr *)&ipaddr1, ip1, sizeof(ip1));
       inet_ntop(AF_INET, (struct in_addr *)&ipaddr2, ip2, sizeof(ip2));
 
+      if(dsrs->vlan) {
+         printf("vlan sid=%04x,did=%04x\n", dsrs->vlan->sid, dsrs->vlan->did);
+      }
+
       switch(ip->ip_p) {
       case IPPROTO_TCP:
          printf("tcp: cause %02x ", (record->hdr.cause & 0xF0));
@@ -178,6 +182,7 @@ main (int argc, char **argv)
 {
    int i, sources = (argc - 1);
    struct sigaction signals;
+   char *filter = "tcp and fin and finack";
 
    /* Set up signal handling for SIGINT. */
    signals.sa_handler = sighandler;
@@ -214,6 +219,14 @@ main (int argc, char **argv)
    for(; i < sources; i++) {
       if(periscope_argus_remote_add(&g_collector, argv[1+i]) == NULL) {
          fprintf(stderr, "Periscope: host '%s' is not valid!\n", argv[1+i]);
+      }
+   }
+
+   if(filter) {
+      if(periscope_argus_set_filter(&g_collector, filter) < 0) {
+         fprintf(stderr, "Periscope: syntax error in filter '%s'!\n", filter);
+         periscope_collector_free(&g_collector);
+         exit(1);
       }
    }
    
