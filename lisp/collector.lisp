@@ -86,3 +86,11 @@
 
 (defmethod connected-p ((object source))
   (plusp (%argus-connected-p (get-ptr object))))
+
+(defmethod filter ((object collector))
+  (%argus-get-filter (get-ptr object)))
+
+(defmethod (setf filter) ((filter string) (object collector))
+  (when (minusp
+	 (%argus-set-filter (get-ptr object) filter))
+    (error "Syntax error in filter: '~a'" filter)))
