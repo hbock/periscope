@@ -25,9 +25,11 @@
    (port-source :initarg :port-source :reader flow-port-source :initform nil)
    (port-dest   :initarg :port-dest :reader flow-port-dest :initform nil)
    (packets-source :initarg :packets-source :initform 0)
-   (packets-dest    :initarg :packets-dest :initform 0)
+   (packets-dest   :initarg :packets-dest :initform 0)
    (bytes-source   :initarg :bytes-source :initform 0)
-   (bytes-dest     :initarg :bytes-dest :initform 0)))
+   (bytes-dest     :initarg :bytes-dest :initform 0)
+   (vlan-source :initarg :vlan-source :initform +vlan-none+)
+   (vlan-dest :initarg :vlan-dest :initform +vlan-none+)))
 
 (defmethod incoming-p ((object flow) &key (network *internal-network*) (netmask *internal-netmask*))
   (with-slots (ip-source ip-dest) object

@@ -64,11 +64,16 @@
   (bytes    :long-long)
   (appbytes :long-long))
 
-(defcstruct (argus-metrics)
+(defcstruct argus-metrics
   ;; I have to specify this manually for this to work on 64-bit SBCL.
   ;; Might have something to do with :long-long and padding?
   (source-stats argus-uni-stats :offset 4)
   (dest-stats argus-uni-stats   :offset 28))
+
+(defcstruct argus-vlan
+  (hdr argus-dsr-header)
+  (sid :uint16)
+  (did :uint16))
 
 (defcenum argus-flow-types
   (:ipv4 #x01)
@@ -95,7 +100,7 @@
   (:src-reset  #x000001000)
   (:dest-reset #x000002000))
 
-(declaim (inline get-icmp get-ip get-flow get-metrics))
+(declaim (inline get-icmp get-ip get-flow get-metrics get-vlan))
 (defun get-ip (flow)
   (foreign-slot-value (foreign-slot-value flow 'argus-flow 'flow-un) 'argus-flow-union 'ip))
 (defun get-icmp (flow)
@@ -104,6 +109,8 @@
   (foreign-slot-value dsrs 'periscope-dsrs 'flow))
 (defun get-metrics (dsrs)
   (foreign-slot-value dsrs 'periscope-dsrs 'metric))
+(defun get-vlan (dsrs)
+  (foreign-slot-value dsrs 'periscope-dsrs 'vlan))
 
 (defun source-metrics (dsrs)
   (let ((stats

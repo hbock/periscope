@@ -40,7 +40,10 @@
 
 (defvar *internal-network* #x0a000000)
 (defvar *internal-netmask* #x0affff00)
+
 (defconstant +ip-proto-icmp+ 1)
 (defconstant +ip-proto-igmp+ 2)
 (defconstant +ip-proto-tcp+  6)
 (defconstant +ip-proto-udp+  17)
+
+(defconstant +vlan-none+ 0)
