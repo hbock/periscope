@@ -56,15 +56,18 @@
     (setf row-switch (not row-switch))
     (with-slots (ip-source ip-dest port-source port-dest protocol
 			   packets-source packets-dest
-			   bytes-source bytes-dest) object
+			   bytes-source bytes-dest
+			   vlan-source vlan-dest) object
       (with-html-output (*standard-output*)
 	(:tr :class (if row-switch "rowa" "rowb")
 	     (:td (str (ip-string ip-source)))
 	     (:td (fmt "~d" port-source))
 	     (:td (fmt "~:d" packets-source))
+	     (:td (str (if (= +vlan-none+ vlan-source) "" vlan-source)))
 	     (:td (str (ip-string ip-dest)))
 	     (:td (fmt "~d" port-dest))
 	     (:td (fmt "~:d" packets-dest))
+	     (:td (str (if (= +vlan-none+ vlan-dest) "" vlan-dest)))
 	     (:td (str (case protocol
 			 (1 "ICMP")
 			 (2 "IGMP")
