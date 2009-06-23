@@ -51,3 +51,10 @@
   (is (not (periscope::network-member-p #x0a010001 #x0a000000 #xffffff00)))
   (is (not (periscope::network-member-p #x0f000001 #x0a000000 #xffffff00)))
   (is (periscope::network-member-p #xc0a80a0f #xc0a80000 #xffff0000)))
+
+(deftest date-string-equal (time expected-result)
+  (is (string-equal (periscope::utc-date-string time) expected-result)))
+
+(deftest date-string-test ()
+  (date-string-equal 3454759813 "2009-06-23 11:30")
+  (date-string-equal 3254059813 "2003-02-12 12:30"))
