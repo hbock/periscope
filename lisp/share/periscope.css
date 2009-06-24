@@ -294,3 +294,7 @@ div.config-section td {
     width:20em;
     padding-bottom:5px;
 }
+
+div.config-section table.sources td {
+  width:auto;
+}
