@@ -23,6 +23,7 @@
      ,@body))
 
 (defun start-web (&key (port *web-port*))
+  "Start the web interface server on PORT and add a folder dispatcher for the /content directory."
   (when (or (null *web-server*) (/= *web-port* (hunchentoot:acceptor-port *web-server*)))
     (setf *web-server* (make-instance 'hunchentoot:acceptor :port port)))
   (hunchentoot:start *web-server*)
@@ -30,7 +31,13 @@
 	hunchentoot:*dispatch-table*))
 
 (defun stop-web ()
+  "Stop the web interface server."
   (hunchentoot:stop *web-server*))
+
+(defun restart-web ()
+  "Restart the web interface."
+  (stop-web)
+  (start-web))
 
 (defun web-run-collector (&optional (collector *collector*))
   "Helper function to run a collector from the web interface.
