@@ -76,15 +76,11 @@ Starts a separate thread to run the collector and handle its callbacks."
      (:li (:a :href "/" "Periscope Home"))
      (:li (:a :href "/traffic" "Traffic Overview"))
      (:li :class "root"
-          "Traffic Pattern Reports"
+          "Reports"
           (:ul
 	   (loop :for (type uri description) :in
 	      (sort (copy-seq *report-handler-list*) #'string< :key #'third) :do
 	      (htm (:li (:a :href uri (str description)))))))
-     (:li :class "root"
-          "Periodic Reports"
-          (:ul
-	   (:li "Nothing to see here yet!")))
      (:li :class "root"
           "Utilities"
           (:ul
