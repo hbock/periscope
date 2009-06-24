@@ -31,6 +31,12 @@
   "Returns true if IP is a member of the IPv4 network specified by NETWORK and NETMASK."
   (= network (logand ip netmask)))
 
+(defun local-host-p (ip &optional (network *internal-network*) (netmask *internal-netmask*))
+  (network-member-p ip network netmask))
+
+(defun remote-host-p (ip &optional (network *internal-network*) (netmask *internal-netmask*))
+  (not (network-member-p ip network netmask)))
+
 (defun create-service-cache (&optional (service-file (pathname "/etc/services")))
   "Generate the Internet service name cache for use with SERVICE-NAME.  SERVICE-FILE
 is parsed to create the cache; by default, it is created using the system file
