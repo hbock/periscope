@@ -31,16 +31,6 @@
    (vlan-source :initarg :vlan-source :initform +vlan-none+)
    (vlan-dest :initarg :vlan-dest :initform +vlan-none+)))
 
-(defmethod incoming-p ((object flow) &key (network *internal-network*) (netmask *internal-netmask*))
-  (with-slots (ip-source ip-dest) object
-    (and (network-member-p ip-dest network netmask)
-	 (not (network-member-p ip-source network netmask)))))
-
-(defmethod outgoing-p ((object flow) &key (network *internal-network*) (netmask *internal-netmask*))
-  (with-slots (ip-source ip-dest) object
-    (and (network-member-p ip-source network netmask)
-	 (not (network-member-p ip-dest network netmask)))))
-
 (defmethod classify ((object flow) &key (network *internal-network*) (netmask *internal-netmask*))
   (with-slots (ip-source ip-dest) object
     (cond ((network-member-p ip-source network netmask)
