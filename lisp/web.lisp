@@ -23,7 +23,7 @@
      ,@body))
 
 (defun start-web (&key (port *web-port*))
-  (when (null *web-server*)
+  (when (or (null *web-server*) (/= *web-port* (hunchentoot:acceptor-port *web-server*)))
     (setf *web-server* (make-instance 'hunchentoot:acceptor :port port)))
   (hunchentoot:start *web-server*)
   (push (hunchentoot:create-folder-dispatcher-and-handler "/content/" "share/")
