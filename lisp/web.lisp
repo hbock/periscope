@@ -59,6 +59,10 @@ Starts a separate thread to run the collector and handle its callbacks."
     (:label :for name (str off))
     (:input :type "radio" :name name :value "false" :checked (not default))))
 
+(defun checkbox (name value &optional (checked nil))
+  (with-html-output (*standard-output*)
+    (:input :type "checkbox" :name name :value value :checked checked)))
+
 (defun input (name default &key (size 20) label)
   (with-html-output (*standard-output*)
     (when label
@@ -84,11 +88,15 @@ Starts a separate thread to run the collector and handle its callbacks."
      (:li :class "root"
           "Utilities"
           (:ul
-	   (:li (:a :href "/service-names" "Service Names"))))
-     (:li (:a :href "/search" "Search Logs"))
-     (:li (:a :href "/config" "Control Panel"))
-     (when *web-show-diag*
-       (htm (:li (:a :href "/uuddlrlrbastart" "Diagnostics Panel")))))))
+	   (:li (:a :href "/service-names" "Service Names"))
+	   (:li (:a :href "/search" "Search Logs"))))
+     (:li :class "root"
+	  "Configuration"
+	  (:ul
+	   (:li (:a :href "/sources" "Argus Sources"))
+	   (:li (:a :href "/config" "Control Panel"))
+	   (when *web-show-diag*
+	     (htm (:li (:a :href "/uuddlrlrbastart" "Diagnostics Panel")))))))))
 
 (defmacro with-periscope-page ((title) &body body)
   "Generate a Periscope-template page."

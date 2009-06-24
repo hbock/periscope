@@ -20,42 +20,43 @@
 
 (defun diag-settings-form ()
   (with-html-output (*standard-output*)
-    (:h3 "Diagnostic Settings")
     (:form :name "options" :method "post" :action "set-diag"
-	   (:table :class "options"
-		   (:tr (:th "Option") (:th "Setting"))
-		   (:tr (:td "Enable Lisp backtraces in front-end")
-			(:td (y-or-n-radio "showbt" hunchentoot:*show-lisp-errors-p*)))
-		   (:tr (:td "Show diagnostics panel in sidebar")
-			(:td (y-or-n-radio "showdiag" *web-show-diag*)))
-		   (:tr (:td "Enable SWANK support for this image")
-			(:td (y-or-n-radio "swank" *enable-swank-p*)))
-		   (:tr (:td "SWANK connect port")
-			(:td (input "swankport" *swank-port* :size 5))))
+	   (:div :class "config-header" "Diagnostic Settings")
+	   (:div
+	    :class "config-section"
+	    (:table
+	     (:tr (:td "Enable Lisp backtraces in front-end")
+		  (:td (checkbox "showbt" "showbt" hunchentoot:*show-lisp-errors-p*)))
+	     (:tr (:td "Show diagnostics panel in sidebar")
+		  (:td (checkbox "showdiag" "showdiag" *web-show-diag*)))
+	     (:tr (:td "Enable SWANK support for this image")
+		  (:td (checkbox "swank" "swank" *enable-swank-p*)))
+	     (:tr (:td "SWANK connect port")
+		  (:td (input "swankport" *swank-port* :size 5)))))
 	   (:input :type "submit" :value "Apply Settings"))))
 
 (defun diag-image-parameters ()
   (with-html-output (*standard-output*)
-    (:h3 "Image Parameters and Statistics")
-    (:table
-     :class "options"
-     (:tr (:th "Parameter") (:th "Value"))
-     (:tr (:td "Declared version") (:td (str *periscope-version*)))
-     (multiple-value-bind (sec min hour date month year) (decode-universal-time *compilation-time*)
-       (declare (ignore sec))
-       (htm
-	(:tr (:td "Compilation time") (:td (fmt "~a-~a-~a ~a:~a" year month date hour min)))))
-     (:tr (:td "Hunchentoot version") (:td (str hunchentoot-asd:*hunchentoot-version*)))
-     (:tr (:td "Machine hostname") (:td (str (machine-instance))))
-     (:tr (:td "Machine hardware") (:td (str (machine-version))))
-     (:tr (:td "Host Lisp")
-	  (:td (fmt "~a ~a (~a)" (lisp-implementation-type)
-		    (lisp-implementation-version) (machine-type))))
-     (:tr (:td "Collector foreign pointer")
-	  (:td (if *collector*
-		   (str (get-ptr *collector*))
-		   (str "Not initialized!"))))
-     #+sbcl (sbcl-parameters))))
+    (:div :class "config-header" "Image Parameters and Statistics")
+    (:div
+     :class "config-section"
+     (:table
+      (:tr (:td "Declared version") (:td (str *periscope-version*)))
+      (multiple-value-bind (sec min hour date month year) (decode-universal-time *compilation-time*)
+	(declare (ignore sec))
+	(htm
+	 (:tr (:td "Compilation time") (:td (fmt "~a-~a-~a ~a:~a" year month date hour min)))))
+      (:tr (:td "Hunchentoot version") (:td (str hunchentoot-asd:*hunchentoot-version*)))
+      (:tr (:td "Machine hostname") (:td (str (machine-instance))))
+      (:tr (:td "Machine hardware") (:td (str (machine-version))))
+      (:tr (:td "Host Lisp")
+	   (:td (fmt "~a ~a (~a)" (lisp-implementation-type)
+		     (lisp-implementation-version) (machine-type))))
+      (:tr (:td "Collector foreign pointer")
+	   (:td (if *collector*
+		    (str (get-ptr *collector*))
+		    (str "Not initialized!"))))
+      #+sbcl (sbcl-parameters)))))
 
 #+sbcl 
 (defun sbcl-parameters ()
@@ -85,21 +86,19 @@ and your child.  Unfortunately, we cannot reboot your child.")
     (when (running-p *collector*)
       (htm
        (:p (:a :href "/stop" "Stop") "the running collector.")))
-    
-    (diag-image-parameters)
-    (diag-settings-form)))
+
+    (diag-settings-form)    
+    (diag-image-parameters)))
 
 (hunchentoot:define-easy-handler (set-diag :uri "/set-diag")
     (showbt showdiag swank (swankport :parameter-type 'integer))
-  (flet ((string->bool (string) (string= string "true")))
-    (when showbt
-      (setf hunchentoot:*show-lisp-errors-p* (string->bool showbt)))
-    (when showdiag
-      (setf *web-show-diag* (string->bool showdiag)))
-    (when swank
-      (setf *enable-swank-p* (string->bool swank)))
-    (when (and swankport (> swankport 1024) (not (= swankport *web-port*)))
-      (setf *swank-port* swankport)))
+  (setf hunchentoot:*show-lisp-errors-p* (and showbt (string= showbt "showbt")))
+  (setf *web-show-diag* (and showdiag (string= showdiag "showdiag")))
+  (setf *enable-swank-p* (and swank (string= swank "swank")))
+  (when (and swankport (> swankport 1024) (not (= swankport *web-port*)))
+    (setf *swank-port* swankport))
+
+  (save-config)
   (hunchentoot:redirect "/uuddlrlrbastart"))
 
 (hunchentoot:define-easy-handler (stop-page :uri "/stop") ()

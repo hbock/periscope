@@ -265,16 +265,32 @@ table.sources td {
 }
 
 table.options {
+  border-right:1px solid #999;
+  border-top:1px solid #999;
 }
 
-table.options td,
-table.options th {
-  border:1px solid black;
+table.options td {
+  border-left:1px solid #999;
   padding:5px;
   background-color:#eee;
 }
 
 table.options th {
-  background-color:cyan;
+  background-color:#eee;
 }
 
+div.config-header {
+  color:#555;
+  font-size:1.5em;
+  border-bottom:1px solid #999;
+  width:40%;
+  padding-bottom:3px;
+  margin:0;
+  margin-bottom:0.5em;
+  margin-top:1em;
+}
+
+div.config-section td {
+    width:20em;
+    padding-bottom:5px;
+}

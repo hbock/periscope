@@ -20,57 +20,80 @@
 
 (defconstant +config-success+ 0)
 
-(hunchentoot:define-easy-handler (sources :uri "/config") ((err :parameter-type 'integer))
-  (with-periscope-page ("Control Panel")
-    (:h2 "Periscope Control Panel")
-    (:br)
+(hunchentoot:define-easy-handler (sources :uri "/sources") ()
+  (with-periscope-page ("Manage Argus Sources")
+    (:h2 "Manage Argus Sources")
     (unless *collector*
       (warning-box
        "Collector not initialized. This is a bug.")
       (return-from sources))
+    
+    (when (not (running-p *collector*))
+      (if (null (remote-sources *collector*))
+	  (warning-box
+	   (:p "The collector is not running, and no sources have been defined.")
+	   (:p "Please add one or more sources below before starting the collector."))
+	  (warning-box
+	   "The collector is not running." (:br)
+	   (:b (:a :href "/config?action=run" "Click here to run the collector.")))))
+    
+    (when *collector*
+      (print-remote-sources *collector*))
+    
+    (:p
+     (:h2 "Sources Configuration")
+     (:h3 "Add a source")
+     (:form
+      :action "/set-config" :method "post"
+      (:label :for "source" "Hostname: ")
+      (:input :type "text" :size 20 :name "source")
+      (:input :type "hidden" :name "action" :value "add")
+      (:input :type "submit" :value "Add")
+      (:br)))))
+
+(hunchentoot:define-easy-handler (config :uri "/config") ((err :parameter-type 'integer))
+  (with-periscope-page ("Control Panel")
+    (unless *collector*
+      (warning-box
+       "Collector not initialized. This is a bug.")
+      (return-from config))
 
     (when err
       (case err
 	(#.+config-success+
 	 (htm (:p "Configuration values successfully applied!")))))
 
-    (when *collector*
-      (when (not (running-p *collector*))
-	(if (null (remote-sources *collector*))
-	    (warning-box
-	     (:p "The collector is not running, and no sources have been defined.")
-	     (:p "Please add one or more sources below before starting the collector."))
-	    (warning-box
-	     "The collector is not running." (:br)
-	     (:b (:a :href "/config?action=run" "Click here to run the collector.")))))
+    (htm
+     (:form
+      :action "/set-config" :method "post"
+      (:div :class "config-header" "Monitoring Configuration")
+      (:div
+       :class "config-section"
+       (:table
+	(:tr
+	 (:td "Traffic Filter")
+	 (:td (input "filter" (if *collector* (filter *collector*) ""))))))
+      (:div :class "config-header" "Network Configuration")
+      (:div
+       :class "config-section"
+       (:table
+	(:tr
+	 (:td "Web interface port")
+	 (:td (input "web-port" *web-port*)))
+	(:tr
+	 (:td "Notable ports")
+	 (:td (input "ports" (format nil "~{~a~^, ~}" *notable-ports*))))
+	(:tr
+	 (:td "Local Network")
+	 (:td (input "network" (ip-string *internal-network*))))
+	(:tr
+	 (:td "Local Netmask")
+	 (:td (input "netmask" (ip-string *internal-netmask*))))))
+	 
+      (:input :type "submit" :value "Apply Configuration")))))
 
-      (htm
-	(:form
-	 :action "/set-config" :method "post"
-	 (:p
-	  (:h2 "Monitoring Configuration")
-	  (input "filter" (if *collector* (filter *collector*) "") :label "Traffic filter:"))
-	 (:p
-	  (:h2 "Network Configuration")
-	  (input "web-port" *web-port* :label "Web interface port: ")
-	  (:br)
-	  (input "ports" (format nil "~{~a~^, ~}" *notable-ports*) :label "Notable ports: ")
-	  (:br))
-	 (:input :type "submit" :value "Apply Configuration"))
-	(:p
-	 (:h2 "Sources Configuration")
-	 (:h3 "Add a source")
-	 (:form
-	  :action "/set-config" :method "post"
-	  (:label :for "source" "Hostname: ")
-	  (:input :type "text" :size 20 :name "source")
-	  (:input :type "hidden" :name "action" :value "add")
-	  (:input :type "submit" :value "Add")
-	  (:br))))
-      
-      (print-remote-sources *collector*))))
-
-(hunchentoot:define-easy-handler (set-config :uri "/set-config") (action source)
+(hunchentoot:define-easy-handler (set-config :uri "/set-config")
+    (action source (web-port :parameter-type 'integer) ports filter)
   (when (and (not (running-p *collector*))
 	     (string= action "run"))
     (web-run-collector *collector*))
@@ -78,6 +101,11 @@
     ((string= action "add")
      (add-remote *collector* source)))
 
+  ;; TODO: Restart server!
+  (when web-port
+    (setf *web-port* web-port))
+  
+  (save-config)
   (hunchentoot:redirect "/config?error=0"))
 
 (defun print-remote-sources (&optional (collector *collector*))
