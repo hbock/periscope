@@ -33,6 +33,7 @@
   :components
   ((:file "packages")
    (:file "specials")
+   (:file "config")
    ;; Foreign function interface for libperiscope/Argus
    (:file "periscope-cffi")
    (:file "argus-cffi")

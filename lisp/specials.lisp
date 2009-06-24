@@ -25,6 +25,12 @@
 (defvar *periscope-version* "0.9.90 (pre-alpha)")
 (defvar *compilation-time* (get-universal-time))
 
+;; Configuration
+(defparameter *configuration-file-pathnames*
+  (list #P"/etc/"
+	(merge-pathnames ".periscope/" (user-homedir-pathname))
+	(merge-pathnames "etc/" (truename "."))))
+
 (defvar *web-port* 20570)
 (defvar *web-server* nil)
 (defvar *web-show-diag* nil)
