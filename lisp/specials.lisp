@@ -45,7 +45,7 @@
 (defvar *service-cache* (make-hash-table :test #'equal :size 500))
 
 (defvar *internal-network* #x0a000000)
-(defvar *internal-netmask* #x0affff00)
+(defvar *internal-netmask* #xffffff00)
 
 (defconstant +ip-proto-icmp+ 1)
 (defconstant +ip-proto-igmp+ 2)
