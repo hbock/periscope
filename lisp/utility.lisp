@@ -66,10 +66,22 @@ services file (default is /etc/services)."
       ((:udp #.+ip-proto-udp+) (cdr service-names)))))
 
 (defun vlan-name (vlan)
+  "Returns the VLAN name associated with identifier vlan (an integer).
+Entries can be added using SETF."
+  (declare (type (integer 0 4095) vlan))
   (gethash vlan *vlan-names* vlan))
 
 (defun (setf vlan-name) (name vlan)
-  (setf (gethash vlan *vlan-names*) name))
+  (if name
+      (setf (gethash vlan *vlan-names*) name)
+      (remhash vlan *vlan-names*)))
+
+(defun vlan-name-list ()
+  "Returns a list of all VLAN identifiers associated with a name, sorted in ascending
+order by VLAN ID."
+  (sort
+   (loop :for vid :being :the :hash-keys :in *vlan-names* :using (:hash-value name)
+      :collect (list vid name)) #'< :key #'first))
 
 (defun byte-string (bytes &optional (precision 2))
   "Convert BYTES from an integer to a size string, optionally specifying the precision in
