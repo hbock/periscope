@@ -50,11 +50,10 @@
     collector))
 
 (defun main ()
-  (handler-case
-      (load-config)
-    (simple-error (c)
-      (format *error-output* "Unable to load configuration: ~a" c)
-      (return-from main 1)))
+  (handler-bind ((simple-error
+		  (lambda ()
+		    (invoke-restart 'create-new-config-file))))
+    (load-config))
 
   (start-web)
   (setf *collector* (init-basic-collector))
