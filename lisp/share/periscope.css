@@ -295,6 +295,8 @@ div.config-section td {
     padding-bottom:5px;
 }
 
-div.config-section table.sources td {
+div.config-section table.sources td,
+div.config-section table.input td {
   width:auto;
+  padding:3px;
 }
