@@ -60,6 +60,16 @@
        (:input :type "submit" :value "Add")
        (:br))))))
 
+(defmacro with-config-form ((uri title action &key (method :post)) &body body)
+  `(with-html-output (*standard-output*)
+     (:div :class "config-header" (str ,title))
+     (:div
+      :class "config-section"
+      (:form
+       :action ,uri :method ,(ecase method (:post "post") (:get "get"))
+       (:input :type "hidden" :name "action" :value ,action)
+       ,@body))))
+
 (hunchentoot:define-easy-handler (config :uri "/config") ((err :parameter-type 'integer))
   (with-periscope-page ("Control Panel")
     (unless *collector*
@@ -72,43 +82,97 @@
 	(#.+config-success+
 	 (htm (:p "Configuration values successfully applied!")))))
 
-    (htm
-     (:form
-      :action "/set-config" :method "post"
-      (:div :class "config-header" "Monitoring Configuration")
-      (:div
-       :class "config-section"
-       (:table
-	(:tr
-	 (:td "Traffic Filter")
-	 (:td (input "filter" (if *collector* (filter *collector*) ""))))))
-      (:div :class "config-header" "Network Configuration")
-      (:div
-       :class "config-section"
-       (:table
-	(:tr
-	 (:td "Web interface port")
-	 (:td (input "web-port" *web-port*)))
-	(:tr
-	 (:td "Notable ports")
-	 (:td (input "ports" (format nil "~{~a~^, ~}" *notable-ports*))))
-	(:tr
-	 (:td "Local Network")
-	 (:td (input "network" (ip-string *internal-network*))))
-	(:tr
-	 (:td "Local Netmask")
-	 (:td (input "netmask" (ip-string *internal-netmask*))))))
-	 
-      (:input :type "submit" :value "Apply Configuration")))))
+    (with-config-form ("/set-config" "Monitoring Configuration" "monitor")
+      (:table
+       (:tr
+	(:td "Traffic Filter")
+	(:td (input "filter" (if *collector* (filter *collector*) "")))))
+      (:input :type "submit" :value "Apply Configuration"))
+
+    (with-config-form ("/set-config" "Network Configuration" "network")
+      (:table
+       (:tr
+	(:td "Web interface port")
+	(:td (input "web-port" *web-port*)))
+       (:tr
+	(:td "Notable ports")
+	(:td (input "ports" (format nil "~{~a~^, ~}" *notable-ports*))))
+       (:tr
+	(:td "Local Network")
+	(:td (input "network" (ip-string *internal-network*))))
+       (:tr
+	(:td "Local Netmask")
+	(:td (input "netmask" (ip-string *internal-netmask*)))))
+      (:input :type "submit" :value "Apply Configuration"))
+
+    (with-config-form ("/set-config" "Add VLAN Identifier" "addvlan")
+      (:table
+       (:tr
+	(:td "VLAN ID")
+	(:td (input "vid" "")))
+       (:tr
+	(:td "VLAN Name")
+	(:td (input "vname" ""))))
+      (:input :type "submit" :value "Add VLAN"))
+
+    (with-config-form ("/set-config" "Edit VLAN Identifiers" "editvlan")
+      (:table
+       :class "input"
+       (:tr (:th "VLAN ID") (:th "Name") (:th "Remove"))
+       (loop :for (vid name) :in (vlan-name-list) :do
+	  (htm (:tr
+		(:td (input (format nil "vid~d" vid) vid :size 4))
+		(:td (input (format nil "vname~d" vid) name))
+		(:td (checkbox (format nil "delete~d" vid)))))))
+      (:input :type "submit" :value "Commit Changes"))))
 
 (hunchentoot:define-easy-handler (set-config :uri "/set-config")
-    (action (web-port :parameter-type 'integer) ports filter)
-  ;; TODO: Restart server!
-  (when web-port
-    (setf *web-port* web-port))
+    (action (web-port :parameter-type 'integer) ports filter (vid :parameter-type 'integer) vname)
+  (flet ((config-error (type)
+	   (hunchentoot:redirect (format nil "/config?error=~a" type))))
+
+    (unless *collector*
+      (config-error "null-collector"))
   
-  (save-config)
-  (hunchentoot:redirect "/config?error=0"))
+    (cond ((string= action "monitor")
+	   (when filter
+	     (setf (filter *collector*) filter)))
+	
+	  ((string= action "network")
+	   ;; TODO: Restart server!	   
+	   (when web-port
+	     (setf *web-port* web-port)))
+
+	  ((string= action "addvlan")
+	   (if (and vid vname)
+	       (setf (vlan-name vid) vname)
+	       (config-error "missingvlan")))
+
+	  ((string= action "editvlan")
+	   (loop :for (name . value) :in (hunchentoot:post-parameters*) :do
+	      (ppcre:register-groups-bind ((#'parse-integer vid))
+		  ("^vid(\\d{1,4})$" name)
+		(when vid
+		  (let ((new-vid (parse-integer value :junk-allowed t))
+			(name (hunchentoot:post-parameter (format nil "vname~d" vid)))
+			(remove (hunchentoot:post-parameter (format nil "delete~d" vid))))
+		    (when remove
+		      (setf (vlan-name vid) nil))
+		    (when (and (not remove) name)
+		      (cond
+			((and new-vid (= vid new-vid) (not (string= value (vlan-name vid))))
+			 ;; Update old VID name.
+			 (setf (vlan-name vid) name))
+			((and new-vid (/= vid new-vid))
+			 ;; The user changed the VID of this field; remove the old
+			 ;; name binding and establish a name binding with the newly
+			 ;; entered VID
+			 (setf (vlan-name vid) nil)
+			 (setf (vlan-name new-vid) name))
+			(t (config-error "editvlan"))))))))))
+  
+    (save-config)
+    (config-error "success")))
 
 (hunchentoot:define-easy-handler (manage-sources :uri "/manage-sources")
     (action hostname port (sid :parameter-type 'integer))
