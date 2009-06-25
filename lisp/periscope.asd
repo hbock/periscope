@@ -50,4 +50,6 @@
    (:file "diagnostics")
    ;; Reports
    (:file "periodic-report")
-   (:file "service")))
+   (:file "service")
+   ;; Entry point(s?)
+   (:file "main")))
