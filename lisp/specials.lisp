@@ -28,8 +28,7 @@
 ;; Configuration
 (defparameter *configuration-file-pathnames*
   (list #P"/etc/"
-	(merge-pathnames ".periscope/" (user-homedir-pathname))
-	(merge-pathnames "etc/" (truename "."))))
+	(merge-pathnames ".periscope/" (user-homedir-pathname))))
 
 (defvar *web-port* 20570)
 (defvar *web-server* nil)
