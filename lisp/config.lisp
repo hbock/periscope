@@ -21,13 +21,18 @@
 (defun find-config-file (&optional (pathnames *configuration-file-pathnames*))
   "Find a suitable configuration file in PATHNAMES."
   (declare (type sequence pathnames))
-  (let ((config-file
-	 (find-if #'probe-file
-		  (mapcar (lambda (pathname)
-			    (merge-pathnames "periscope-rc.lisp" pathname)) pathnames))))
-    (unless config-file
-      (error "Could not find periscope-rc.lisp in any of:~%~{  ~a~^~%~}." pathnames))
-    config-file))
+  (or
+   (find-if #'probe-file
+	    (mapcar (lambda (pathname)
+		      (merge-pathnames "periscope-rc.lisp" pathname)) pathnames))
+   (restart-case
+       (error "Could not find periscope-rc.lisp in any of:~%~{  ~a~^~%~}." pathnames)
+     (create-new-config-file ()
+       :report "Create a blank configuration file in your home directory."
+       ;; Hack implementation of "touch"
+       (let ((pathname (merge-pathnames "periscope-rc.lisp" (first (last pathnames)))))
+	 (with-open-file (ignoreme pathname :if-does-not-exist :create))
+	 pathname)))))
 
 (defun load-config (&optional (pathname *configuration-file-pathnames*))
   "Load the configuration Lisp file directly."
