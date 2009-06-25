@@ -41,12 +41,13 @@
 
 (defun write-config (&optional (stream *standard-output*))
   "Write the configuration data to a stream."
-  (format stream "~A~%"
+  (format stream "~S~%"
 	  (symbol-value-setf-forms
 	   '(*web-port* *web-show-diag*
 	     *swank-port* *enable-swank-p*
 	     *notable-ports*
-	     *internal-network* *internal-netmask*))))
+	     *internal-network* *internal-netmask*)))
+  (format stream "~S~%" (dump-hash-tables '(*vlan-names*))))
 
 (defun symbol-value-setf-forms (symbol-list)
   "Given a list of symbols, construct a SETF form that will properly set all relevant values."
@@ -59,3 +60,19 @@
 		 (list (push (if (null value) nil `(list ,@value)) pairs))
 		 (t (push value pairs)))))
 	   (nreverse pairs))))
+
+(defun dump-hash-tables (symbol-list)
+  "Given a list of symbols representing hash tables, construct forms that will recreate
+the hash table when evaluated.  Properly restores hash table size and test."
+  `(progn
+     ,@(loop :for table-symbol :in symbol-list
+	  :for table = (symbol-value table-symbol) :collect
+	  `(progn
+	     (setf ,table-symbol
+		   (make-hash-table :test (quote ,(hash-table-test table))
+				    :size ,(hash-table-size table)))
+	     (loop :for (key . value) :in
+		(list
+		 ,@(loop :for key :being :the :hash-keys :in table :using (:hash-value value)
+		      :collect `(cons ,key ,value)))
+		:do (setf (gethash key ,table-symbol) value))))))
