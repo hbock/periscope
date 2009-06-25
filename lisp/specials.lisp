@@ -42,7 +42,9 @@
 
 (defvar *report-handler-list* nil)
 (defvar *notable-ports* (list 22 53 80 443 51413))
+
 (defvar *service-cache* (make-hash-table :test #'equal :size 500))
+(defvar *vlan-names* (make-hash-table))
 
 (defvar *internal-network* #x0a000000)
 (defvar *internal-netmask* #xffffff00)

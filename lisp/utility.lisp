@@ -65,6 +65,12 @@ services file (default is /etc/services)."
       ((:tcp #.+ip-proto-tcp+) (car service-names))
       ((:udp #.+ip-proto-udp+) (cdr service-names)))))
 
+(defun vlan-name (vlan)
+  (gethash vlan *vlan-names* vlan))
+
+(defun (setf vlan-name) (name vlan)
+  (setf (gethash vlan *vlan-names*) name))
+
 (defun byte-string (bytes &optional (precision 2))
   "Convert BYTES from an integer to a size string, optionally specifying the precision in
 digits following the decimal point."

@@ -53,11 +53,11 @@
 	     (:td (str (ip-string ip-source)))
 	     (:td (fmt "~d" port-source))
 	     (:td (fmt "~:d" packets-source))
-	     (:td (str (if (= +vlan-none+ vlan-source) "" vlan-source)))
+	     (:td (str (if (= +vlan-none+ vlan-source) "" (vlan-name vlan-source))))
 	     (:td (str (ip-string ip-dest)))
 	     (:td (fmt "~d" port-dest))
 	     (:td (fmt "~:d" packets-dest))
-	     (:td (str (if (= +vlan-none+ vlan-dest) "" vlan-dest)))
+	     (:td (str (if (= +vlan-none+ vlan-dest) "" (vlan-name vlan-dest))))
 	     (:td (str (case protocol
 			 (1 "ICMP")
 			 (2 "IGMP")
