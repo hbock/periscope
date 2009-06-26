@@ -42,6 +42,7 @@
    ;; Central classes
    (:file "reports")
    (:file "flow")
+   (:file "filter")
    ;; Web interface
    (:file "web")
    (:file "web-index")
