@@ -124,7 +124,8 @@
       (:input :type "submit" :value "Commit Changes"))))
 
 (hunchentoot:define-easy-handler (set-config :uri "/set-config")
-    (action (web-port :parameter-type 'integer) ports filter (vid :parameter-type 'integer) vname)
+    (action (web-port :parameter-type 'integer) network ports filter
+	    (vid :parameter-type 'integer) vname)
   (flet ((config-error (type)
 	   (hunchentoot:redirect (format nil "/config?error=~a" type))))
 
@@ -138,7 +139,17 @@
 	  ((string= action "network")
 	   ;; TODO: Restart server!	   
 	   (when web-port
-	     (setf *web-port* web-port)))
+	     (setf *web-port* web-port))
+	   (when network
+	     (handler-case
+		 (multiple-value-bind (network netmask)
+		     (parse-ip-string network)
+		   (unless netmask
+		     (config-error "nocidrsuffix"))
+		   (setf *internal-network* network)
+		   (setf *internal-netmask* netmask))
+	       (parse-error ()
+		 (config-error "networkparse")))))
 
 	  ((string= action "addvlan")
 	   (if (and vid vname)
