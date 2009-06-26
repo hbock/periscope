@@ -65,7 +65,10 @@
   (parse-ip-equals "192.168/24" nil nil :expected-error t)
   (parse-ip-equals "10.10.50.1000" nil nil :junk-allowed t)
   (parse-ip-equals "192.168.1000.10/24" nil nil :expected-error t)
-  (parse-ip-equals "10.10.50.1000/24" nil nil :expected-error t))
+  (parse-ip-equals "10.10.50.1000/24" nil nil :expected-error t)
+  (parse-ip-equals "10.10.50.1000/" nil nil :expected-error t)
+  (parse-ip-equals "10.10.50.1024/2057" nil nil :expected-error t)
+  (parse-ip-equals "10.10./.1024/2057" nil nil :expected-error t))
 
 (deftest service-name-test ()
   #+linux
