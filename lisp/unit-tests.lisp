@@ -9,7 +9,7 @@
 (in-package :periscope-test)
 
 (in-root-suite)
-(defsuite* periscope-tests)
+(defsuite* utility-tests)
 
 (defmacro returns (form &rest values)
   "Asserts, through EQUALP, that FORM returns VALUES."
@@ -20,6 +20,14 @@
   `(deftest ,name ()
      (returns ,form ,@(mapcar (lambda (x) `',x) return-values))))
 
+(defun fail (control-string &rest arguments)
+  (stefil::record-failure 'stefil::failed-assertion
+                          :format-control control-string
+                          :format-arguments arguments))
+
+(defun expected (expected &key got)
+  (fail "expected ~A, got ~A instead" expected got))
+
 (deftest ip-string-equal (ip desired-result)
   (is (string= (periscope::ip-string ip) desired-result)))
 
@@ -27,6 +35,29 @@
   (ip-string-equal #x0a000001 "10.0.0.1")
   (ip-string-equal #xC0A80A0A "192.168.10.10")
   (ip-string-equal #xC0A8FFFE "192.168.255.254"))
+
+(deftest parse-ip-equals (string expected-network expected-netmask &key expected-error junk-allowed)
+  (handler-case
+      (multiple-value-bind (network netmask)
+	  (periscope::parse-ip-string string :junk-allowed junk-allowed)
+	(is (and (eql network expected-network) (eql netmask expected-netmask))))
+    (parse-error (c)
+      (unless expected-error
+	(fail "Expected network ~a, netmask ~a, got ~a instead."
+	      (periscope::ip-string expected-network)
+	      (periscope::ip-string expected-netmask) c)))
+    (:no-error (result)
+      (when expected-error
+	(expected 'parse-error :got result)))))
+
+(deftest parse-ip-test ()
+  (parse-ip-equals "192.168.10.0/24" #xc0a80a00 #xffffff00)
+  (parse-ip-equals "192.168.10.0" #xc0a80a00 nil)
+  (parse-ip-equals "198.7.232.1" #xc607e801 nil)
+  (parse-ip-equals "192.168/24" nil nil :expected-error t)
+  (parse-ip-equals "192.168.1000.10/24" nil nil :expected-error t)
+  (parse-ip-equals "10.10.50.1000" nil nil :junk-allowed t)
+  (parse-ip-equals "10.10.50.1000/24" nil nil :expected-error t))
 
 (deftest service-name-test ()
   #+linux
