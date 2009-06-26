@@ -98,11 +98,8 @@
 	(:td "Notable ports")
 	(:td (input "ports" (format nil "~{~a~^, ~}" *notable-ports*))))
        (:tr
-	(:td "Local Network")
-	(:td (input "network" (ip-string *internal-network*))))
-       (:tr
-	(:td "Local Netmask")
-	(:td (input "netmask" (ip-string *internal-netmask*)))))
+	(:td "Local Network (CIDR)")
+	(:td (input "network" (ip-string *internal-network* *internal-netmask*)))))
       (:input :type "submit" :value "Apply Configuration"))
 
     (with-config-form ("/set-config" "Add VLAN Identifier" "addvlan")
