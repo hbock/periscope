@@ -18,6 +18,9 @@
 ;;;; Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 (in-package :periscope)
 
+(deftype vlan-id ()
+  '(unsigned-byte 12))
+
 (defclass flow ()
   ((ip-source :initarg :ip-source :reader flow-ip-source :initform (error "Must supply source IP!"))
    (ip-dest   :initarg :ip-dest   :reader flow-ip-dest :initform (error "Must supply destination IP!"))
