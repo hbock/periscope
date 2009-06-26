@@ -31,16 +31,24 @@
 (deftest ip-string-equal (ip desired-result)
   (is (string= (periscope::ip-string ip) desired-result)))
 
+(deftest ip-netmask-string-equal (ip netmask desired-result)
+  (is (string= (periscope::ip-string ip netmask) desired-result)))
+
 (deftest ip-strings ()
   (ip-string-equal #x0a000001 "10.0.0.1")
   (ip-string-equal #xC0A80A0A "192.168.10.10")
-  (ip-string-equal #xC0A8FFFE "192.168.255.254"))
+  (ip-string-equal #xC0A8FFFE "192.168.255.254")
+  (ip-netmask-string-equal #xc0a80a00 #xffffff00 "192.168.10.0/24")
+  (ip-netmask-string-equal #xc0a80a00 #xfffffff0 "192.168.10.0/28")
+  (ip-netmask-string-equal #x0a000000 #xff000000 "10.0.0.0/8")
+  (ip-netmask-string-equal 3322406913 4294901760 "198.7.232.1/16"))
 
 (deftest parse-ip-equals (string expected-network expected-netmask &key expected-error junk-allowed)
   (handler-case
       (multiple-value-bind (network netmask)
 	  (periscope::parse-ip-string string :junk-allowed junk-allowed)
-	(is (and (eql network expected-network) (eql netmask expected-netmask))))
+	(is (eql network expected-network))
+	(is (eql netmask expected-netmask)))
     (parse-error (c)
       (unless expected-error
 	(fail "Expected network ~a, netmask ~a, got ~a instead."
@@ -55,8 +63,8 @@
   (parse-ip-equals "192.168.10.0" #xc0a80a00 nil)
   (parse-ip-equals "198.7.232.1" #xc607e801 nil)
   (parse-ip-equals "192.168/24" nil nil :expected-error t)
+  (parse-ip-equals "10.10.50.1000" 168440420 nil :junk-allowed t)
   (parse-ip-equals "192.168.1000.10/24" nil nil :expected-error t)
-  (parse-ip-equals "10.10.50.1000" nil nil :junk-allowed t)
   (parse-ip-equals "10.10.50.1000/24" nil nil :expected-error t))
 
 (deftest service-name-test ()
@@ -89,3 +97,12 @@
 (deftest date-string-test ()
   (date-string-equal 3454759813 "2009-06-23 11:30")
   (date-string-equal 3254059813 "2003-02-12 12:30"))
+
+(deftest vlan-name-tests ()
+  (let ((periscope::*vlan-names* (make-hash-table)))
+    (is (= 100 (periscope::vlan-name 100)))
+    (is (= 2000 (periscope::vlan-name 2000)))
+    (is (string= (setf (periscope::vlan-name 400) "TEST1") "TEST1"))
+    (is (string= (periscope::vlan-name 400) "TEST1"))
+    (setf (periscope::vlan-name 400) nil)
+    (is (= 400 (periscope::vlan-name 400)))))
