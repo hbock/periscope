@@ -63,7 +63,7 @@
   (parse-ip-equals "192.168.10.0" #xc0a80a00 nil)
   (parse-ip-equals "198.7.232.1" #xc607e801 nil)
   (parse-ip-equals "192.168/24" nil nil :expected-error t)
-  (parse-ip-equals "10.10.50.1000" 168440420 nil :junk-allowed t)
+  (parse-ip-equals "10.10.50.1000" nil nil :junk-allowed t)
   (parse-ip-equals "192.168.1000.10/24" nil nil :expected-error t)
   (parse-ip-equals "10.10.50.1000/24" nil nil :expected-error t))
 
