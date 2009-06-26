@@ -41,14 +41,14 @@ If subnet is specified, a CIDR suffix will be appended to the end of the string.
 to a corresponding 32-bit IPv4 address and corresponding subnet mask. If the subnet mask
 portion is not specified, the returned subnet mask will be NIL. Throws an error of type
 PARSE-ERROR if string is not a valid IPv4 string unless :junk-allowed is T."
-  (let ((ip-regex "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/?(\\d{1,2})?"))
+  (let ((ip-regex "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})(/(\\d{1,2}))?$"))
     (unless (ppcre:scan ip-regex string)
       (unless junk-allowed
 	#-sbcl (error 'parse-error)
 	#+sbcl (error 'sb-int::simple-parse-error
 		      :format-control "Junk in IPv4 string: ~S"
 		      :format-arguments (list string))))
-    (ppcre:register-groups-bind ((#'parse-integer oct1 oct2 oct3 oct4 subnet))
+    (ppcre:register-groups-bind ((#'parse-integer oct1 oct2 oct3 oct4) nil (#'parse-integer subnet))
 	(ip-regex string)
       (values
        ;; We be throwin' around type-safety like its free or somethin
