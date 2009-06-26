@@ -51,7 +51,8 @@
 
 (defun main ()
   (handler-bind ((simple-error
-		  (lambda ()
+		  (lambda (c)
+		    (declare (ignore c))
 		    (invoke-restart 'create-new-config-file))))
     (load-config))
 
