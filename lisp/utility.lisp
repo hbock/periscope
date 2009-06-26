@@ -18,14 +18,43 @@
 ;;;; Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 (in-package :periscope)
 
-(defun ip-string (ip)
-  "Convert an IPv4 address from an integer to a string in dotted quad notation."
+(defun ip-string (ip &optional subnet)
+  "Convert an IPv4 address from an integer to a string in dotted quad notation.
+If subnet is specified, a CIDR suffix will be appended to the end of the string."
   (declare (type (unsigned-byte 32) ip))
-  (format nil "~d.~d.~d.~d"
-	  (ldb (byte 8 24) ip)
-	  (ldb (byte 8 16) ip)
-	  (ldb (byte 8  8) ip)
-	  (ldb (byte 8  0) ip)))
+  (flet ((count-bits (integer)
+	   (loop :with ones = 0
+	      :for bit :from 0 :upto 31
+	      :when (plusp (logand integer (ash #x0001 bit))) 
+	      :do (incf ones) :finally (return ones))))
+    (format nil "~d.~d.~d.~d~:[~;/~d~]"
+	    (ldb (byte 8 24) ip)
+	    (ldb (byte 8 16) ip)
+	    (ldb (byte 8  8) ip)
+	    (ldb (byte 8  0) ip)
+	    subnet
+	    (when subnet
+	      (count-bits subnet)))))
+
+(defun parse-ip-string (string &key junk-allowed)
+  "Parse an IPv4 string in dotted quad notation, optionally with a CIDR subnet mask,
+to a corresponding 32-bit IPv4 address and corresponding subnet mask. If the subnet mask
+portion is not specified, the returned subnet mask will be NIL. Throws an error of type
+PARSE-ERROR if string is not a valid IPv4 string unless :junk-allowed is T."
+  (or
+   (ppcre:register-groups-bind ((#'parse-integer oct1 oct2 oct3 oct4 subnet))
+       ("(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/?(\\d{1,2})?" string)
+     (values
+      ;; We be throwin' around type-safety like its free or somethin
+      (the (unsigned-byte 32)
+	(logior (ash oct1 24) (ash oct2 16) (ash oct3 8) oct4))
+      (when subnet
+	(logand #xFFFFFFFF (ash #xFFFFFFFF (- 32 subnet))))))
+   (unless junk-allowed
+     #-sbcl (error 'parse-error)
+     #+sbcl (error 'sb-int::simple-parse-error
+		   :format-control "Junk in IPv4 string: ~S"
+		   :format-arguments (list string)))))
 
 (defun network-member-p (ip network netmask)
   "Returns true if IP is a member of the IPv4 network specified by NETWORK and NETMASK."
