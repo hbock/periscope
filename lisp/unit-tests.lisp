@@ -50,10 +50,9 @@
 	(is (eql network expected-network))
 	(is (eql netmask expected-netmask)))
     (parse-error (c)
-      (unless expected-error
-	(fail "Expected network ~a, netmask ~a, got ~a instead."
-	      (periscope::ip-string expected-network)
-	      (periscope::ip-string expected-netmask) c)))
+      (is expected-error
+	  "Expected network ~a, netmask ~a, got ~a instead."
+	  (periscope::ip-string expected-network) (periscope::ip-string expected-netmask) c))
     (:no-error (result)
       (when expected-error
 	(expected 'parse-error :got result)))))
@@ -62,13 +61,16 @@
   (parse-ip-equals "192.168.10.0/24" #xc0a80a00 #xffffff00)
   (parse-ip-equals "192.168.10.0" #xc0a80a00 nil)
   (parse-ip-equals "198.7.232.1" #xc607e801 nil)
-  (parse-ip-equals "192.168/24" nil nil :expected-error t)
-  (parse-ip-equals "10.10.50.1000" nil nil :junk-allowed t)
+  (parse-ip-equals "10.10.50.1000"      nil nil :junk-allowed t)
+  (parse-ip-equals "192.168/24"         nil nil :expected-error t)
   (parse-ip-equals "192.168.1000.10/24" nil nil :expected-error t)
-  (parse-ip-equals "10.10.50.1000/24" nil nil :expected-error t)
-  (parse-ip-equals "10.10.50.1000/" nil nil :expected-error t)
+  (parse-ip-equals "10.10.50.1000/24"   nil nil :expected-error t)
+  (parse-ip-equals "10.10.50.1000/"     nil nil :expected-error t)
   (parse-ip-equals "10.10.50.1024/2057" nil nil :expected-error t)
-  (parse-ip-equals "10.10./.1024/2057" nil nil :expected-error t))
+  (parse-ip-equals "10.10./.1024/2057"  nil nil :expected-error t)
+  (parse-ip-equals "1.1.1.888/23"       nil nil :expected-error t)
+  (parse-ip-equals "1.1.1.1/34"         nil nil :expected-error t)
+  (parse-ip-equals "1.1.1.1/34"         nil nil :junk-allowed t))
 
 (deftest service-name-test ()
   #+linux
