@@ -31,6 +31,8 @@
        :report "Create a blank configuration file in your home directory."
        ;; Hack implementation of "touch"
        (let ((pathname (merge-pathnames "periscope-rc.lisp" (first (last pathnames)))))
+	 #+sbcl (ensure-directories-exist pathname :mode #o700)
+	 #-sbcl (ensure-directories-exist pathname)
 	 (with-open-file (ignoreme pathname :if-does-not-exist :create))
 	 pathname)))))
 
