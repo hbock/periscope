@@ -38,3 +38,12 @@
   "Apply each predicate in predicate-list once to each element in sequence, returning
 one filtered list per predicate."
   (mapcar (lambda (predicate) (remove-if-not predicate sequence :key key)) predicate-list))
+
+(defun time-split (flow-sequence timestamp)
+  (loop
+     :for flow :in flow-sequence
+     :if (local-time:timestamp< (start-time flow) timestamp)
+     :collect flow :into before
+     :else
+     :collect flow :into after
+     :finally (return (list before after))))
