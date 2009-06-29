@@ -33,26 +33,27 @@
   (with-slots (hash) object
     (setf hash (make-hash-table :size (length ports)))
     (dolist (flow flow-list)
-      (with-slots (protocol port-source port-dest bytes-source bytes-dest
-			    packets-source packets-dest) flow
+      (with-slots (protocol source dest) flow
 	(case protocol
 	  ((#.+ip-proto-udp+ #.+ip-proto-tcp+)
-	   (when (find port-source ports)
-	     (let ((service (gethash port-source hash (make-instance 'service-stats))))
-	       (incf (bytes-source service) bytes-source)
-	       (incf (packets-source service) packets-source)
-	       (setf (gethash port-source hash) service)))
-	   (when (find port-dest ports)
-	     (let ((service (gethash port-dest hash (make-instance 'service-stats))))
-	       (incf (bytes-dest service) bytes-dest)
-	       (incf (packets-dest service) packets-dest)
-	       (setf (gethash port-dest hash) service)))))))))
+	   (when (find (host-port source) ports)
+	     (let* ((port (host-port source))
+		    (service (gethash port hash (make-instance 'service-stats))))
+	       (incf (bytes-source service) (host-bytes source))
+	       (incf (packets-source service) (host-packets source))
+	       (setf (gethash port hash) service)))
+	   (when (find (host-port dest) ports)
+	     (let* ((port (host-port dest))
+		    (service (gethash port hash (make-instance 'service-stats))))
+	       (incf (bytes-dest service) (host-bytes dest))
+	       (incf (packets-dest service) (host-packets dest))
+	       (setf (gethash port hash) service)))))))))
 
 (defmethod print-report ((object service))
   (with-slots (hash) object
     (loop :for port :being :the :hash-keys :in hash :using (:hash-value service) :do
-       (format t "Port ~d: (source ~d bytes ~d packets) (dest ~d bytes ~d packets~%"
-	       port (bytes-source service) (packets-source service)
+       (format t "Port ~d: (source ~d bytes ~d packets) (dest ~d bytes ~d packets~%" port
+	       (bytes-source service) (packets-source service)
 	       (bytes-dest service) (packets-dest service)))))
 
 (defmethod print-html ((object service) &key)
@@ -76,5 +77,3 @@
     (:h2 "Service Statistics")
     (print-html
      (make-instance 'service :flow-list *flow-list*))))
-
-
