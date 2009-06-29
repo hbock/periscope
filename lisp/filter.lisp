@@ -22,20 +22,17 @@
   (etypecase vlan*
     (list
      (lambda (flow)
-       (with-slots (vlan-source vlan-dest) flow
-	 (or (find vlan-source vlan* :test #'=)
-	     (find vlan-dest vlan* :test #'=)))))
+       (or (find (host-vlan (source flow)) vlan* :test #'=)
+	   (find (host-vlan (dest flow))   vlan* :test #'=))))
     (vlan-id
      (lambda (flow)
-       (with-slots (vlan-source vlan-dest) flow
-	 (or (= vlan* vlan-source) (= vlan* vlan-dest)))))))
+       (or (= vlan* (host-vlan (source flow))) (= vlan* (host-vlan (dest flow))))))))
 
 (defun netmask-filter (network netmask)
   (declare (type (unsigned-byte 32) network netmask))
   (lambda (flow)
-    (with-slots (ip-source ip-dest) flow
-      (or (network-member-p ip-source network netmask)
-	  (network-member-p ip-dest network netmask)))))
+    (or (network-member-p (host-ip (source flow)) network netmask)
+	(network-member-p (host-ip (dest flow)) network netmask))))
 
 (defun apply-filters (sequence predicate-list &key key)
   "Apply each predicate in predicate-list once to each element in sequence, returning
