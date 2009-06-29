@@ -26,6 +26,7 @@
   :depends-on (:cffi
 	       :cl-who
 	       :cl-ppcre
+	       :local-time
 	       :hunchentoot
 	       :trivial-garbage
 	       :bordeaux-threads)
