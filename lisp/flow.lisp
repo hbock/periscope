@@ -22,64 +22,69 @@
   '(unsigned-byte 12))
 
 (defclass flow ()
-  ((ip-source :initarg :ip-source :reader flow-ip-source :initform (error "Must supply source IP!"))
-   (ip-dest   :initarg :ip-dest   :reader flow-ip-dest :initform (error "Must supply destination IP!"))
-   (protocol  :initarg :protocol  :reader flow-protocol :initform (error "Must supply IP protocol!"))
-   (port-source :initarg :port-source :reader flow-port-source :initform nil)
-   (port-dest   :initarg :port-dest :reader flow-port-dest :initform nil)
-   (packets-source :initarg :packets-source :initform 0)
-   (packets-dest   :initarg :packets-dest :initform 0)
-   (bytes-source   :initarg :bytes-source :initform 0)
-   (bytes-dest     :initarg :bytes-dest :initform 0)
-   (vlan-source :initarg :vlan-source :initform +vlan-none+)
-   (vlan-dest :initarg :vlan-dest :initform +vlan-none+)
-   (time-start-source :initform 0)
-   (time-end-source :initform 0)
-   (time-start-dest :initform 0)
-   (time-end-dest :initform 0)))
+  ((source :initarg :source :reader source)
+   (dest :initarg :dest :reader dest)
+   (protocol :initarg :protocol :reader protocol :initform (error "Must supply IP protocol!"))))
 
 (defclass flow-host ()
-  ((ip)
-   (port)
-   (packets)
-   (bytes)
-   (vlan)
-   (time-start)
-   (time-end)))
+  ((ip :initarg :ip :reader host-ip :initform (error "Must suppy IP addresss!"))
+   (port :initarg :port :reader host-port)
+   (packets :initarg :packets :reader host-packets)
+   (bytes :initarg :bytes :reader host-bytes)
+   (vlan :accessor host-vlan)
+   (start-time :reader host-start-time)
+   (end-time :reader host-end-time)))
+
+(defun build-flow (dsrs ip)
+  "Create a FLOW object given a set of Argus DSRs and an ArgusIPFlow structure."
+  (with-foreign-slots ((ip-src ip-dst ip-proto source-port dest-port) ip argus-ip-flow)
+    (let* ((source (make-instance 'flow-host :ip ip-src :port source-port))
+	   (dest (make-instance 'flow-host :ip ip-dst :port dest-port))
+	   (flow (make-instance 'flow :source source :dest dest :protocol ip-proto)))
+      
+      (with-slots (packets bytes start-time end-time) source
+	(multiple-value-setq (packets bytes) (source-metrics dsrs))
+	(multiple-value-setq (start-time end-time) (source-time dsrs)))
+      
+      (with-slots (packets bytes start-time end-time) dest
+	(multiple-value-setq (packets bytes) (dest-metrics dsrs))
+	(multiple-value-setq (start-time end-time) (dest-time dsrs)))
+
+      (unless (null-pointer-p (get-vlan dsrs))
+	(with-foreign-slots ((sid did) (get-vlan dsrs) argus-vlan)
+	  (setf (host-vlan source) (logand sid +vlan-vid-mask+)
+		(host-vlan dest) (logand did +vlan-vid-mask+))))
+      
+      flow)))
 
 (defmethod classify ((object flow) &key (network *internal-network*) (netmask *internal-netmask*))
-  (with-slots (ip-source ip-dest) object
-    (cond ((network-member-p ip-source network netmask)
-	   (if (network-member-p ip-dest network netmask)
+  (with-slots (source dest) object
+    (cond ((network-member-p (host-ip source) network netmask)
+	   (if (network-member-p (host-ip dest) network netmask)
 	       :internal-only
 	       :outgoing))
-	  ((network-member-p ip-dest network netmask)
+	  ((network-member-p (host-ip dest) network netmask)
 	   :incoming)
 	  (t :external-only))))
 
 (let ((row-switch t))
   (defmethod print-html ((object flow) &key)
-    (setf row-switch (not row-switch))
-    (with-slots (ip-source ip-dest port-source port-dest protocol
-			   packets-source packets-dest
-			   bytes-source bytes-dest
-			   vlan-source vlan-dest
-			   time-start-source time-end-source
-			   time-start-dest time-end-dest) object
-      (with-html-output (*standard-output*)
-	(:tr :class (if row-switch "rowa" "rowb")
-	     (:td (str (ip-string ip-source)))
-	     (:td (fmt "~d" port-source))
-	     (:td (fmt "~:d" packets-source))
-	     (:td (str (if (= +vlan-none+ vlan-source) "" (vlan-name vlan-source))))
-	     (:td (str (ip-string ip-dest)))
-	     (:td (fmt "~d" port-dest))
-	     (:td (fmt "~:d" packets-dest))
-	     (:td (str (if (= +vlan-none+ vlan-dest) "" (vlan-name vlan-dest))))
-	     (:td (str (case protocol
-			 (1 "ICMP")
-			 (2 "IGMP")
-			 (6 "TCP")
-			 (17 "UDP"))))
-	     (:td (str (min time-start-source time-start-dest)))
-	     (:td (str (max time-end-source time-end-dest))))))))
+    (flet ((print-host (host)
+	     (with-html-output (*standard-output*)
+	       (:td (str (ip-string (host-ip host))))
+	       (:td (fmt "~d" (host-port host)))
+	       (:td (fmt "~:d" (host-packets host)))
+	       (:td (str (if (= +vlan-none+ (host-vlan host)) "" (vlan-name (host-vlan host))))))))
+      (setf row-switch (not row-switch))
+      (with-slots (source dest protocol) object
+	(with-html-output (*standard-output*)
+	  (:tr :class (if row-switch "rowa" "rowb")
+	       (print-host source)
+	       (print-host dest)
+	       (:td (str (case protocol
+			   (1 "ICMP")
+			   (2 "IGMP")
+			   (6 "TCP")
+			   (17 "UDP"))))
+	       (:td (str (min (host-start-time source) (host-start-time dest))))
+	       (:td (str (max (host-end-time source) (host-end-time dest))))))))))
