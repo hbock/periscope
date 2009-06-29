@@ -39,22 +39,20 @@
 			 :packets
 			 (reduce #'+ flow-list 
 				 :key (lambda (flow)
-					(with-slots (packets-source packets-dest) flow
-					  (+ packets-source packets-dest))))
+					(+ (host-packets (source flow)) (host-packets (dest flow)))))
 			 :bytes
 			 (reduce #'+ flow-list 
 				 :key (lambda (flow)
-					(with-slots (bytes-source bytes-dest) flow
-					  (+ bytes-source bytes-dest)))))
+					(+ (host-bytes (source flow)) (host-bytes (dest flow))))))
 	  internal (make-instance 'stats)
 	  external (make-instance 'stats)
 	  incoming (make-instance 'stats)
 	  outgoing (make-instance 'stats))
   
     (dolist (flow flow-list)
-      (with-slots (packets-source packets-dest bytes-source bytes-dest) flow
-	(let ((bytes (+ bytes-source bytes-dest))
-	      (packets (+ packets-source packets-dest)))
+      (with-slots (source dest) flow
+	(let ((bytes (+ (host-bytes source) (host-bytes dest)))
+	      (packets (+ (host-packets source) (host-packets dest))))
 	  (case (classify flow)
 	    (:internal-only (add-stats internal :bytes bytes :packets packets))
 	    (:external-only (add-stats external :bytes bytes :packets packets))
