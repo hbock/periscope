@@ -42,7 +42,9 @@
 	     for i from 0 upto (length filtered-flows)
 	     for report in reports do
 	       (htm
-		(:h3 (fmt "Report generated at ~a" (utc-date-string (report-time report))))
+		(:h3 (fmt "Report generated at ~a" (iso8661-date-string
+						    (local-time:universal-to-timestamp
+						     (report-time report)))))
 		(:table
 		 (:tr (:th "") (:th "Packets") (:th "Bytes") (:th "Flows"))
 		 (print-html (total report) :title "Total")
