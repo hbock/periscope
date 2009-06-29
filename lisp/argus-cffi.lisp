@@ -128,18 +128,14 @@
 	 (foreign-slot-value
 	  (foreign-slot-value dsrs 'periscope-dsrs 'time) 'argus-time-object 'src)))
     (with-foreign-slots ((start-sec start-usec end-sec end-usec) time argus-time)
-      (values
-       (+ start-sec (coerce (/ start-usec 1e6) 'double-float))
-       (+ end-sec (coerce (/ end-usec 1e6) 'double-float))))))
+      (values start-sec start-usec end-sec end-usec))))
 
 (defun dest-time (dsrs)
   (let ((time
 	 (foreign-slot-value
 	  (foreign-slot-value dsrs 'periscope-dsrs 'time) 'argus-time-object 'dst)))
     (with-foreign-slots ((start-sec start-usec end-sec end-usec) time argus-time)
-      (values
-       (+ start-sec (coerce (/ start-usec 1e6) 'double-float))
-       (+ end-sec (coerce (/ end-usec 1e6) 'double-float))))))
+      (values start-sec start-usec end-sec end-usec))))
 
 (defun source-metrics (dsrs)
   (let ((stats

@@ -32,8 +32,40 @@
    (packets :initarg :packets :reader host-packets)
    (bytes :initarg :bytes :reader host-bytes)
    (vlan :accessor host-vlan :initform +vlan-none+)
-   (start-time :reader host-start-time)
-   (end-time :reader host-end-time)))
+   start-time
+   start-time-usec
+   end-time
+   end-time-usec))
+
+(defmethod start-time ((object flow-host))
+  (values (slot-value object 'start-time) (slot-value object 'start-time-usec)))
+
+(defmethod end-time ((object flow-host))
+  (values (slot-value object 'end-time) (slot-value object 'end-time-usec)))
+
+(defmethod start-time ((object flow))
+  (multiple-value-bind (source-sec source-usec) (start-time (source object))
+    (multiple-value-bind (dest-sec dest-usec) (start-time (dest object))
+      (cond ((< source-sec dest-sec)
+	     (values source-sec source-usec))
+	    ((< dest-sec source-sec)
+	     (values dest-sec dest-usec))
+	    ((< source-usec dest-usec)
+	     (values source-sec source-usec))
+	    (t
+	     (values dest-sec dest-usec))))))
+
+(defmethod end-time ((object flow))
+  (multiple-value-bind (source-sec source-usec) (end-time (source object))
+    (multiple-value-bind (dest-sec dest-usec) (end-time (dest object))
+      (cond ((> source-sec dest-sec)
+	     (values source-sec source-usec))
+	    ((> dest-sec source-sec)
+	     (values dest-sec dest-usec))
+	    ((> source-usec dest-usec)
+	     (values source-sec source-usec))
+	    (t
+	     (values dest-sec dest-usec))))))
 
 (defun build-flow (dsrs ip)
   "Create a FLOW object given a set of Argus DSRs and an ArgusIPFlow structure."
@@ -42,13 +74,15 @@
 	   (dest (make-instance 'flow-host :ip ip-dst :port dest-port))
 	   (flow (make-instance 'flow :source source :dest dest :protocol ip-proto)))
       
-      (with-slots (packets bytes start-time end-time) source
+      (with-slots (packets bytes start-time start-time-usec end-time end-time-usec) source
 	(multiple-value-setq (packets bytes) (source-metrics dsrs))
-	(multiple-value-setq (start-time end-time) (source-time dsrs)))
+	(multiple-value-setq (start-time start-time-usec end-time end-time-usec)
+	  (source-time dsrs)))
       
-      (with-slots (packets bytes start-time end-time) dest
+      (with-slots (packets bytes start-time start-time-usec end-time end-time-usec) dest
 	(multiple-value-setq (packets bytes) (dest-metrics dsrs))
-	(multiple-value-setq (start-time end-time) (dest-time dsrs)))
+	(multiple-value-setq (start-time start-time-usec end-time end-time-usec)
+	  (dest-time dsrs)))
 
       (unless (null-pointer-p (get-vlan dsrs))
 	(with-foreign-slots ((sid did) (get-vlan dsrs) argus-vlan)
@@ -86,5 +120,7 @@
 			   (2 "IGMP")
 			   (6 "TCP")
 			   (17 "UDP"))))
-	       (:td (str (min (host-start-time source) (host-start-time dest))))
-	       (:td (str (max (host-end-time source) (host-end-time dest))))))))))
+	       (multiple-value-bind (sec usec) (start-time object)
+		 (htm (:td (fmt "~d.~d" sec usec))))
+	       (multiple-value-bind (sec usec) (end-time object)
+		 (htm (:td (fmt "~d.~d" sec usec))))))))))
