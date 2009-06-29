@@ -32,7 +32,20 @@
    (bytes-source   :initarg :bytes-source :initform 0)
    (bytes-dest     :initarg :bytes-dest :initform 0)
    (vlan-source :initarg :vlan-source :initform +vlan-none+)
-   (vlan-dest :initarg :vlan-dest :initform +vlan-none+)))
+   (vlan-dest :initarg :vlan-dest :initform +vlan-none+)
+   (time-start-source :initform 0)
+   (time-end-source :initform 0)
+   (time-start-dest :initform 0)
+   (time-end-dest :initform 0)))
+
+(defclass flow-host ()
+  ((ip)
+   (port)
+   (packets)
+   (bytes)
+   (vlan)
+   (time-start)
+   (time-end)))
 
 (defmethod classify ((object flow) &key (network *internal-network*) (netmask *internal-netmask*))
   (with-slots (ip-source ip-dest) object
@@ -50,7 +63,9 @@
     (with-slots (ip-source ip-dest port-source port-dest protocol
 			   packets-source packets-dest
 			   bytes-source bytes-dest
-			   vlan-source vlan-dest) object
+			   vlan-source vlan-dest
+			   time-start-source time-end-source
+			   time-start-dest time-end-dest) object
       (with-html-output (*standard-output*)
 	(:tr :class (if row-switch "rowa" "rowb")
 	     (:td (str (ip-string ip-source)))
@@ -65,4 +80,6 @@
 			 (1 "ICMP")
 			 (2 "IGMP")
 			 (6 "TCP")
-			 (17 "UDP")))))))))
+			 (17 "UDP"))))
+	     (:td (str (min time-start-source time-start-dest)))
+	     (:td (str (max time-end-source time-end-dest))))))))

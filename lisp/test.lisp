@@ -51,9 +51,10 @@
 		 (print-html (incoming report) :title "Incoming")
 		 (print-html (outgoing report) :title "Outgoing"))
 		(:table
-		 (:tr (:th :colspan 4 "Source") (:th :colspan 4 "Destination") (:th "Flow information"))
+		 (:tr (:th :colspan 4 "Source") (:th :colspan 4 "Destination")
+		      (:th "Flow information" :colspan 3))
 		 (:tr (:th "IP") (:th "Port") (:th "Packets") (:th "VLAN")
 		      (:th "IP") (:th "Port") (:th "Packets") (:th "VLAN")
-		      (:th "Protocol"))
+		      (:th "Protocol") (:th "First Time") (:th "Last Time"))
 		 (loop :for flow :in (nth i filtered-flows) :repeat 100 :do
 		    (print-html flow)))))))))))
