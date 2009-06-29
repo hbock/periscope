@@ -75,6 +75,17 @@
   (sid :uint16)
   (did :uint16))
 
+(defcstruct argus-time
+  (start-sec  :int32)
+  (start-usec :int32)
+  (end-sec  :int32)
+  (end-usec :int32))
+
+(defcstruct argus-time-object
+  (hdr argus-dsr-header)
+  (src argus-time)
+  (dst argus-time))
+
 (defcenum argus-flow-types
   (:ipv4 #x01)
   (:ipv6 #x02)
@@ -111,6 +122,24 @@
   (foreign-slot-value dsrs 'periscope-dsrs 'metric))
 (defun get-vlan (dsrs)
   (foreign-slot-value dsrs 'periscope-dsrs 'vlan))
+
+(defun source-time (dsrs)
+  (let ((time
+	 (foreign-slot-value
+	  (foreign-slot-value dsrs 'periscope-dsrs 'time) 'argus-time-object 'src)))
+    (with-foreign-slots ((start-sec start-usec end-sec end-usec) time argus-time)
+      (values
+       (+ start-sec (coerce (/ start-usec 1e6) 'double-float))
+       (+ end-sec (coerce (/ end-usec 1e6) 'double-float))))))
+
+(defun dest-time (dsrs)
+  (let ((time
+	 (foreign-slot-value
+	  (foreign-slot-value dsrs 'periscope-dsrs 'time) 'argus-time-object 'dst)))
+    (with-foreign-slots ((start-sec start-usec end-sec end-usec) time argus-time)
+      (values
+       (+ start-sec (coerce (/ start-usec 1e6) 'double-float))
+       (+ end-sec (coerce (/ end-usec 1e6) 'double-float))))))
 
 (defun source-metrics (dsrs)
   (let ((stats
