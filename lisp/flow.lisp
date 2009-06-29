@@ -38,34 +38,20 @@
    end-time-usec))
 
 (defmethod start-time ((object flow-host))
-  (values (slot-value object 'start-time) (slot-value object 'start-time-usec)))
+  (with-slots (start-time start-time-usec) object
+    (local-time:unix-to-timestamp start-time :nsec (* 1000 start-time-usec))))
 
 (defmethod end-time ((object flow-host))
-  (values (slot-value object 'end-time) (slot-value object 'end-time-usec)))
+  (with-slots (end-time end-time-usec) object
+    (local-time:unix-to-timestamp end-time :nsec (* 1000 end-time-usec))))
 
 (defmethod start-time ((object flow))
-  (multiple-value-bind (source-sec source-usec) (start-time (source object))
-    (multiple-value-bind (dest-sec dest-usec) (start-time (dest object))
-      (cond ((< source-sec dest-sec)
-	     (values source-sec source-usec))
-	    ((< dest-sec source-sec)
-	     (values dest-sec dest-usec))
-	    ((< source-usec dest-usec)
-	     (values source-sec source-usec))
-	    (t
-	     (values dest-sec dest-usec))))))
+  (local-time:timestamp-minimum
+   (start-time (source object)) (start-time (dest object))))
 
 (defmethod end-time ((object flow))
-  (multiple-value-bind (source-sec source-usec) (end-time (source object))
-    (multiple-value-bind (dest-sec dest-usec) (end-time (dest object))
-      (cond ((> source-sec dest-sec)
-	     (values source-sec source-usec))
-	    ((> dest-sec source-sec)
-	     (values dest-sec dest-usec))
-	    ((> source-usec dest-usec)
-	     (values source-sec source-usec))
-	    (t
-	     (values dest-sec dest-usec))))))
+  (local-time:timestamp-maximum
+   (end-time (source object)) (end-time (dest object))))
 
 (defun build-flow (dsrs ip)
   "Create a FLOW object given a set of Argus DSRs and an ArgusIPFlow structure."
@@ -120,7 +106,5 @@
 			   (#.+ip-proto-igmp+ "IGMP")
 			   (#.+ip-proto-tcp+ "TCP")
 			   (#.+ip-proto-udp+ "UDP"))))
-	       (multiple-value-bind (sec usec) (start-time object)
-		 (htm (:td (fmt "~d.~d" sec usec))))
-	       (multiple-value-bind (sec usec) (end-time object)
-		 (htm (:td (fmt "~d.~d" sec usec))))))))))
+	       (:td (str (iso8661-date-string (start-time object))))
+	       (:td (str (iso8661-date-string (end-time object))))))))))
