@@ -31,7 +31,7 @@
    (port :initarg :port :reader host-port)
    (packets :initarg :packets :reader host-packets)
    (bytes :initarg :bytes :reader host-bytes)
-   (vlan :accessor host-vlan)
+   (vlan :accessor host-vlan :initform +vlan-none+)
    (start-time :reader host-start-time)
    (end-time :reader host-end-time)))
 
