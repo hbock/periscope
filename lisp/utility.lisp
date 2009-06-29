@@ -132,9 +132,13 @@ digits following the decimal point."
 	 :when (>= bytes boundary) :do
 	 (return (format nil "~v$ ~a" precision (/ bytes boundary) name)))))
 
-(defun utc-date-string (&optional (time (get-universal-time)))
+(defun iso8661-date-string (&optional (time (local-time:now)))
   "Convert a universal time to an ISO8661 date string."
-  (multiple-value-bind (sec minute hour date month year)
-      (decode-universal-time time)
-    (declare (ignore sec))
-    (format nil "~4,'0d-~2,'0d-~2,'0d ~2,'0d:~2,'0d" year month date hour minute)))
+  (let ((format '((:year 4) #\- (:month 2) #\- (:day 2) #\T (:hour 2) #\: (:min 2) #\: (:sec 2))))
+    (local-time:format-timestring t time :format format)))
+
+(defun next-hour (timestamp)
+  (local-time:timestamp+ (local-time:timestamp-minimize-part timestamp :min) 1 :hour))
+
+(defun previous-hour (timestamp)
+  (local-time:timestamp- (local-time:timestamp-minimize-part timestamp :min) 1 :hour))
