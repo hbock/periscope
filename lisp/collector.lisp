@@ -101,5 +101,6 @@
     (when filter
       (setf (filter collector) filter))
     (add-file collector file)
-    (run collector)))
+    (run collector))
+  (setf *flow-list* (nreverse *flow-list*)))
 
