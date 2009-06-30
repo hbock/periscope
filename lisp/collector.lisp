@@ -94,3 +94,12 @@
   (when (minusp
 	 (%argus-set-filter (get-ptr object) filter))
     (error "Syntax error in filter: '~a'" filter)))
+
+(defun process-local-file (file &optional filter)
+  (setf *flow-list* nil)
+  (let ((collector (init-basic-collector)))
+    (when filter
+      (setf (filter collector) filter))
+    (add-file collector file)
+    (run collector)))
+

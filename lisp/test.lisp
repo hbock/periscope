@@ -18,14 +18,6 @@
 ;;;; Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 (in-package :periscope)
 
-(defun test-argus (&optional (file "argus.1") filter)
-  (setf *flow-list* nil)
-  (let ((collector (init-basic-collector)))
-    (when filter
-      (setf (filter collector) filter))
-    (add-file collector file)
-    (run collector)))
-
 (define-report-handler (test "/test" "Last 100 Flows") ()
   (with-periscope-page ("Test data")
     (:h2 (who:fmt "Flow List (~d flows processed)" (length *flow-list*)))
