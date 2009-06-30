@@ -19,7 +19,7 @@
 (in-package :cl-user)
 
 (defpackage :periscope
-  (:use :common-lisp :cffi :cl-who))
+  (:use :common-lisp :cffi :cl-who :local-time))
 
 (in-package :periscope)
 
