@@ -23,10 +23,7 @@
 If subnet is specified, a CIDR suffix will be appended to the end of the string."
   (declare (type (unsigned-byte 32) ip))
   (flet ((count-bits (integer)
-	   (loop :with ones = 0
-	      :for bit :from 0 :upto 31
-	      :when (plusp (logand integer (ash #x0001 bit))) 
-	      :do (incf ones) :finally (return ones))))
+	   (loop :for bit :from 0 :upto 31 :counting (logbitp bit integer))))
     (format nil "~d.~d.~d.~d~:[~;/~d~]"
 	    (ldb (byte 8 24) ip)
 	    (ldb (byte 8 16) ip)
