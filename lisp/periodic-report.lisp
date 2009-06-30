@@ -24,11 +24,11 @@
    (packets :initarg :packets :accessor packets :initform 0)))
 
 (defclass periodic-report (report)
-  ((total :accessor total)
-   (internal :accessor internal)
-   (external :accessor external)
-   (incoming :accessor incoming)
-   (outgoing :accessor outgoing)))
+  ((total :accessor total :type stats)
+   (internal :accessor internal :type stats)
+   (external :accessor external :type stats)
+   (incoming :accessor incoming :type stats)
+   (outgoing :accessor outgoing :type stats)))
 
 (defmethod initialize-instance :after ((object periodic-report)
 				       &key (flow-list (error "Need flows!")))
