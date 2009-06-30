@@ -48,6 +48,7 @@
 (defvar *internal-network* #x0a000000)
 (defvar *internal-netmask* #xffffff00)
 
+(defconstant +broadcast-ip+ #xffffffff)
 (defconstant +ip-proto-icmp+ 1)
 (defconstant +ip-proto-igmp+ 2)
 (defconstant +ip-proto-tcp+  6)
