@@ -40,21 +40,21 @@ one filtered list per predicate."
   (mapcar (lambda (predicate) (remove-if-not predicate sequence :key key)) predicate-list))
 
 (defun time-split (flow-sequence)
-  (do* ((time (timestamp+
-	       (timestamp-minimize-part (start-time (first flow-sequence)) :min) 10 :minute)
-	      (timestamp+ time 10 :minute))
-	(split (%time-split flow-sequence time)
-	       (%time-split (cdr split) time))
-	(split-list nil
-		    (push (car split) split-list)))
-       ((and (null (car split)) (null (cdr split))) (nreverse split-list))
-    (format t "Length: ~A~%" (length (car split)))))
+  (flet ((%time-split (flow-sequence timestamp)
+	   (loop
+	      :for flow :in flow-sequence
+	      :if (timestamp< (start-time flow) timestamp)
+	      :collect flow :into before
+	      :else
+	      :collect flow :into after
+	      :finally (return (cons before after)))))
+    (do* ((time (timestamp+
+		 (timestamp-minimize-part (start-time (first flow-sequence)) :min) 10 :minute)
+		(timestamp+ time 10 :minute))
+	  (split (%time-split flow-sequence time)
+		 (%time-split (cdr split) time))
+	  (split-list nil
+		      (push (car split) split-list)))
+	 ((and (null (car split)) (null (cdr split))) (nreverse split-list))
+      (format t "Length: ~A~%" (length (car split))))))
 
-(defun %time-split (flow-sequence timestamp)
-  (loop
-     :for flow :in flow-sequence
-     :if (timestamp< (start-time flow) timestamp)
-     :collect flow :into before
-     :else
-     :collect flow :into after
-     :finally (return (cons before after))))
