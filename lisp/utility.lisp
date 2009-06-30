@@ -104,13 +104,17 @@ is parsed to create the cache; by default, it is created using the system file
 
 (defun service-name (port &key (protocol :tcp))
   "Return the Internet service name for a given PORT and PROTOCOL basic on the system 
-services file (default is /etc/services)."
+services file (default is /etc/services). If PORT is not named by the system, by default
+the port number is returned."
   (when (zerop (hash-table-count *service-cache*))
     (create-service-cache))
   (let ((service-names (gethash port *service-cache*)))
-    (ecase protocol
-      ((:tcp #.+ip-proto-tcp+) (car service-names))
-      ((:udp #.+ip-proto-udp+) (cdr service-names)))))
+    (if service-names
+	(case protocol
+	  ((:tcp #.+ip-proto-tcp+) (car service-names))
+	  ((:udp #.+ip-proto-udp+) (cdr service-names))
+	  (t port))
+	port)))
 
 (defun vlan-name (vlan)
   "Returns the VLAN name associated with identifier vlan (an integer).
