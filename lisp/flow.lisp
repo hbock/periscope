@@ -79,13 +79,17 @@
 
 (defmethod classify ((object flow) &key (network *internal-network*) (netmask *internal-netmask*))
   (with-slots (source dest) object
-    (cond ((network-member-p (host-ip source) network netmask)
-	   (if (network-member-p (host-ip dest) network netmask)
-	       :internal-only
-	       :outgoing))
-	  ((network-member-p (host-ip dest) network netmask)
-	   :incoming)
-	  (t :external-only))))
+    (cond
+      ((or (broadcast-address-p (host-ip source) netmask)
+	   (broadcast-address-p (host-ip dest) netmask))
+       :internal-only)
+      ((network-member-p (host-ip source) network netmask)
+       (if (network-member-p (host-ip dest) network netmask)
+	   :internal-only
+	   :outgoing))
+      ((network-member-p (host-ip dest) network netmask)
+       :incoming)
+      (t :external-only))))
 
 (let ((row-switch t))
   (defmethod print-html ((object flow) &key)
