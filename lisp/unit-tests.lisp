@@ -79,7 +79,9 @@
     (is (string-equal (periscope::service-name 21) "ftp"))
     (is (string-equal (periscope::service-name 123 :protocol :tcp) "ntp"))
     (is (string-equal (periscope::service-name 123 :protocol :udp) "ntp"))
-    (is (string-equal (periscope::service-name 161) "snmp"))))
+    (is (string-equal (periscope::service-name 161) "snmp"))
+    (is (= 161 (periscope::service-name 161 :protocol periscope::+ip-proto-igmp+)))
+    (is (= 20570 (periscope::service-name 20570)))))
 
 (deftest byte-string-equal (bytes desired-result &key (precision 2))
   (is (string= (periscope::byte-string bytes precision) desired-result)))
@@ -95,13 +97,6 @@
   (is (not (periscope::network-member-p #x0a010001 #x0a000000 #xffffff00)))
   (is (not (periscope::network-member-p #x0f000001 #x0a000000 #xffffff00)))
   (is (periscope::network-member-p #xc0a80a0f #xc0a80000 #xffff0000)))
-
-(deftest date-string-equal (time expected-result)
-  (is (string-equal (periscope::utc-date-string time) expected-result)))
-
-(deftest date-string-test ()
-  (date-string-equal 3454759813 "2009-06-23 11:30")
-  (date-string-equal 3254059813 "2003-02-12 12:30"))
 
 (deftest vlan-name-tests ()
   (let ((periscope::*vlan-names* (make-hash-table)))
