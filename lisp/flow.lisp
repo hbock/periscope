@@ -96,7 +96,7 @@
     (flet ((print-host (host)
 	     (with-html-output (*standard-output*)
 	       (:td (str (ip-string (host-ip host))))
-	       (:td (fmt "~d" (host-port host)))
+	       (:td (fmt "~d" (service-name (host-port host))))
 	       (:td (fmt "~:d" (host-packets host)))
 	       (:td (str (if (= +vlan-none+ (host-vlan host)) "" (vlan-name (host-vlan host))))))))
       (setf row-switch (not row-switch))
