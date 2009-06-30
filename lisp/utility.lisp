@@ -62,6 +62,7 @@ PARSE-ERROR if string is not a valid IPv4 string unless :junk-allowed is T."
 	 (when subnet
 	   (logand #xFFFFFFFF (ash #xFFFFFFFF (- 32 subnet)))))))))
 
+(declaim (inline network-member-p local-host-p remote-host-p))
 (defun network-member-p (ip network netmask)
   "Returns true if IP is a member of the IPv4 network specified by NETWORK and NETMASK."
   (= network (logand ip netmask)))
