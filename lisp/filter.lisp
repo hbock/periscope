@@ -47,14 +47,14 @@ one filtered list per predicate."
 	      :collect flow :into before
 	      :else
 	      :collect flow :into after
-	      :finally (return (cons before after)))))
-    (do* ((time (timestamp+
-		 (timestamp-minimize-part (start-time (first flow-sequence)) :min) 10 :minute)
-		(timestamp+ time 10 :minute))
-	  (split (%time-split flow-sequence time)
-		 (%time-split (cdr split) time))
-	  (split-list nil
-		      (push (car split) split-list)))
-	 ((and (null (car split)) (null (cdr split))) (nreverse split-list))
-      (format t "Length: ~A~%" (length (car split))))))
-
+	      :finally (return (list before after)))))
+    (let (split-list)
+      (do* ((time (timestamp+
+		   (timestamp-minimize-part (start-time (first flow-sequence)) :min) 10 :minute)
+		  (timestamp+ time 10 :minute))
+	    (split (%time-split flow-sequence time)
+		   (%time-split (second split) time)))
+	   ((and (null (car split)) (null (second split)))	    
+	    split-list)
+	(when (car split)
+	  (push (first split) split-list))))))
