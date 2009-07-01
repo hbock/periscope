@@ -116,9 +116,10 @@
   (with-html-output (*standard-output*)
     (htm
      (:table
-      (:tr (:th :colspan 10 (str title)))
-      (:tr (:th) (:th :colspan 3 "Sending")
-	   (:th :colspan 3 "Receiving")
+      (:tr (:th :colspan 8 (str title)))
+      (:tr (:th)
+	   (:th :colspan 2 "Sending")
+	   (:th :colspan 2 "Receiving")
 	   (:th :colspan 3 "Total"))
       (:tr (:th) (:th "Packets") (:th "Bytes") (:th "Packets") (:th "Bytes")
 	   (:th "Packets") (:th "Bytes") (:th "Flows"))
