@@ -96,7 +96,7 @@
   (sort stat-list #'> :key (lambda (stats)
 			     (+ (bytes (receiving stats)) (bytes (sending stats))))))
 
-(defmethod print-html ((object stats) &key (title "General Stats") (type :general))
+(defmethod print-html ((object stats) &key (title "General Stats") (type :general) (flows t))
   (with-html-output (*standard-output*)
     (ecase type
       (:general
@@ -109,19 +109,26 @@
        (htm
 	(:td (fmt "~:d" (packets object)))
 	(:td (str (byte-string (bytes object))))
-	(:td (fmt "~:d" (flows object))))))))
+	(when flows
+	  (htm (:td (fmt "~:d" (flows object))))))))))
 
-(defun print-busiest-hosts-header (title)
+(defun print-busiest-hosts (title list)
   (with-html-output (*standard-output*)
-    (flet ((stat-header ()
-	     (htm
-	      (:th "Packets") (:th "Bytes") (:th "Flows"))))
-      (htm
-       (:tr (:th :colspan 10 (str title)))
-       (:tr (:th) (:th :colspan 3 "Sending")
-	    (:th :colspan 3 "Receiving")
-	    (:th :colspan 3 "Total"))
-       (:tr (:th) (stat-header) (stat-header) (stat-header))))))
+    (htm
+     (:table
+      (:tr (:th :colspan 10 (str title)))
+      (:tr (:th) (:th :colspan 3 "Sending")
+	   (:th :colspan 3 "Receiving")
+	   (:th :colspan 3 "Total"))
+      (:tr (:th) (:th "Packets") (:th "Bytes") (:th "Packets") (:th "Bytes")
+	   (:th "Packets") (:th "Bytes") (:th "Flows"))
+      (loop :for host :in list :repeat 15 :do
+	 (htm
+	  (:tr
+	   (:td (str (ip-string (host-ip host))))
+	   (print-html (receiving host) :type :busiest-hosts :flows nil)
+	   (print-html (sending host)   :type :busiest-hosts :flows nil)
+	   (print-html (combine-stats (receiving host) (sending host)) :type :busiest-hosts))))))))
 
 (defmethod print-html ((report periodic-report) &key (title "Periodic Report"))
   (with-html-output (*standard-output*)
@@ -141,24 +148,8 @@
      (print-html (external report) :title "External Only")
      (print-html (incoming report) :title "Incoming")
      (print-html (outgoing report) :title "Outgoing"))
-    (:table
-     (print-busiest-hosts-header "Busiest Local Hosts")
-     (loop :for host :in (busiest-hosts (local-hosts report)) :repeat 15 :do
-	(htm
-	 (:tr
-	  (:td (str (ip-string (host-ip host))))
-	  (print-html (receiving host) :type :busiest-hosts)
-	  (print-html (sending host)   :type :busiest-hosts)
-	  (print-html (combine-stats (receiving host) (sending host)) :type :busiest-hosts)))))
-    (:table
-     (print-busiest-hosts-header "Busiest Remote Hosts")
-     (loop :for host :in (busiest-hosts (remote-hosts report)) :repeat 15 :do
-	(htm
-	 (:tr
-	  (:td (str (ip-string (host-ip host))))
-	  (print-html (receiving host) :type :busiest-hosts)
-	  (print-html (sending host)   :type :busiest-hosts)
-	  (print-html (combine-stats (receiving host) (sending host)) :type :busiest-hosts)))))))
+    (print-busiest-hosts "Busiest Local Hosts" (busiest-hosts (local-hosts report)))
+    (print-busiest-hosts "Busiest Remote Hosts" (busiest-hosts (remote-hosts report)))))
 
 (defmethod add-stats ((object stats) &key (flows 1) (bytes 0) (packets 0))
   (incf (flows object) flows)
@@ -167,6 +158,6 @@
 
 (defun combine-stats (&rest stats)
   (make-instance 'stats
-		 :flows (reduce #'+ stats :key #'flows)
+		 :flows (flows (first stats));(reduce #'+ stats :key #'flows)
 		 :bytes (reduce #'+ stats :key #'bytes)
 		 :packets (reduce #'+ stats :key #'packets)))
