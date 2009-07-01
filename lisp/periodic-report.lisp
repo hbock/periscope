@@ -123,8 +123,7 @@
 	   (:th :colspan 3 "Total"))
       (:tr (:th) (:th "Packets") (:th "Bytes") (:th "Packets") (:th "Bytes")
 	   (:th "Packets") (:th "Bytes") (:th "Flows"))
-      (loop
-	 :with row-switch = t
+      (loop :with row-switch = t
 	 :for host :in list :repeat 15 :do
 	 (htm
 	  (:tr
@@ -148,11 +147,11 @@
     
     (:table
      (:tr (:th "") (:th "Packets") (:th "Bytes") (:th "Flows"))
-     (print-html (total report) :title "Total")
      (print-html (internal report) :title "Internal Only")
      (print-html (external report) :title "External Only")
      (print-html (incoming report) :title "Incoming")
-     (print-html (outgoing report) :title "Outgoing"))
+     (print-html (outgoing report) :title "Outgoing")
+     (print-html (total report) :title "Total"))
     (print-busiest-hosts "Busiest Local Hosts" (busiest-hosts (local-hosts report)))
     (print-busiest-hosts "Busiest Remote Hosts" (busiest-hosts (remote-hosts report)))))
 
