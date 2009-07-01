@@ -123,13 +123,17 @@
 	   (:th :colspan 3 "Total"))
       (:tr (:th) (:th "Packets") (:th "Bytes") (:th "Packets") (:th "Bytes")
 	   (:th "Packets") (:th "Bytes") (:th "Flows"))
-      (loop :for host :in list :repeat 15 :do
+      (loop
+	 :with row-switch = t
+	 :for host :in list :repeat 15 :do
 	 (htm
 	  (:tr
+	   :class (if row-switch "rowa" "rowb")
 	   (:td (str (ip-string (host-ip host))))
 	   (print-html (receiving host) :type :busiest-hosts :flows nil)
 	   (print-html (sending host)   :type :busiest-hosts :flows nil)
-	   (print-html (combine-stats (receiving host) (sending host)) :type :busiest-hosts))))))))
+	   (print-html (combine-stats (receiving host) (sending host)) :type :busiest-hosts)))
+	 (setf row-switch (not row-switch)))))))
 
 (defmethod print-html ((report periodic-report) &key (title "Periodic Report"))
   (with-html-output (*standard-output*)
