@@ -32,7 +32,7 @@
    (host-stats :initform (make-hash-table :size 1000))))
 
 (defclass host-stats ()
-  ((ip :initarg :ip :initform (error "Must provide IP!"))
+  ((ip :initarg :ip :accessor host-ip :initform (error "Must provide IP!"))
    (total :accessor total :type stats)
    (sending :accessor sending :type stats :initform (make-instance 'stats))
    (receiving :accessor receiving :type stats :initform (make-instance 'stats))
@@ -96,12 +96,32 @@
   (sort stat-list #'> :key (lambda (stats)
 			     (+ (bytes (receiving stats)) (bytes (sending stats))))))
 
-(defmethod print-html ((object stats) &key (title "General Stats"))
+(defmethod print-html ((object stats) &key (title "General Stats") (type :general))
   (with-html-output (*standard-output*)
-    (:tr (:th (str title))
-	 (:td (fmt "~:d" (packets object)))
-	 (:td (str (byte-string (bytes object))))
-	 (:td (fmt "~:d" (flows object))))))
+    (ecase type
+      (:general
+       (htm
+	(:tr (:th (str title))
+	     (:td (fmt "~:d" (packets object)))
+	     (:td (str (byte-string (bytes object))))
+	     (:td (fmt "~:d" (flows object))))))
+      (:busiest-hosts
+       (htm
+	(:td (fmt "~:d" (packets object)))
+	(:td (str (byte-string (bytes object))))
+	(:td (fmt "~:d" (flows object))))))))
+
+(defun print-busiest-hosts-header (title)
+  (with-html-output (*standard-output*)
+    (flet ((stat-header ()
+	     (htm
+	      (:th "Packets") (:th "Bytes") (:th "Flows"))))
+      (htm
+       (:tr (:th :colspan 10 (str title)))
+       (:tr (:th) (:th :colspan 3 "Sending")
+	    (:th :colspan 3 "Receiving")
+	    (:th :colspan 3 "Total"))
+       (:tr (:th) (stat-header) (stat-header) (stat-header))))))
 
 (defmethod print-html ((report periodic-report) &key (title "Periodic Report"))
   (with-html-output (*standard-output*)
@@ -122,10 +142,23 @@
      (print-html (incoming report) :title "Incoming")
      (print-html (outgoing report) :title "Outgoing"))
     (:table
-     (:tr (:th :colspan 4 "Busiest Local Hosts"))
-     (dolist (host (busiest-hosts (local-hosts report)))
-       (print-html (combine-stats (receiving host) (sending host))
-		   :title (ip-string (slot-value host 'ip)))))))
+     (print-busiest-hosts-header "Busiest Local Hosts")
+     (loop :for host :in (busiest-hosts (local-hosts report)) :repeat 15 :do
+	(htm
+	 (:tr
+	  (:td (str (ip-string (host-ip host))))
+	  (print-html (receiving host) :type :busiest-hosts)
+	  (print-html (sending host)   :type :busiest-hosts)
+	  (print-html (combine-stats (receiving host) (sending host)) :type :busiest-hosts)))))
+    (:table
+     (print-busiest-hosts-header "Busiest Remote Hosts")
+     (loop :for host :in (busiest-hosts (remote-hosts report)) :repeat 15 :do
+	(htm
+	 (:tr
+	  (:td (str (ip-string (host-ip host))))
+	  (print-html (receiving host) :type :busiest-hosts)
+	  (print-html (sending host)   :type :busiest-hosts)
+	  (print-html (combine-stats (receiving host) (sending host)) :type :busiest-hosts)))))))
 
 (defmethod add-stats ((object stats) &key (flows 1) (bytes 0) (packets 0))
   (incf (flows object) flows)
