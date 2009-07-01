@@ -28,11 +28,30 @@
    (internal :accessor internal :type stats)
    (external :accessor external :type stats)
    (incoming :accessor incoming :type stats)
-   (outgoing :accessor outgoing :type stats)))
+   (outgoing :accessor outgoing :type stats)
+   (host-stats :initform (make-hash-table :size 1000))))
+
+(defclass host-stats ()
+  ((ip :initarg :ip :initform (error "Must provide IP!"))
+   (total :accessor total :type stats)
+   (sending :accessor sending :type stats :initform (make-instance 'stats))
+   (receiving :accessor receiving :type stats :initform (make-instance 'stats))
+   (local-contacts :initform (make-hash-table))
+   (remote-contacts :initform (make-hash-table))))
+
+(defmethod make-host-stats ((table hash-table) (host flow-host)
+			    (sender flow-host) (receiver flow-host))
+  (multiple-value-bind (host-stat existsp)
+      (gethash (host-ip host) table (make-instance 'host-stats :ip (host-ip host)))
+    (with-slots (sending receiving local-contacts remote-contacts) host-stat
+      (add-stats sending   :bytes (host-bytes sender) :packets (host-packets sender))
+      (add-stats receiving :bytes (host-bytes receiver) :packets (host-packets receiver)))
+    (unless existsp
+      (setf (gethash (host-ip host) table) host-stat))))
 
 (defmethod initialize-instance :after ((object periodic-report)
 				       &key (flow-list (error "Need flows!")))
-  (with-slots (total internal external incoming outgoing) object
+  (with-slots (total internal external incoming outgoing host-stats) object
     (setf (total object)
 	  (make-instance 'stats
 			 :flows (length flow-list)
@@ -48,7 +67,7 @@
 	  external (make-instance 'stats)
 	  incoming (make-instance 'stats)
 	  outgoing (make-instance 'stats))
-  
+
     (dolist (flow flow-list)
       (with-slots (source dest) flow
 	(let ((bytes (+ (host-bytes source) (host-bytes dest)))
@@ -57,7 +76,26 @@
 	    (:internal-only (add-stats internal :bytes bytes :packets packets))
 	    (:external-only (add-stats external :bytes bytes :packets packets))
 	    (:incoming  (add-stats incoming :bytes bytes :packets packets))
-	    (:outgoing  (add-stats outgoing :bytes bytes :packets packets))))))))
+	    (:outgoing  (add-stats outgoing :bytes bytes :packets packets)))
+
+	  (make-host-stats host-stats source source dest)
+	  (make-host-stats host-stats dest dest source))))))
+
+(defmethod hosts-collect-if ((object periodic-report) predicate)
+  (with-slots (host-stats) object
+    (loop :for host-ip :being :the :hash-keys :in host-stats :using (:hash-value stats)
+       :when (funcall predicate host-ip)
+       :collect stats)))
+
+(defmethod remote-hosts ((object periodic-report))
+  (hosts-collect-if object #'remote-host-p))
+
+(defmethod local-hosts ((object periodic-report))
+  (hosts-collect-if object #'local-host-p))
+
+(defun busiest-hosts (stat-list)
+  (sort stat-list #'> :key (lambda (stats)
+			     (+ (bytes (receiving stats)) (bytes (sending stats))))))
 
 (defmethod print-html ((object stats) &key (title "General Stats"))
   (with-html-output (*standard-output*)
@@ -66,7 +104,37 @@
 	 (:td (str (byte-string (bytes object))))
 	 (:td (fmt "~:d" (flows object))))))
 
+(defmethod print-html ((report periodic-report) &key (title "Periodic Report"))
+  (with-html-output (*standard-output*)
+    (:h3 (str title))
+    (with-slots (host-stats) report
+      (htm (:p
+	    (fmt "Saw ~d unique hosts!" (hash-table-count host-stats))
+	    (:br)
+	    (fmt "Report generated at ~a" (iso8661-date-string
+					   (local-time:universal-to-timestamp
+					    (report-time report)))))))
+    
+    (:table
+     (:tr (:th "") (:th "Packets") (:th "Bytes") (:th "Flows"))
+     (print-html (total report) :title "Total")
+     (print-html (internal report) :title "Internal Only")
+     (print-html (external report) :title "External Only")
+     (print-html (incoming report) :title "Incoming")
+     (print-html (outgoing report) :title "Outgoing"))
+    (:table
+     (:tr (:th :colspan 4 "Busiest Local Hosts"))
+     (dolist (host (busiest-hosts (local-hosts report)))
+       (print-html (combine-stats (receiving host) (sending host))
+		   :title (ip-string (slot-value host 'ip)))))))
+
 (defmethod add-stats ((object stats) &key (flows 1) (bytes 0) (packets 0))
   (incf (flows object) flows)
   (incf (bytes object) bytes)
   (incf (packets object) packets))
+
+(defun combine-stats (&rest stats)
+  (make-instance 'stats
+		 :flows (reduce #'+ stats :key #'flows)
+		 :bytes (reduce #'+ stats :key #'bytes)
+		 :packets (reduce #'+ stats :key #'packets)))
