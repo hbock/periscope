@@ -31,61 +31,43 @@
 	  (loop
 	     for i from 0 upto (length time-list)
 	     for report in reports do
-	     (htm
-	      
-	      (:h3 (fmt "Report for flows from ~a -> ~a"
-			(iso8661-date-string (start-time (first (nth i time-list))))
-			(iso8661-date-string (start-time (first (last (nth i time-list)))))))
-	      (:p (fmt "Generated at ~a"
-		       (iso8661-date-string
-			(universal-to-timestamp (report-time report)))))
-	      (:table
-	       (:tr (:th "") (:th "Packets") (:th "Bytes") (:th "Flows"))
-	       (print-html (total report) :title "Total")
-	       (print-html (internal report) :title "Internal Only")
-	       (print-html (external report) :title "External Only")
-	       (print-html (incoming report) :title "Incoming")
-	       (print-html (outgoing report) :title "Outgoing"))
-	      (:table
-	       (:tr (:th :colspan 4 "Source") (:th :colspan 4 "Destination")
-		    (:th :colspan 3 "Flow information"))
-	       (:tr (:th "IP") (:th "Port") (:th "Packets") (:th "VLAN")
-		    (:th "IP") (:th "Port") (:th "Packets") (:th "VLAN")
-		    (:th "Protocol") (:th "First Seen") (:th "Last Seen"))
-	       (loop :for flow :in (nth i time-list) :repeat 100 :do
-		  (print-html flow)))))))))))
-
-(define-report-handler (test "/vlan-test" "VLAN Filter Test") ()
-  (with-periscope-page ("Test data")
-    (:h2 (who:fmt "Flow List (~d flows processed)" (length *flow-list*)))
-    (when *flow-list*
-      (let* ((filtered-flows
-	      (append (list *flow-list*)
-		      (apply-filters *flow-list* (list (vlan-filter 100) (vlan-filter 200)))))
-	     (reports (mapcar (lambda (list)
-				(make-instance 'periodic-report :flow-list list)) filtered-flows)))
-	(who:htm
-	 (:div
-	  :class "stats"
-	  (loop
-	     for i from 0 upto (length filtered-flows)
-	     for report in reports do
+	       (print-html report)
 	       (htm
-		(:h3 (fmt "Report generated at ~a" (iso8661-date-string
-						    (local-time:universal-to-timestamp
-						     (report-time report)))))
-		(:table
-		 (:tr (:th "") (:th "Packets") (:th "Bytes") (:th "Flows"))
-		 (print-html (total report) :title "Total")
-		 (print-html (internal report) :title "Internal Only")
-		 (print-html (external report) :title "External Only")
-		 (print-html (incoming report) :title "Incoming")
-		 (print-html (outgoing report) :title "Outgoing"))
 		(:table
 		 (:tr (:th :colspan 4 "Source") (:th :colspan 4 "Destination")
 		      (:th :colspan 3 "Flow information"))
 		 (:tr (:th "IP") (:th "Port") (:th "Packets") (:th "VLAN")
 		      (:th "IP") (:th "Port") (:th "Packets") (:th "VLAN")
 		      (:th "Protocol") (:th "First Seen") (:th "Last Seen"))
-		 (loop :for flow :in (nth i filtered-flows) :repeat 100 :do
+		 (loop :for flow :in (nth i time-list) :repeat 100 :do
 		    (print-html flow)))))))))))
+
+(define-report-handler (test "/vlan-test" "VLAN Filter Test") ()
+  (with-periscope-page ("VLAN Filter Test")
+    (:h2 (fmt "VLAN Filter Test - ~d flows processed" (length *flow-list*)))
+    (when *flow-list*
+      (let* ((filtered-flows
+	      (append (list *flow-list*)
+		      (apply-filters *flow-list* (list (vlan-filter 100) (vlan-filter 200)))))
+	     (reports (mapcar (lambda (list)
+				(make-instance 'periodic-report :flow-list list)) filtered-flows)))
+	(htm
+	 (:div
+	  :class "stats"
+	  (loop
+	     for report in reports do
+	     (print-html report))
+	  (:h3 "First 100 Flows")
+	  (print-flows *flow-list*)))))))
+
+(defun print-flows (flow-list &optional (limit 100))
+  (with-html-output (*standard-output*)
+    (:table
+     (:tr (:th :colspan 4 "Source")
+	  (:th :colspan 4 "Destination")
+	  (:th :colspan 3 "Flow information"))
+     (:tr (:th "IP") (:th "Port") (:th "Packets") (:th "VLAN")
+	  (:th "IP") (:th "Port") (:th "Packets") (:th "VLAN")
+	  (:th "Protocol") (:th "First Seen") (:th "Last Seen"))
+     (loop :for flow :in flow-list :repeat limit :do
+	(print-html flow)))))
