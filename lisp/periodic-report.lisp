@@ -39,13 +39,12 @@
    (local-contacts :initform (make-hash-table))
    (remote-contacts :initform (make-hash-table))))
 
-(defmethod make-host-stats ((table hash-table) (host flow-host)
-			    (sender flow-host) (receiver flow-host))
+(defmethod add-host-stats ((table hash-table) (host flow-host) (other flow-host))
   (multiple-value-bind (host-stat existsp)
       (gethash (host-ip host) table (make-instance 'host-stats :ip (host-ip host)))
     (with-slots (sending receiving local-contacts remote-contacts) host-stat
-      (add-stats sending   :bytes (host-bytes sender) :packets (host-packets sender))
-      (add-stats receiving :bytes (host-bytes receiver) :packets (host-packets receiver)))
+      (add-stats sending   :bytes (host-bytes host) :packets (host-packets host))
+      (add-stats receiving :bytes (host-bytes other) :packets (host-packets other)))
     (unless existsp
       (setf (gethash (host-ip host) table) host-stat))))
 
@@ -78,8 +77,8 @@
 	    (:incoming  (add-stats incoming :bytes bytes :packets packets))
 	    (:outgoing  (add-stats outgoing :bytes bytes :packets packets)))
 
-	  (make-host-stats host-stats source source dest)
-	  (make-host-stats host-stats dest dest source))))))
+	  (add-host-stats host-stats source dest)
+	  (add-host-stats host-stats dest source))))))
 
 (defmethod hosts-collect-if ((object periodic-report) predicate)
   (with-slots (host-stats) object
