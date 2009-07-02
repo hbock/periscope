@@ -21,12 +21,51 @@
 (defclass web-user ()
   ((username :initarg :username :accessor username)
    (title :initarg :title :accessor title)
-   (password-hash :accessor password-hash :initform nil)
-   (privileges :accessor privileges)
+   (password-hash :initarg :password-hash :accessor password-hash :initform nil)
+   (privileges :accessor privileges :initform nil)
+   (filters :accessor filters :initform nil)
    (session-id :accessor session-id)))
 
 (defun hash-sequence (sequence)
   (md5:md5sum-sequence sequence))
+
+(defun create-login (username password &key (title "User"))
+  (multiple-value-bind (user existsp)
+      (gethash username *web-user-db*)
+    (declare (ignore user))
+    (if existsp
+	(error "Username ~a already exists." username)
+	(let ((user (make-instance 'web-user
+				   :username username
+				   :password-hash (hash-sequence password)
+				   :title title)))
+	  (setf (gethash username *web-user-db*) user)))))
+
+(defun user (&optional username)
+  (if username
+      (gethash username *web-user-db*)
+      (first (user-list))))
+
+(defun login-available-p ()
+  (plusp (hash-table-count *web-user-db*)))
+
+(defun valid-session-p ()
+  (let ((username (hunchentoot:session-value 'username))
+	(userhash (hunchentoot:session-value 'userhash)))
+    (when (and username userhash (equalp userhash (hash-sequence username)))
+      (multiple-value-bind (user existsp)
+	  (gethash username *web-user-db*)
+	(and existsp (not (null (session-id user))))))))
+
+(defun login-required-p ()
+  "Returns true if logins are generally required to access the Periscope web interface."
+  (and *web-login-required-p*
+       (not (zerop (hash-table-count *web-user-db*)))))
+
+(defun user-list ()
+  "Returns all users in the database."
+  (loop :for username :being :the :hash-keys :in *web-user-db* :using (:hash-value user)
+     :collect user))
 
 (hunchentoot:define-easy-handler (login :uri "/login")
     (denied redirect)
@@ -44,11 +83,36 @@
 	(:td (input "username" "")))
        (:tr
 	(:td "Password")
-	(:td (:input :type "password" :size 20))))
+	(:td (:input :type "password" :name "password" :size 20))))
       (when (and denied redirect)
 	(htm (:input :type "hidden" :name "redirect" :value redirect)))
       (:input :type "submit" :value "Login"))))
 
 (hunchentoot:define-easy-handler (do-login :uri "/do-login")
-    (username password redirect)
-  (hunchentoot:redirect "/login?denied=bad"))
+    (username password redirect action)
+  (flet ((bad-login () (hunchentoot:redirect "/login?denied=bad"))
+	 (process-login (user password)
+	   (when (equalp (hash-sequence password) (password-hash user))
+	     (setf (session-id user) (hunchentoot:next-session-id *web-server*)) 
+	     (hunchentoot:start-session)
+	     (setf (hunchentoot:session-value 'userhash) (hash-sequence username)
+		   (hunchentoot:session-value 'username) username))))
+    
+    (cond
+      ((valid-session-p)
+       (if (string= action "logout")
+	   (progn
+	     (setf (session-id (user)) nil)
+	     (hunchentoot:reset-sessions))
+	   (hunchentoot:redirect "/")))
+      
+      ((and username password (login-available-p))
+       (let ((user (user username)))
+	 (if user
+	     (unless (process-login user password)
+	       (bad-login))
+	     (bad-login)))))
+
+    (if (and redirect (valid-session-p))
+	(hunchentoot:redirect redirect)
+	(hunchentoot:redirect "/"))))

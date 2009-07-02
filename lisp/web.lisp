@@ -41,13 +41,6 @@
   (stop-web)
   (start-web))
 
-(defun valid-session-p (&optional (session hunchentoot:*session*))
-  nil)
-
-(defun login-required-p ()
-  (and *web-login-required-p*
-       (not (zerop (hash-table-count *web-user-db*)))))
-
 (defun web-run-collector (&optional (collector *collector*))
   "Helper function to run a collector from the web interface.
 Starts a separate thread to run the collector and handle its callbacks."
@@ -81,8 +74,17 @@ Starts a separate thread to run the collector and handle its callbacks."
 (defun generate-navigation ()
   "Generate Periscope's navigation sidebar."
   (with-html ()
+    (cond
+      ((valid-session-p)
+       (htm (:ul (:li (:a :href "/do-login?action=logout"
+			  (fmt "Logout (~A)" (username (user))))))))
+      
+      ((login-available-p)
+       (htm (:ul (:li (:a :href "/login" "Login"))))))
+    
     (:ul
      (:li (:a :href "/" "Periscope Home"))
+     
      (:li (:a :href "/traffic" "Traffic Overview"))
      (:li :class "root"
           "Reports"
@@ -95,13 +97,16 @@ Starts a separate thread to run the collector and handle its callbacks."
           (:ul
 	   (:li (:a :href "/service-names" "Service Names"))
 	   (:li (:a :href "/search" "Search Logs"))))
-     (:li :class "root"
-	  "Configuration"
-	  (:ul
-	   (:li (:a :href "/sources" "Argus Sources"))
-	   (:li (:a :href "/config" "Control Panel"))
-	   (when *web-show-diag*
-	     (htm (:li (:a :href "/uuddlrlrbastart" "Diagnostics Panel")))))))))
+     (when (or (not (login-required-p)) (valid-session-p))
+       (htm
+	(:li :class "root"
+	     "Configuration"
+	     (:ul
+	      (:li (:a :href "/sources" "Argus Sources"))
+	      (:li (:a :href "/users" "User Logins"))
+	      (:li (:a :href "/config" "Control Panel"))
+	      (when *web-show-diag*
+		(htm (:li (:a :href "/uuddlrlrbastart" "Diagnostics Panel")))))))))))
 
 (defmacro with-periscope-page ((title &key login) &body body)
   "Generate a Periscope-template page."
