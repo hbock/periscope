@@ -34,6 +34,13 @@
 	(setf process_flow (callback receive-flow)))
     collector))
 
+(defun worker-thread ()
+  (bt:with-lock-held (*shutdown-lock*)
+    (bt:condition-wait *shutdown-cond* *shutdown-lock*)))
+
+(defun shutdown ()
+  (bt:condition-notify *shutdown-cond*))
+
 (defun main ()
   (handler-bind ((simple-error
 		  (lambda (c)
@@ -41,7 +48,20 @@
 		    (invoke-restart 'create-new-config-file))))
     (load-config))
 
+  (format t "Starting Periscope ~a...~%" *periscope-version*)
   (start-web)
+  (format t "Web front-end started.~%")
+
+  (format t "Initializing collector... ")
   (setf *collector* (init-basic-collector))
-  
+  (format t "OK.~%")
+
+  (bt:join-thread
+   (bt:make-thread #'worker-thread :name "Periscope Data Worker"))
+
+  (format t "Received shutdown command.  Terminating web interface.~%")
+  (format t "You may have to navigate to the web interface before it will shut down.~%")
+  (stop-web)
+
+  (format t "Completed.")
   (return-from main 0))
