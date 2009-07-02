@@ -20,12 +20,17 @@
 
 (hunchentoot:define-easy-handler (index :uri "/") ()
   (with-periscope-page ("Home")
-    (:h2 (who:fmt "Welcome to Periscope, version ~a!" *periscope-version*))
-    "This is a pre-release version of what will eventually become Periscope 0.10.0, merged with
-Argus client support.  For now, you should consider this release PRE-ALPHA software - it is
-NOT meant for production use and will not be for some time; YMMV on any and all features within
-this piece of software.  OSHEAN makes no guarantee to the functionality of this software at this
-time."))
+    (:h2 "Periscope Start Page")
+    (when (valid-session-p)
+      (htm
+       (:br)
+       (:p (fmt "Logged in as ~a " (display-name (user)))
+	   (:a :href "/do-login?action=logout" "(log out)."))))
+    
+    (warning-box
+     "This is pre-release software.  Use at your own risk! "
+     "Keep up-to-date with the latest releases "
+     (:a :href "http://nautilus.oshean.org/wiki/Periscope" "here."))))
 
 (hunchentoot:define-easy-handler (about :uri "/about") ()
   (with-periscope-page ("About Periscope")
