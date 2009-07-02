@@ -24,8 +24,10 @@
 
 (defun start-web (&key (port *web-port*))
   "Start the web interface server on PORT and add a folder dispatcher for the /content directory."
-  (when (or (null *web-server*) (/= *web-port* (hunchentoot:acceptor-port *web-server*)))
-    (setf *web-server* (make-instance 'hunchentoot:acceptor :port port)))
+  (when *web-server*
+    (hunchentoot:stop *web-server*))
+
+  (setf *web-server* (make-instance 'hunchentoot:acceptor :port port))
   (hunchentoot:start *web-server*)
   (push (hunchentoot:create-folder-dispatcher-and-handler "/content/" "share/")
 	hunchentoot:*dispatch-table*))
