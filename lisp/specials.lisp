@@ -22,7 +22,7 @@
 (defvar *flow-list* nil)
 
 ;; Version and compilation time
-(defvar *periscope-version* "0.9.90 (pre-alpha)")
+(defvar *periscope-version* "0.9.91 (pre-alpha)")
 (defvar *compilation-time* (get-universal-time))
 
 ;; Configuration
