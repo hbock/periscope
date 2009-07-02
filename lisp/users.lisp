@@ -20,6 +20,7 @@
 
 (defclass web-user ()
   ((username :initarg :username :accessor username)
+   (display-name :initarg :real-name :accessor display-name)
    (title :initarg :title :accessor title)
    (password-hash :initarg :password-hash :accessor password-hash :initform nil)
    (privileges :accessor privileges :initform nil)
