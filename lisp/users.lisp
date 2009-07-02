@@ -89,6 +89,49 @@
 	(htm (:input :type "hidden" :name "redirect" :value redirect)))
       (:input :type "submit" :value "Login"))))
 
+(hunchentoot:define-easy-handler (user-config :uri "/users") ()
+  (with-periscope-page ("User Login Configuration" :login t)
+    (with-config-form ("/set-user-config" "User Logins" "manage")
+      (:table
+       :class "input"
+       (:tr (:th "Username") (:th "Display Name") (:th "Remove User"))
+       (loop :for user :in (user-list) :do
+	  (let ((username (username user)))
+	    (htm
+	     (:tr (:td (str username))
+		  (:td (input (format nil "name:~a" username) (display-name user)))
+		  (:td (checkbox (format nil "delete:~a" username))))))))
+      (:br)
+      (:input :type "submit" :value "Apply Configuration"))
+
+    (with-config-form ("/set-user-config" "Add New User" "newuser")
+      (:table
+       (:tr (:th :colspan 2 "Login Information"))
+       (:tr
+	(:td "Username")
+	(:td (input "username" "")))
+       (:tr
+	(:td "Display Name")
+	(:td (input "displayname" "")))
+       (:tr
+	(:td "Password")
+	(:td (:input :type "password" :name "password1" :size 20)))
+       (:tr
+	(:td "Password (re-type)")
+	(:td (:input :type "password" :name "password2" :size 20)))
+       (:tr (:th :colspan 2 "Permissions and Filters"))
+       (:tr
+	(:td "Subnet Filter (CIDR notation)")
+	(:td (input "subnet" "" :size 18)))
+       (:tr
+	(:td "VLAN Filter")
+	(:td (input "vlan" "" :size 4)))
+       (:tr
+	(:td "Allow Configuration")
+	(:td (checkbox "configp"))))
+      (:br)
+      (:input :type "submit" :value "Add User"))))
+
 (hunchentoot:define-easy-handler (do-login :uri "/do-login")
     (username password redirect action)
   (flet ((bad-login () (hunchentoot:redirect "/login?denied=bad"))
@@ -117,3 +160,7 @@
     (if (and redirect (valid-session-p))
 	(hunchentoot:redirect redirect)
 	(hunchentoot:redirect "/"))))
+
+(hunchentoot:define-easy-handler (set-user-config :uri "/set-user-config")
+    (action username displayname password1 password2 subnet vlan configp)
+  (hunchentoot:redirect "/users"))

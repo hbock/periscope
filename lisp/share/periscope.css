@@ -305,3 +305,13 @@ div.config-section table.input td {
   width:auto;
   padding:3px;
 }
+
+div.config-section table.input th {
+  text-align:center;
+  padding:5px;
+}
+
+div.config-section th {
+  text-align:left;
+  margin-top:10px;
+}

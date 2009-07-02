@@ -77,7 +77,7 @@ Starts a separate thread to run the collector and handle its callbacks."
     (cond
       ((valid-session-p)
        (htm (:ul (:li (:a :href "/do-login?action=logout"
-			  (fmt "Logout (~A)" (display-name (user))))))))
+			  (fmt "Log out (~A)" (display-name (user))))))))
       
       ((login-available-p)
        (htm (:ul (:li (:a :href "/login" "Login"))))))
