@@ -33,6 +33,8 @@
 (defvar *web-port* 20570)
 (defvar *web-server* nil)
 (defvar *web-show-diag* nil)
+(defvar *web-login-required-p* nil)
+(defvar *web-user-db* (make-hash-table :test #'equal))
 
 (defvar *collector* nil)
 (defvar *shutdown-cond* (bt:make-condition-variable))

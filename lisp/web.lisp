@@ -41,6 +41,13 @@
   (stop-web)
   (start-web))
 
+(defun valid-session-p (&optional (session hunchentoot:*session*))
+  nil)
+
+(defun login-required-p ()
+  (and *web-login-required-p*
+       (not (zerop (hash-table-count *web-user-db*)))))
+
 (defun web-run-collector (&optional (collector *collector*))
   "Helper function to run a collector from the web interface.
 Starts a separate thread to run the collector and handle its callbacks."
@@ -96,32 +103,35 @@ Starts a separate thread to run the collector and handle its callbacks."
 	   (when *web-show-diag*
 	     (htm (:li (:a :href "/uuddlrlrbastart" "Diagnostics Panel")))))))))
 
-(defmacro with-periscope-page ((title) &body body)
+(defmacro with-periscope-page ((title &key login) &body body)
   "Generate a Periscope-template page."
-  `(with-html (:prologue t)
-     (:html
-      (:head
-       (:title (who:fmt "Periscope - ~a" ,title))
-       (:link :href "/content/periscope.css"
-	      :rel "stylesheet"
-	      :type "text/css"))
-      (:body
-       (:table
-	(:tr
-	 (:td :colspan "2" :id "header"
-	      (:h1 "Periscope")
-	      (who:fmt "Version ~a" *periscope-version*)))
-	(:tr :id "body"
-	     (:td :id "sidebar" (who:str (generate-navigation)))
-	     (:td :id "wrapper"
-		  ,@body))
-	(:tr
-	 (:td :colspan "2"
-	      (:div :id "footer"
-		    (:a :href "/about" "About Periscope") " | "
-		    (:a :href "http://oshean.org/" :target "_blank" "OSHEAN") " | "
-		    (:a :href "http://nautilus.oshean.org/" :target "_blank" "Nautilus") " | "
-		    (:a :href "http://nautilus.oshean.org/wiki/Periscope" :target "_blank"
-			"Periscope") " | "
-		    (:a :href "http://qosient.com/argus" :target "_blank"
-			"Argus")))))))))
+  `(progn
+     (when (and ,login (login-required-p) (not (valid-session-p)))
+       (hunchentoot:redirect "/login?denied=login"))
+     (with-html (:prologue t)
+       (:html
+	(:head
+	 (:title (who:fmt "Periscope - ~a" ,title))
+	 (:link :href "/content/periscope.css"
+		:rel "stylesheet"
+		:type "text/css"))
+	(:body
+	 (:table
+	  (:tr
+	   (:td :colspan "2" :id "header"
+		(:h1 "Periscope")
+		(who:fmt "Version ~a" *periscope-version*)))
+	  (:tr :id "body"
+	       (:td :id "sidebar" (who:str (generate-navigation)))
+	       (:td :id "wrapper"
+		    ,@body))
+	  (:tr
+	   (:td :colspan "2"
+		(:div :id "footer"
+		      (:a :href "/about" "About Periscope") " | "
+		      (:a :href "http://oshean.org/" :target "_blank" "OSHEAN") " | "
+		      (:a :href "http://nautilus.oshean.org/" :target "_blank" "Nautilus") " | "
+		      (:a :href "http://nautilus.oshean.org/wiki/Periscope" :target "_blank"
+			  "Periscope") " | "
+		      (:a :href "http://qosient.com/argus" :target "_blank"
+			  "Argus"))))))))))

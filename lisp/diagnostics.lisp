@@ -78,7 +78,7 @@
 ;;; Periscope Diagnostics Test Suite
 (hunchentoot:define-easy-handler (diagnostic-handler :uri "/uuddlrlrbastart") (begin)
   (declare (ignore begin))
-  (with-periscope-page ("Diagnostic Suite")
+  (with-periscope-page ("Diagnostic Suite" :login t)
     (:h2 "Periscope Diagnostic Suite")
     (:p (who:fmt "Welcome to the diagnostic test suite for Periscope ~a. " *periscope-version*))
     
