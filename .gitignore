@@ -5,3 +5,8 @@ Makefile
 *.o
 *.la
 *.fasl
+periscope
+!lisp/Makefile
+\#*
+\.\#*
+*.argus
