@@ -44,6 +44,7 @@
    (:file "reports")
    (:file "flow")
    (:file "filter")
+   (:file "users")
    ;; Web interface
    (:file "web")
    (:file "web-index")
