@@ -20,7 +20,7 @@
 
 (defclass web-user ()
   ((username :initarg :username :accessor username)
-   (display-name :initarg :real-name :accessor display-name)
+   (display-name :initarg :display-name :accessor display-name)
    (title :initarg :title :accessor title)
    (password-hash :initarg :password-hash :accessor password-hash :initform nil)
    (privileges :accessor privileges :initform nil)
@@ -30,7 +30,7 @@
 (defun hash-sequence (sequence)
   (md5:md5sum-sequence sequence))
 
-(defun create-login (username password &key (title "User"))
+(defun create-login (username password display-name &key (title "User"))
   (multiple-value-bind (user existsp)
       (gethash username *web-user-db*)
     (declare (ignore user))
@@ -38,6 +38,7 @@
 	(error "Username ~a already exists." username)
 	(let ((user (make-instance 'web-user
 				   :username username
+				   :display-name display-name
 				   :password-hash (hash-sequence password)
 				   :title title)))
 	  (setf (gethash username *web-user-db*) user)))))
