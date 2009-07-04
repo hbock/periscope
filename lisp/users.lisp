@@ -49,9 +49,11 @@
       (first (user-list))))
 
 (defun login-available-p ()
+  "Return true if logins are available (i.e., at least one user login)."
   (plusp (hash-table-count *web-user-db*)))
 
 (defun valid-session-p ()
+  "Return true if the current Periscope login session exists and is valid."
   (let ((username (hunchentoot:session-value 'username))
 	(userhash (hunchentoot:session-value 'userhash)))
     (when (and username userhash (equalp userhash (hash-sequence username)))
@@ -63,6 +65,12 @@
   "Returns true if logins are generally required to access the Periscope web interface."
   (and *web-login-required-p*
        (not (zerop (hash-table-count *web-user-db*)))))
+
+(defun valid-session-or-lose ()
+  "If logins are required and no valid session is available, redirect to the login page."
+  (when (login-required-p) (not (valid-session-p))
+    (hunchentoot:redirect "/login?denied=login"))
+  t)
 
 (defun user-list ()
   "Returns all users in the database."
