@@ -111,8 +111,8 @@ Starts a separate thread to run the collector and handle its callbacks."
 (defmacro with-periscope-page ((title &key login) &body body)
   "Generate a Periscope-template page."
   `(progn
-     (when (and ,login (login-required-p) (not (valid-session-p)))
-       (hunchentoot:redirect "/login?denied=login"))
+     (when ,login
+       (valid-session-or-lose))
      (with-html (:prologue t)
        (:html
 	(:head
