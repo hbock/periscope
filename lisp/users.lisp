@@ -92,6 +92,13 @@
 
 (hunchentoot:define-easy-handler (user-config :uri "/users") ()
   (with-periscope-page ("User Login Configuration" :login t)
+    (with-config-form ("/set-user-config" "Login Configuration" "configure")
+      (:table
+       (:tr
+	(:td "Require login for all pages")
+	(:td (checkbox "required" :checked *web-login-required-p*))))
+      (:br)
+      (:input :type "submit" :value "Apply Configuration"))
     (with-config-form ("/set-user-config" "User Logins" "manage")
       (:table
        :class "input"
@@ -163,5 +170,11 @@
 	(hunchentoot:redirect "/"))))
 
 (hunchentoot:define-easy-handler (set-user-config :uri "/set-user-config")
-    (action username displayname password1 password2 subnet vlan configp)
+    (action username displayname password1 password2 subnet vlan configp
+	    required)
+
+  (cond
+    ((string= action "configure")
+     (setf *web-login-required-p* (not (null required)))))
+  
   (hunchentoot:redirect "/users"))
