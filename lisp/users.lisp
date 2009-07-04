@@ -63,12 +63,11 @@
 
 (defun login-required-p ()
   "Returns true if logins are generally required to access the Periscope web interface."
-  (and *web-login-required-p*
-       (not (zerop (hash-table-count *web-user-db*)))))
+  (and *web-login-required-p* (login-available-p)))
 
 (defun valid-session-or-lose ()
   "If logins are required and no valid session is available, redirect to the login page."
-  (when (login-required-p) (not (valid-session-p))
+  (unless (valid-session-p)
     (hunchentoot:redirect "/login?denied=login"))
   t)
 
