@@ -26,6 +26,7 @@
   :depends-on (:cffi
 	       :cl-who
 	       :cl-ppcre
+	       :md5
 	       :local-time
 	       :hunchentoot
 	       :trivial-garbage
