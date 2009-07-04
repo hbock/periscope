@@ -71,7 +71,7 @@
        ,@body))))
 
 (hunchentoot:define-easy-handler (config :uri "/config") ((err :parameter-type 'integer))
-  (with-periscope-page ("Control Panel")
+  (with-periscope-page ("Control Panel" :login t)
     (unless *collector*
       (warning-box
        "Collector not initialized. This is a bug.")
@@ -126,6 +126,9 @@
 (hunchentoot:define-easy-handler (set-config :uri "/set-config")
     (action (web-port :parameter-type 'integer) network ports filter
 	    (vid :parameter-type 'integer) vname)
+
+  (valid-session-or-lose)
+  
   (flet ((config-error (type)
 	   (hunchentoot:redirect (format nil "/config?error=~a" type))))
 
@@ -184,6 +187,7 @@
 
 (hunchentoot:define-easy-handler (manage-sources :uri "/manage-sources")
     (action hostname port (sid :parameter-type 'integer))
+  (valid-session-or-lose)
   (when (and (not (running-p *collector*))
 	     (string= action "run"))
     (web-run-collector *collector*))
