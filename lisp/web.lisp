@@ -97,7 +97,7 @@ Starts a separate thread to run the collector and handle its callbacks."
           (:ul
 	   (:li (:a :href "/service-names" "Service Names"))
 	   (:li (:a :href "/search" "Search Logs"))))
-     (when (or (not (login-required-p)) (valid-session-p))
+     (when (or (not (login-available-p)) (valid-session-p))
        (htm
 	(:li :class "root"
 	     "Configuration"
@@ -111,8 +111,10 @@ Starts a separate thread to run the collector and handle its callbacks."
 (defmacro with-periscope-page ((title &key login) &body body)
   "Generate a Periscope-template page."
   `(progn
-     (when ,login
-       (valid-session-or-lose))
+     ,(if login
+	  `(valid-session-or-lose)
+	  `(when (login-required-p)
+	     (valid-session-or-lose)))
      (with-html (:prologue t)
        (:html
 	(:head
