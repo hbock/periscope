@@ -78,24 +78,25 @@
 
 (hunchentoot:define-easy-handler (login :uri "/login")
     (denied redirect)
-  (with-periscope-page ("Login")
-    (cond
-      ((string= denied "login")
-       (warning-box (:p :class "denied" "You must be logged in to see this page.")))
-      ((string= denied "bad")
-       (warning-box (:p :class "denied" "Invalid credentials. Please try again."))))
-    (with-config-form ("/do-login" "Log in to Periscope" "login")
-      (:table
-       :class "input"
-       (:tr
-	(:td "Username")
-	(:td (input "username" "")))
-       (:tr
-	(:td "Password")
-	(:td (:input :type "password" :name "password" :size 20))))
-      (when (and denied redirect)
-	(htm (:input :type "hidden" :name "redirect" :value redirect)))
-      (:input :type "submit" :value "Login"))))
+  (let ((*web-login-required-p* nil))
+    (with-periscope-page ("Login")
+      (cond
+	((string= denied "login")
+	 (warning-box (:p :class "denied" "You must be logged in to see this page.")))
+	((string= denied "bad")
+	 (warning-box (:p :class "denied" "Invalid credentials. Please try again."))))
+      (with-config-form ("/do-login" "Log in to Periscope" "login")
+	(:table
+	 :class "input"
+	 (:tr
+	  (:td "Username")
+	  (:td (input "username" "")))
+	 (:tr
+	  (:td "Password")
+	  (:td (:input :type "password" :name "password" :size 20))))
+	(when (and denied redirect)
+	  (htm (:input :type "hidden" :name "redirect" :value redirect)))
+	(:input :type "submit" :value "Login")))))
 
 (hunchentoot:define-easy-handler (user-config :uri "/users") ()
   (with-periscope-page ("User Login Configuration" :login t)
