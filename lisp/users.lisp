@@ -67,7 +67,7 @@
 
 (defun valid-session-or-lose ()
   "If logins are required and no valid session is available, redirect to the login page."
-  (unless (or (not (login-available-p))) (valid-session-p)
+  (unless (or (not (login-available-p)) (valid-session-p))
     (hunchentoot:redirect "/login?denied=login"))
   t)
 
