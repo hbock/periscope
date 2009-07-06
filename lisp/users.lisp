@@ -78,6 +78,9 @@
 
 (hunchentoot:define-easy-handler (login :uri "/login")
     (denied redirect)
+  (unless (login-available-p)
+    (hunchentoot:redirect "/"))
+  
   (let ((*web-login-required-p* nil))
     (with-periscope-page ("Login")
       (cond
