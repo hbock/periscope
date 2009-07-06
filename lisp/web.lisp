@@ -61,7 +61,7 @@ Starts a separate thread to run the collector and handle its callbacks."
     (:label :for name (str off))
     (:input :type "radio" :name name :value "false" :checked (not default))))
 
-(defun checkbox (name &optional (value name) (checked nil))
+(defun checkbox (name &key (value name) (checked nil))
   (with-html-output (*standard-output*)
     (:input :type "checkbox" :name name :value value :checked checked)))
 
