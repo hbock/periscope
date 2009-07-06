@@ -78,6 +78,7 @@
 
 (hunchentoot:define-easy-handler (login :uri "/login")
     (denied redirect)
+  
   (unless (login-available-p)
     (hunchentoot:redirect "/"))
   
@@ -110,18 +111,20 @@
 	(:td (checkbox "required" :checked *web-login-required-p*))))
       (:br)
       (:input :type "submit" :value "Apply Configuration"))
-    (with-config-form ("/set-user-config" "User Logins" "manage")
-      (:table
-       :class "input"
-       (:tr (:th "Username") (:th "Display Name") (:th "Remove User"))
-       (loop :for user :in (user-list) :do
-	  (let ((username (username user)))
-	    (htm
-	     (:tr (:td (str username))
-		  (:td (input (format nil "name:~a" username) (display-name user)))
-		  (:td (checkbox (format nil "delete:~a" username))))))))
-      (:br)
-      (:input :type "submit" :value "Apply Configuration"))
+
+    (when (login-available-p)
+      (with-config-form ("/set-user-config" "User Logins" "manage")
+	(:table
+	 :class "input"
+	 (:tr (:th "Username") (:th "Display Name") (:th "Remove User"))
+	 (loop :for user :in (user-list) :do
+	    (let ((username (username user)))
+	      (htm
+	       (:tr (:td (str username))
+		    (:td (input (format nil "name:~a" username) (display-name user)))
+		    (:td (checkbox (format nil "delete:~a" username))))))))
+	(:br)
+	(:input :type "submit" :value "Apply Configuration")))
 
     (with-config-form ("/set-user-config" "Add New User" "newuser")
       (:table
