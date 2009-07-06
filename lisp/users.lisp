@@ -117,12 +117,15 @@
 	(:table
 	 :class "input"
 	 (:tr (:th "Username") (:th "Display Name") (:th "Remove User"))
-	 (loop :for user :in (user-list) :do
+	 (loop
+	    :with i = 0
+	    :for user :in (user-list) :do
 	    (let ((username (username user)))
 	      (htm
 	       (:tr (:td (str username))
-		    (:td (input (format nil "name:~a" username) (display-name user)))
-		    (:td (checkbox (format nil "delete:~a" username))))))))
+		    (:td (input (format nil "name[i]" i) (display-name user)))
+		    (:td (checkbox (format nil "delete[~d]" i) :value username))))
+	      (incf i))))
 	(:br)
 	(:input :type "submit" :value "Apply Configuration")))
 
@@ -185,10 +188,40 @@
 
 (hunchentoot:define-easy-handler (set-user-config :uri "/set-user-config")
     (action username displayname password1 password2 subnet vlan configp
-	    required)
+	    required (delete :parameter-type 'array))
+  (valid-session-or-lose)
 
-  (cond
-    ((string= action "configure")
-     (setf *web-login-required-p* (not (null required)))))
+  (flet ((config-error (type)
+	   (hunchentoot:redirect (format nil "/users?error=~a" type))))
   
+    (cond
+      ((string= action "configure")
+       (setf *web-login-required-p* (not (null required))))
+
+      ((string= action "manage")
+       (when (and delete (arrayp delete))
+	 (loop :with to-delete = (remove nil delete)
+	    :for i :from 0 :below (length to-delete) :when (user (aref to-delete i)) :do
+	    (when (string= (username (user)) (aref to-delete i))
+	      (hunchentoot:remove-session))
+	    (remhash (aref to-delete i) *web-user-db*))))
+
+      ((string= action "newuser")
+       (unless username (config-error "username"))
+       (unless displayname (config-error "dispname"))
+
+       (unless (and password1 password2 (plusp (length password1)) (plusp (length password2)))
+	 (config-error "nopassword"))
+       
+       (unless (string= password1 password2)
+	 (config-error "passmatch"))
+       
+       (when (and subnet (plusp (length subnet)))
+	 (handler-case
+	     (parse-ip-string subnet)
+	   (parse-error (e)
+	     (declare (ignore e))
+	     (config-error "subnet"))))
+
+       (create-login username password1 displayname))))
   (hunchentoot:redirect "/users"))
