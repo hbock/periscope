@@ -45,13 +45,13 @@
    (:file "reports")
    (:file "flow")
    (:file "filter")
-   (:file "users")
    ;; Web interface
    (:file "web")
    (:file "web-index")
    (:file "web-config")
    (:file "web-utility")
    (:file "diagnostics")
+   (:file "users")
    ;; Reports
    (:file "periodic-report")
    (:file "service")
