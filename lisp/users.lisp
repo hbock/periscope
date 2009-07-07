@@ -25,7 +25,7 @@
    (password-hash :initarg :password-hash :accessor password-hash :initform nil)
    (privileges :accessor privileges :initform nil)
    (filters :accessor filters :initform nil)
-   (session-id :accessor session-id)))
+   (session :accessor session :initform nil)))
 
 (defun hash-sequence (sequence)
   (md5:md5sum-sequence sequence))
@@ -46,7 +46,8 @@
 (defun user (&optional username)
   (if username
       (gethash username *web-user-db*)
-      (first (user-list))))
+      (when (boundp 'hunchentoot:*session*)
+	(gethash (hunchentoot:session-value 'username) *web-user-db*))))
 
 (defun login-available-p ()
   "Return true if logins are available (i.e., at least one user login)."
@@ -59,7 +60,7 @@
     (when (and username userhash (equalp userhash (hash-sequence username)))
       (multiple-value-bind (user existsp)
 	  (gethash username *web-user-db*)
-	(and existsp (not (null (session-id user))))))))
+	(and existsp (not (null (session user))))))))
 
 (defun login-required-p ()
   "Returns true if logins are generally required to access the Periscope web interface."
@@ -75,6 +76,14 @@
   "Returns all users in the database."
   (loop :for username :being :the :hash-keys :in *web-user-db* :using (:hash-value user)
      :collect user))
+
+(defun logout (&optional (user (user)))
+  (when user
+    (hunchentoot:remove-session (session user))
+    (setf (session user) nil)))
+
+(defmethod logged-in-p ((user web-user))
+  (not (null (session user))))
 
 (hunchentoot:define-easy-handler (login :uri "/login")
     (denied redirect)
@@ -97,7 +106,7 @@
 	  (:td (input "username" "")))
 	 (:tr
 	  (:td "Password")
-	  (:td (:input :type "password" :name "password" :size 20))))
+	  (:td (password-input "password"))))
 	(when (and denied redirect)
 	  (htm (:input :type "hidden" :name "redirect" :value redirect)))
 	(:input :type "submit" :value "Login")))))
@@ -123,7 +132,7 @@
 	    (let ((username (username user)))
 	      (htm
 	       (:tr (:td (str username))
-		    (:td (input (format nil "name[i]" i) (display-name user)))
+		    (:td (input (format nil "name[~d]" i) (display-name user)))
 		    (:td (checkbox (format nil "delete[~d]" i) :value username))))
 	      (incf i))))
 	(:br)
@@ -140,10 +149,11 @@
 	(:td (input "displayname" "")))
        (:tr
 	(:td "Password")
-	(:td (:input :type "password" :name "password1" :size 20)))
+	(:td (password-input "password1")))
        (:tr
 	(:td "Password (re-type)")
-	(:td (:input :type "password" :name "password2" :size 20)))
+	(:td (password-input "password2")))
+
        (:tr (:th :colspan 2 "Permissions and Filters"))
        (:tr
 	(:td "Subnet Filter (CIDR notation)")
@@ -162,17 +172,14 @@
   (flet ((bad-login () (hunchentoot:redirect "/login?denied=bad"))
 	 (process-login (user password)
 	   (when (equalp (hash-sequence password) (password-hash user))
-	     (setf (session-id user) (hunchentoot:next-session-id *web-server*)) 
-	     (hunchentoot:start-session)
+	     (setf (session user) (hunchentoot:start-session))
 	     (setf (hunchentoot:session-value 'userhash) (hash-sequence username)
 		   (hunchentoot:session-value 'username) username))))
     
     (cond
       ((valid-session-p)
        (if (string= action "logout")
-	   (progn
-	     (setf (session-id (user)) nil)
-	     (hunchentoot:reset-sessions))
+	   (logout)
 	   (hunchentoot:redirect "/")))
       
       ((and username password (login-available-p))
@@ -200,11 +207,14 @@
 
       ((string= action "manage")
        (when (and delete (arrayp delete))
-	 (loop :with to-delete = (remove nil delete)
-	    :for i :from 0 :below (length to-delete) :when (user (aref to-delete i)) :do
-	    (when (string= (username (user)) (aref to-delete i))
-	      (hunchentoot:remove-session))
-	    (remhash (aref to-delete i) *web-user-db*))))
+	 (let ((to-delete (remove nil delete)))
+	   (loop 
+	      :for i :from 0 :below (length to-delete) :do
+	      (let ((user (user (aref to-delete i))))
+		;; If the user deletes a logged-in user, he must be logged off,
+		;; so remove session.
+		(logout user)
+		(remhash (username user) *web-user-db*))))))
 
       ((string= action "newuser")
        (unless username (config-error "username"))
