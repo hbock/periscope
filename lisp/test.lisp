@@ -47,10 +47,12 @@
     (:h2 (fmt "VLAN Filter Test - ~d flows processed" (length *flow-list*)))
     (when *flow-list*
       (let* ((filtered-flows
-	      (append (list *flow-list*)
-		      (apply-filters *flow-list* (list (vlan-filter 100) (vlan-filter 200)))))
-	     (reports (mapcar (lambda (list)
-				(make-instance 'periodic-report :flow-list list)) filtered-flows)))
+	      (if (and (user) (filters (user)))
+		  (apply-filters *flow-list* (filters (user)))
+		  (list *flow-list*)))
+	     (reports
+	      (mapcar (lambda (list)
+			(make-instance 'periodic-report :flow-list list)) filtered-flows)))
 	(htm
 	 (:div
 	  :class "stats"
