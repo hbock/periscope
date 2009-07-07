@@ -18,6 +18,9 @@
 ;;;; Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 (in-package :periscope)
 
+(deftype md5sum ()
+  '(simple-array (unsigned-byte 8) (16)))
+
 (defclass web-user ()
   ((username :initarg :username :accessor username)
    (display-name :initarg :display-name :accessor display-name)
@@ -31,6 +34,9 @@
   (md5:md5sum-sequence sequence))
 
 (defun create-login (username password display-name &key (title "User"))
+  "Create a web-user login.  The password may be a string or an array containing an
+MD5 sum of a password.  If passed as a string, the password will be hashed and stored
+as an MD5 sum."
   (multiple-value-bind (user existsp)
       (gethash username *web-user-db*)
     (declare (ignore user))
@@ -39,7 +45,10 @@
 	(let ((user (make-instance 'web-user
 				   :username username
 				   :display-name display-name
-				   :password-hash (hash-sequence password)
+				   :password-hash
+				   (etypecase password
+				     (string (hash-sequence password))
+				     (md5sum password))
 				   :title title)))
 	  (setf (gethash username *web-user-db*) user)))))
 
