@@ -162,3 +162,6 @@ solely of whitespace."
       (htm (:label :for name (str label))))
     (:input :type "text" :name name :value default :size size)))
 
+(defun password-input (name &key default (size 20))
+  (with-html-output (*standard-output*)
+    (:input :type "password" :name name :value default :size size)))
