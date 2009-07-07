@@ -85,11 +85,18 @@
 	(:td "Web interface port")
 	(:td (input "web-port" *web-port*)))
        (:tr
-	(:td "Notable ports")
-	(:td (input "ports" (format nil "~{~a~^, ~}" *notable-ports*))))
-       (:tr
 	(:td "Local Network (CIDR)")
-	(:td (input "network" (ip-string *internal-network* *internal-netmask*)))))
+	(:td (input "network" (ip-string *internal-network* *internal-netmask*))))
+       (:tr
+	(:td "Notable ports (select to remove)")
+	(:td
+	 (:select
+	  :name "remove" :multiple t 
+	  (dolist (port *notable-ports*)
+	    (htm (:option :value port (fmt "~d (~a)" port (service-name port))))))))
+       (:tr
+	(:td "Add notable ports:")
+	(:td (input "ports" ""))))
       (:input :type "submit" :value "Apply Configuration"))
 
     (with-config-form ("/set-config" "Add VLAN Identifier" "addvlan")
@@ -123,7 +130,7 @@ of integers corresponding to these numbers.  Duplicate and invalid port numbers 
 	    (vid :parameter-type 'integer) vname)
 
   (valid-session-or-lose)
-  
+
   (flet ((config-error (type)
 	   (hunchentoot:redirect (format nil "/config?error=~a" type))))
 
@@ -139,9 +146,19 @@ of integers corresponding to these numbers.  Duplicate and invalid port numbers 
 	   (when web-port
 	     (setf *web-port* web-port))
 
+	   (let ((remove-list
+		  (mapcar (lambda (port)
+			    (parse-integer (cdr port) :junk-allowed t))
+			  (remove-if-not (lambda (param) (string= param "remove"))
+					 (hunchentoot:post-parameters*) :key #'car))))
+	     (setf *notable-ports*
+		   (delete-if (lambda (port)
+				(find port remove-list)) *notable-ports*)))
+
 	   (when (not (empty-string-p ports))
 	     (if (ppcre:scan "^(\\d{1,5}( *|(, *)))+$" ports)
-		 (setf *notable-ports* (ports-from-string ports))
+		 (setf *notable-ports*
+		       (sort (union *notable-ports* (ports-from-string ports)) #'<))
 		 (config-error "ports")))
 	   
 	   (when network
