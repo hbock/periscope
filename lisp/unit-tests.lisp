@@ -1,8 +1,5 @@
 ;;; Some code borrowed from BABEL-TESTS. 
 ;;; Copyright (C) 2007-2008, Luis Oliveira  <loliveira@common-lisp.net>
-
-(in-package :periscope)
-
 (defpackage :periscope-test
   (:use :common-lisp :periscope :cffi :stefil))
 
