@@ -26,11 +26,11 @@
 	    :class "config-section"
 	    (:table
 	     (:tr (:td "Enable Lisp backtraces in front-end")
-		  (:td (checkbox "showbt" "showbt" hunchentoot:*show-lisp-errors-p*)))
+		  (:td (checkbox "showbt" :checked hunchentoot:*show-lisp-errors-p*)))
 	     (:tr (:td "Show diagnostics panel in sidebar")
-		  (:td (checkbox "showdiag" "showdiag" *web-show-diag*)))
+		  (:td (checkbox "showdiag" :checked *web-show-diag*)))
 	     (:tr (:td "Enable SWANK support for this image")
-		  (:td (checkbox "swank" "swank" *enable-swank-p*)))
+		  (:td (checkbox "swank" :checked *enable-swank-p*)))
 	     (:tr (:td "SWANK connect port")
 		  (:td (input "swankport" *swank-port* :size 5)))))
 	   (:input :type "submit" :value "Apply Settings"))))
