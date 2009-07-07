@@ -32,18 +32,8 @@
    (packets :initarg :packets :reader host-packets)
    (bytes :initarg :bytes :reader host-bytes)
    (vlan :accessor host-vlan :initform +vlan-none+)
-   start-time
-   start-time-usec
-   end-time
-   end-time-usec))
-
-(defmethod start-time ((object flow-host))
-  (with-slots (start-time start-time-usec) object
-    (local-time:unix-to-timestamp start-time :nsec (* 1000 start-time-usec))))
-
-(defmethod end-time ((object flow-host))
-  (with-slots (end-time end-time-usec) object
-    (local-time:unix-to-timestamp end-time :nsec (* 1000 end-time-usec))))
+   (start-time :reader start-time)
+   (end-time :reader end-time)))
 
 (defmethod start-time ((object flow))
   (local-time:timestamp-minimum
@@ -60,15 +50,13 @@
 	   (dest (make-instance 'flow-host :ip ip-dst :port dest-port))
 	   (flow (make-instance 'flow :source source :dest dest :protocol ip-proto)))
       
-      (with-slots (packets bytes start-time start-time-usec end-time end-time-usec) source
-	(multiple-value-setq (packets bytes) (source-metrics dsrs))
-	(multiple-value-setq (start-time start-time-usec end-time end-time-usec)
-	  (source-time dsrs)))
+      (with-slots (packets bytes start-time end-time) source
+	(multiple-value-setq (packets bytes)       (source-metrics dsrs))
+	(multiple-value-setq (start-time end-time) (source-time dsrs)))
       
-      (with-slots (packets bytes start-time start-time-usec end-time end-time-usec) dest
-	(multiple-value-setq (packets bytes) (dest-metrics dsrs))
-	(multiple-value-setq (start-time start-time-usec end-time end-time-usec)
-	  (dest-time dsrs)))
+      (with-slots (packets bytes start-time end-time) dest
+	(multiple-value-setq (packets bytes)       (dest-metrics dsrs))
+	(multiple-value-setq (start-time end-time) (dest-time dsrs)))
 
       (unless (null-pointer-p (get-vlan dsrs))
 	(with-foreign-slots ((sid did) (get-vlan dsrs) argus-vlan)

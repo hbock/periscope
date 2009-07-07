@@ -123,19 +123,24 @@
 (defun get-vlan (dsrs)
   (foreign-slot-value dsrs 'periscope-dsrs 'vlan))
 
+(defun argus-timestamp (sec usec)
+  (unix-to-timestamp sec :nsec (* 1000 usec)))
+
 (defun source-time (dsrs)
   (let ((time
 	 (foreign-slot-value
 	  (foreign-slot-value dsrs 'periscope-dsrs 'time) 'argus-time-object 'src)))
     (with-foreign-slots ((start-sec start-usec end-sec end-usec) time argus-time)
-      (values start-sec start-usec end-sec end-usec))))
+      (values (argus-timestamp start-sec start-usec)
+	      (argus-timestamp end-sec end-usec)))))
 
 (defun dest-time (dsrs)
   (let ((time
 	 (foreign-slot-value
 	  (foreign-slot-value dsrs 'periscope-dsrs 'time) 'argus-time-object 'dst)))
     (with-foreign-slots ((start-sec start-usec end-sec end-usec) time argus-time)
-      (values start-sec start-usec end-sec end-usec))))
+      (values (argus-timestamp start-sec start-usec)
+	      (argus-timestamp end-sec end-usec)))))
 
 (defun source-metrics (dsrs)
   (let ((stats
