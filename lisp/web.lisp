@@ -165,3 +165,32 @@ solely of whitespace."
 (defun password-input (name &key default (size 20))
   (with-html-output (*standard-output*)
     (:input :type "password" :name name :value default :size size)))
+
+(defun next-token (string &optional (char-bag '(#\Space #\Tab)))
+  (let ((string (string-left-trim char-bag string)))
+    (loop :for i :from 0 :below (length string)
+       :until (member (char string i) char-bag)
+       :finally (return (values (subseq string 0 i)
+				(subseq string i))))))
+
+(defun tokenize (string &optional (char-bag '(#\Space #\Tab)))
+  (let (tokens)
+    (loop :until (zerop (length string))
+       :do (multiple-value-bind (token rest)
+	              (next-token string char-bag)
+	          (when (plusp (length token))
+		           (push token tokens))
+		       (setf string rest)))
+    (nreverse tokens)))
+
+(defun parse-integer-list (string remove-predicate)
+  "Parse string into a list of integers, separated by commas and/or spaces, removing
+duplicates and any entries that match remove-predicate."
+  (sort
+   (remove-if
+    remove-predicate
+    (remove-duplicates
+     (mapcar (lambda (integer)
+	       (parse-integer integer :junk-allowed t))
+	     (tokenize string '(#\Space #\, #\Tab #\Newline)))))
+   #'<))

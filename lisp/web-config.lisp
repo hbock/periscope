@@ -113,34 +113,10 @@
 		(:td (checkbox (format nil "delete~d" vid)))))))
       (:input :type "submit" :value "Commit Changes"))))
 
-(defun next-token (string &optional (char-bag '(#\Space #\Tab)))
-  (let ((string (string-left-trim char-bag string)))
-    (loop :for i :from 0 :below (length string)
-       :until (member (char string i) char-bag)
-       :finally (return (values (subseq string 0 i)
-				(subseq string i))))))
-
-(defun tokenize (string &optional (char-bag '(#\Space #\Tab)))
-  (let (tokens)
-    (loop :until (zerop (length string))
-       :do (multiple-value-bind (token rest)
-	              (next-token string char-bag)
-	          (when (plusp (length token))
-		           (push token tokens))
-		       (setf string rest)))
-    (nreverse tokens)))
-
 (defun ports-from-string (port-string)
   "Take a string of port numbers, separated by spaces and/or commas, and return a sorted list
 of integers corresponding to these numbers.  Duplicate and invalid port numbers are removed."
-  (sort
-   (remove-if
-    (lambda (port) (> port 65535))
-    (remove-duplicates
-     (mapcar (lambda (port)
-	       (parse-integer port :junk-allowed t))
-	     (tokenize port-string '(#\Space #\, #\Tab #\Newline)))))
-   #'<))
+  (parse-integer-list port-string (lambda (port) (> port 65535))))
 
 (hunchentoot:define-easy-handler (set-config :uri "/set-config")
     (action (web-port :parameter-type 'integer) network ports filter

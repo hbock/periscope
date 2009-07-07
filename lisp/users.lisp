@@ -207,6 +207,12 @@ as an MD5 sum."
 	(hunchentoot:redirect redirect)
 	(hunchentoot:redirect "/"))))
 
+
+(defun vlans-from-string (vlan-string)
+  "Take a string of VLAN identifiers, separated by spaces and/or commas, and return a sorted list
+of integers corresponding to these numbers.  Duplicate and invalid VLAN IDs are removed."
+  (parse-integer-list vlan-string (lambda (vlan) (or (zerop vlan) (> vlan 4095)))))
+
 (hunchentoot:define-easy-handler (set-user-config :uri "/set-user-config")
     (action username displayname password1 password2 subnet vlan configp
 	    required (delete :parameter-type 'array))
