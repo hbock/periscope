@@ -60,17 +60,6 @@
        (:input :type "submit" :value "Add")
        (:br))))))
 
-(defmacro with-config-form ((uri title action &key (method :post)) &body body)
-  "Output a pretty Periscope configuration form."
-  `(with-html-output (*standard-output*)
-     (:div :class "config-header" (str ,title))
-     (:div
-      :class "config-section"
-      (:form
-       :action ,uri :method ,(ecase method (:post "post") (:get "get"))
-       (:input :type "hidden" :name "action" :value ,action)
-       ,@body))))
-
 (hunchentoot:define-easy-handler (config :uri "/config") ((err :parameter-type 'integer))
   (with-periscope-page ("Control Panel" :login t)
     (unless *collector*

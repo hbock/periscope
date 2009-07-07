@@ -18,10 +18,6 @@
 ;;;; Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 (in-package :periscope)
 
-(defmacro with-html ((&key (prologue nil)) &body body)
-  `(who:with-html-output-to-string (*standard-output* nil :prologue ,prologue :indent t)
-     ,@body))
-
 (defun start-web (&key (port *web-port*))
   "Start the web interface server on PORT and add a folder dispatcher for the /content directory."
   (when *web-server*
@@ -48,28 +44,7 @@ Starts a separate thread to run the collector and handle its callbacks."
    (lambda ()
      (run collector)) :name "Periscope Collector"))
 
-(defmacro warning-box (&rest forms)
-  `(who:with-html-output (*standard-output*)
-     (:div :class "warning"
-	   (:img :src "/content/warning.png")
-	   ,@forms)))
-
-(defun y-or-n-radio (name default &key (on "On") (off "Off"))
-  (with-html-output (*standard-output*)
-    (:label :for name (str on))
-    (:input :type "radio" :name name :value "true" :checked default)
-    (:label :for name (str off))
-    (:input :type "radio" :name name :value "false" :checked (not default))))
-
-(defun checkbox (name &key (value name) (checked nil))
-  (with-html-output (*standard-output*)
-    (:input :type "checkbox" :name name :value value :checked checked)))
-
-(defun input (name default &key (size 20) label)
-  (with-html-output (*standard-output*)
-    (when label
-      (htm (:label :for name (str label))))
-    (:input :type "text" :name name :value default :size size)))
+;;; HTML generation helper functions and macros.
 
 (defun generate-navigation ()
   "Generate Periscope's navigation sidebar."
@@ -108,6 +83,10 @@ Starts a separate thread to run the collector and handle its callbacks."
 	      (when *web-show-diag*
 		(htm (:li (:a :href "/uuddlrlrbastart" "Diagnostics Panel")))))))))))
 
+(defmacro with-html ((&key prologue) &body body)
+  `(who:with-html-output-to-string (*standard-output* nil :prologue ,prologue :indent t)
+     ,@body))
+
 (defmacro with-periscope-page ((title &key login) &body body)
   "Generate a Periscope-template page."
   `(progn
@@ -142,3 +121,44 @@ Starts a separate thread to run the collector and handle its callbacks."
 			  "Periscope") " | "
 		      (:a :href "http://qosient.com/argus" :target "_blank"
 			  "Argus"))))))))))
+
+(defmacro with-config-form ((uri title action &key (method :post)) &body body)
+  "Output a pretty Periscope configuration form."
+  `(with-html-output (*standard-output*)
+     (:div :class "config-header" (str ,title))
+     (:div
+      :class "config-section"
+      (:form
+       :action ,uri :method ,(ecase method (:post "post") (:get "get"))
+       (:input :type "hidden" :name "action" :value ,action)
+       ,@body))))
+
+(defun empty-string-p (string)
+  "Returns true if string has no useful string data; i.e., it is NIL, empty, or is composed
+solely of whitespace."
+  (or (null string) (zerop (length (string-trim #(#\Space #\Newline #\Tab) string)))))
+
+(defmacro warning-box (&rest forms)
+  `(who:with-html-output (*standard-output*)
+     (:div :class "warning"
+	   (:img :src "/content/warning.png")
+	   ,@forms)))
+
+(defun y-or-n-radio (name default &key (on "On") (off "Off"))
+  (with-html-output (*standard-output*)
+    (:label :for name (str on))
+    (:input :type "radio" :name name :value "true" :checked default)
+    (:label :for name (str off))
+    (:input :type "radio" :name name :value "false" :checked (not default))))
+
+(defun checkbox (name &key (value name) (checked nil))
+  "Generate an HTML checkbox."
+  (with-html-output (*standard-output*)
+    (:input :type "checkbox" :name name :value value :checked checked)))
+
+(defun input (name default &key (size 20) label)
+  (with-html-output (*standard-output*)
+    (when label
+      (htm (:label :for name (str label))))
+    (:input :type "text" :name name :value default :size size)))
+
