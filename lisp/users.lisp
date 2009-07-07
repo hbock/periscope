@@ -19,7 +19,7 @@
 (in-package :periscope)
 
 (deftype md5sum ()
-  '(simple-array (unsigned-byte 8) (16)))
+  '(simple-vector 16))
 
 (defclass web-user ()
   ((username :initarg :username :accessor username)
@@ -93,6 +93,11 @@ as an MD5 sum."
 
 (defmethod logged-in-p ((user web-user))
   (not (null (session user))))
+
+(defun create-login-forms (&optional (db *web-user-db*))
+  `(progn
+     ,@(loop :for username :being :the :hash-keys :in db :using (:hash-value user) :collect
+	  `(create-login ,username ,(password-hash user) ,(display-name user)))))
 
 (hunchentoot:define-easy-handler (login :uri "/login")
     (denied redirect)
@@ -243,4 +248,5 @@ as an MD5 sum."
 	     (config-error "subnet"))))
 
        (create-login username password1 displayname))))
+  (save-config)
   (hunchentoot:redirect "/users"))

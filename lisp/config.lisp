@@ -54,7 +54,8 @@
 	     *swank-port* *enable-swank-p*
 	     *notable-ports*
 	     *internal-network* *internal-netmask*)))
-  (format stream "~S~%" (dump-hash-tables '(*vlan-names*))))
+  (format stream "~S~%" (dump-hash-tables '(*vlan-names*)))
+  (format stream "~S~%" (create-login-forms)))
 
 (defun symbol-value-setf-forms (symbol-list)
   "Given a list of symbols, construct a SETF form that will properly set all relevant values."
