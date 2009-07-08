@@ -80,6 +80,12 @@
 	  (add-host-stats host-stats source dest)
 	  (add-host-stats host-stats dest source))))))
 
+(defmethod local-contact-count ((host host-stats))
+  (hash-table-count (slot-value host 'local-contacts)))
+
+(defmethod remote-contact-count ((host host-stats))
+  (hash-table-count (slot-value host 'remote-contacts)))
+
 (defmethod hosts-collect-if ((object periodic-report) predicate)
   (with-slots (host-stats) object
     (loop :for host-ip :being :the :hash-keys :in host-stats :using (:hash-value stats)
@@ -95,6 +101,12 @@
 (defun busiest-hosts (stat-list)
   (sort stat-list #'> :key (lambda (stats)
 			     (+ (bytes (receiving stats)) (bytes (sending stats))))))
+
+(defmethod incoming-scan-hosts ((report periodic-report))
+  (sort (remote-hosts report) #'> :key #'local-contact-count))
+
+(defmethod outgoing-scan-hosts ((report periodic-report))
+  (sort (local-hosts report) #'> :key #'remote-contact-count))
 
 (defmethod print-html ((object stats) &key (title "General Stats") (type :general) (flows t))
   (with-html-output (*standard-output*)
