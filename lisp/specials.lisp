@@ -39,6 +39,7 @@
 (defvar *collector* nil)
 (defvar *shutdown-cond* (bt:make-condition-variable))
 (defvar *shutdown-lock* (bt:make-lock))
+(defvar *dns-lookup-p* nil)
 
 (defvar *swank-port* 20571)
 (defvar *enable-swank-p* nil)
