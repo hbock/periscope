@@ -43,6 +43,8 @@
   (multiple-value-bind (host-stat existsp)
       (gethash (host-ip host) table (make-instance 'host-stats :ip (host-ip host)))
     (with-slots (sending receiving local-contacts remote-contacts) host-stat
+      (let ((other-ip (host-ip other)))
+	(incf (gethash other-ip (if (remote-host-p other-ip) remote-contacts local-contacts) 0)))
       (add-stats sending   :bytes (host-bytes host) :packets (host-packets host))
       (add-stats receiving :bytes (host-bytes other) :packets (host-packets other)))
     (unless existsp
@@ -124,27 +126,41 @@
 	(when flows
 	  (htm (:td (fmt "~:d" (flows object))))))))))
 
+(defun print-scan-hosts (title host-type list &key key)
+  (with-html-output (*standard-output*)
+    (:table
+     (:tr (:th :colspan 4 (str title)))
+     (:tr (:th "Host") (:th "Hostname") (:th (fmt "~a Hosts Contacted" host-type)))
+     (loop :with row-switch = t
+	:for host :in list :repeat 15 :do
+	(htm
+	 (:tr
+	  :class (if row-switch "rowa" "rowb")
+	  (:td (str (ip-string (host-ip host))))
+	  (:td "N/A")
+	  (:td (str (funcall key host)))))
+	(setf row-switch (not row-switch))))))
+
 (defun print-busiest-hosts (title list)
   (with-html-output (*standard-output*)
-    (htm
-     (:table
-      (:tr (:th :colspan 8 (str title)))
-      (:tr (:th)
-	   (:th :colspan 2 "Sending")
-	   (:th :colspan 2 "Receiving")
-	   (:th :colspan 3 "Total"))
-      (:tr (:th) (:th "Packets") (:th "Bytes") (:th "Packets") (:th "Bytes")
-	   (:th "Packets") (:th "Bytes") (:th "Flows"))
-      (loop :with row-switch = t
-	 :for host :in list :repeat 15 :do
-	 (htm
-	  (:tr
-	   :class (if row-switch "rowa" "rowb")
-	   (:td (str (ip-string (host-ip host))))
-	   (print-html (receiving host) :type :busiest-hosts :flows nil)
-	   (print-html (sending host)   :type :busiest-hosts :flows nil)
-	   (print-html (combine-stats (receiving host) (sending host)) :type :busiest-hosts)))
-	 (setf row-switch (not row-switch)))))))
+    (:table
+     (:tr (:th :colspan 8 (str title)))
+     (:tr (:th)
+	  (:th :colspan 2 "Sending")
+	  (:th :colspan 2 "Receiving")
+	  (:th :colspan 3 "Total"))
+     (:tr (:th) (:th "Packets") (:th "Bytes") (:th "Packets") (:th "Bytes")
+	  (:th "Packets") (:th "Bytes") (:th "Flows"))
+     (loop :with row-switch = t
+	:for host :in list :repeat 15 :do
+	(htm
+	 (:tr
+	  :class (if row-switch "rowa" "rowb")
+	  (:td (str (ip-string (host-ip host))))
+	  (print-html (receiving host) :type :busiest-hosts :flows nil)
+	  (print-html (sending host)   :type :busiest-hosts :flows nil)
+	  (print-html (combine-stats (receiving host) (sending host)) :type :busiest-hosts)))
+	(setf row-switch (not row-switch))))))
 
 (defmethod print-html ((report periodic-report) &key (title "Periodic Report"))
   (with-html-output (*standard-output*)
@@ -164,6 +180,10 @@
      (print-html (incoming report) :title "Incoming")
      (print-html (outgoing report) :title "Outgoing")
      (print-html (total report) :title "Total"))
+    (print-scan-hosts "Possible Incoming Scan Hosts" "Local"
+		      (incoming-scan-hosts report) :key #'local-contact-count)
+    (print-scan-hosts "Possible Outgoing Scan Hosts" "Remote"
+		      (outgoing-scan-hosts report) :key #'remote-contact-count)
     (print-busiest-hosts "Busiest Local Hosts" (busiest-hosts (local-hosts report)))
     (print-busiest-hosts "Busiest Remote Hosts" (busiest-hosts (remote-hosts report)))))
 
