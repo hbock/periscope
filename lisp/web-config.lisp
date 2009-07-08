@@ -82,18 +82,21 @@
       (when (string= error "success")
 	(htm (:p "Configuration values successfully applied!")))
 
-      (with-config-form ("/set-config" "Monitoring Configuration" "monitor")
+      (with-config-form ("/set-config" "Web Interface Configuration" "web")
 	(:table
 	 (:tr
-	  (:td "Traffic Filter")
-	  (:td (input "filter" (if *collector* (filter *collector*) "")))))
+	  (:td "Web interface port")
+	  (:td (input "web-port" *web-port*)))
+	 (:tr
+	  (:td "Perform DNS reverse lookup in reports")
+	  (:td (checkbox "dnslookup" :checked *dns-lookup-p*))))
 	(:input :type "submit" :value "Apply Configuration"))
 
       (with-config-form ("/set-config" "Network Configuration" "network")
 	(:table
 	 (:tr
-	  (:td "Web interface port")
-	  (:td (input "web-port" *web-port*)))
+	  (:td "Traffic Filter")
+	  (:td (input "filter" (if *collector* (filter *collector*) ""))))
 	 (cond
 	   ((string= error "nocidrsuffix")
 	    (error-message "Error: Network subnet mask must be specified (e.g., 192.168.10.0/24)."))
@@ -154,7 +157,8 @@ of integers corresponding to these numbers.  Duplicate and invalid port numbers 
   (parse-integer-list port-string (lambda (port) (> port 65535))))
 
 (hunchentoot:define-easy-handler (set-config :uri "/set-config")
-    (action (web-port :parameter-type 'integer) network ports filter
+    (action (web-port :parameter-type 'integer) dnslookup
+	    network ports filter
 	    (newvid :parameter-type 'integer) newvname
 	    (vid :parameter-type 'array)
 	    (vname :parameter-type 'array)
@@ -171,12 +175,15 @@ of integers corresponding to these numbers.  Duplicate and invalid port numbers 
     (cond ((string= action "monitor")
 	   (when filter
 	     (setf (filter *collector*) filter)))
-	
-	  ((string= action "network")
-	   ;; TODO: Restart server!	   
+
+	  ((string= action "web")
+	   ;; TODO: Restart server!   
 	   (when web-port
 	     (setf *web-port* web-port))
 
+	   (setf *dns-lookup-p* (not (null dnslookup))))
+	  
+	  ((string= action "network")
 	   (let ((remove-list
 		  (mapcar (lambda (port)
 			    (parse-integer (cdr port) :junk-allowed t))
