@@ -60,7 +60,7 @@
 	     for report in reports do
 	     (print-html report))
 	  (:h3 "First 100 Flows")
-	  (print-flows *flow-list*)))))))
+	  (print-flows (first filtered-flows))))))))
 
 (defun print-flows (flow-list &optional (limit 100))
   (with-html-output (*standard-output*)
