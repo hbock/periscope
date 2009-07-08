@@ -18,15 +18,17 @@
 ;;;; Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 (in-package :periscope)
 
-(defun vlan-filter (vlan*)
-  (etypecase vlan*
-    (list
+(defun vlan-filter (&rest vlan*)
+  (cond
+    ((null (cdr vlan*))
+     (let ((vlan (car vlan*)))
+       (lambda (flow)
+	 (or (= vlan (host-vlan (source flow)))
+	     (= vlan (host-vlan (dest flow)))))))
+    (t
      (lambda (flow)
        (or (find (host-vlan (source flow)) vlan* :test #'=)
-	   (find (host-vlan (dest flow))   vlan* :test #'=))))
-    (vlan-id
-     (lambda (flow)
-       (or (= vlan* (host-vlan (source flow))) (= vlan* (host-vlan (dest flow))))))))
+	   (find (host-vlan (dest flow))   vlan* :test #'=))))))
 
 (defun netmask-filter (network netmask)
   (declare (type (unsigned-byte 32) network netmask))
