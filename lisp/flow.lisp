@@ -18,8 +18,8 @@
 ;;;; Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 (in-package :periscope)
 
-(deftype vlan-id ()
-  '(unsigned-byte 12))
+(deftype vlan-id ()     '(unsigned-byte 12))
+(deftype port-number () '(unsigned-byte 16))
 
 (defclass flow ()
   ((source :initarg :source :reader source)
@@ -28,12 +28,12 @@
 
 (defclass flow-host ()
   ((ip :initarg :ip :reader host-ip :initform (error "Must suppy IP addresss!"))
-   (port :initarg :port :reader host-port)
+   (port :initarg :port :reader host-port :type port-number)
    (packets :initarg :packets :reader host-packets)
    (bytes :initarg :bytes :reader host-bytes)
-   (vlan :accessor host-vlan :initform +vlan-none+)
-   (start-time :reader start-time)
-   (end-time :reader end-time)))
+   (vlan :accessor host-vlan :type vlan-id :initform +vlan-none+)
+   (start-time :reader start-time :type local-time:timestamp)
+   (end-time :reader end-time :type local-time:timestamp)))
 
 (defmethod start-time ((object flow))
   (local-time:timestamp-minimum
