@@ -60,6 +60,12 @@
        (:input :type "submit" :value "Add")
        (:br))))))
 
+;;; Possible errors:
+;;;  - "ports": error parsing port list
+;;;  - "nocidrsuffix": network provided without a CIDR subnet mask
+;;;  - "networkparse": error parsing network string
+;;;  - "missingvlan": bad VLAN when adding
+;;;  - "editvlan": error editing VLAN IDs
 (hunchentoot:define-easy-handler (config :uri "/config") ((err :parameter-type 'integer))
   (with-periscope-page ("Control Panel" :login t)
     (unless *collector*
@@ -103,21 +109,23 @@
       (:table
        (:tr
 	(:td "VLAN ID")
-	(:td (input "vid" "")))
+	(:td (input "newvid" "")))
        (:tr
 	(:td "VLAN Name")
-	(:td (input "vname" ""))))
+	(:td (input "newvname" ""))))
       (:input :type "submit" :value "Add VLAN"))
 
     (with-config-form ("/set-config" "Edit VLAN Identifiers" "editvlan")
       (:table
        :class "input"
        (:tr (:th "VLAN ID") (:th "Name") (:th "Remove"))
-       (loop :for (vid name) :in (vlan-name-list) :do
+       (loop :with index = 0
+	  :for (vid name) :in (vlan-name-list) :do
 	  (htm (:tr
-		(:td (input (format nil "vid~d" vid) vid :size 4))
-		(:td (input (format nil "vname~d" vid) name))
-		(:td (checkbox (format nil "delete~d" vid)))))))
+		(:td (input (format nil "vid[~d]" index) vid :size 4))
+		(:td (input (format nil "vname[~d]" index) name))
+		(:td (checkbox (format nil "delete[~d]" index) :value vid))))
+	  (incf index)))
       (:input :type "submit" :value "Commit Changes"))))
 
 (defun ports-from-string (port-string)
@@ -127,7 +135,10 @@ of integers corresponding to these numbers.  Duplicate and invalid port numbers 
 
 (hunchentoot:define-easy-handler (set-config :uri "/set-config")
     (action (web-port :parameter-type 'integer) network ports filter
-	    (vid :parameter-type 'integer) vname)
+	    (newvid :parameter-type 'integer) newvname
+	    (vid :parameter-type 'array)
+	    (vname :parameter-type 'array)
+	    (delete :parameter-type 'array))
 
   (valid-session-or-lose)
 
@@ -173,32 +184,30 @@ of integers corresponding to these numbers.  Duplicate and invalid port numbers 
 		 (config-error "networkparse")))))
 
 	  ((string= action "addvlan")
-	   (if (and vid vname)
-	       (setf (vlan-name vid) vname)
+	   (if (and newvid newvname)
+	       (setf (vlan-name newvid) newvname)
 	       (config-error "missingvlan")))
 
 	  ((string= action "editvlan")
-	   (loop :for (name . value) :in (hunchentoot:post-parameters*) :do
-	      (ppcre:register-groups-bind ((#'parse-integer vid))
-		  ("^vid(\\d{1,4})$" name)
-		(when vid
-		  (let ((new-vid (parse-integer value :junk-allowed t))
-			(name (hunchentoot:post-parameter (format nil "vname~d" vid)))
-			(remove (hunchentoot:post-parameter (format nil "delete~d" vid))))
-		    (when remove
-		      (setf (vlan-name vid) nil))
-		    (when (and (not remove) name)
-		      (cond
-			((and new-vid (= vid new-vid) (not (string= value (vlan-name vid))))
-			 ;; Update old VID name.
-			 (setf (vlan-name vid) name))
-			((and new-vid (/= vid new-vid))
-			 ;; The user changed the VID of this field; remove the old
-			 ;; name binding and establish a name binding with the newly
-			 ;; entered VID
-			 (setf (vlan-name vid) nil)
-			 (setf (vlan-name new-vid) name))
-			(t (config-error "editvlan"))))))))))
+	   ;; User is trying to be malicious - these lengths are always equal.
+	   (when (/= (length vid) (length vname))
+	     (hunchentoot:redirect "/config"))
+
+	   (let ((vids (map 'vector (lambda (s) (parse-integer s :junk-allowed t)) vid)))
+	     (cond
+	       ;; VLAN ID not parseable.
+	       ((some #'null vids) (config-error "badvid"))
+	       ;; VLAN number is set, but name is blank
+	       ((some #'empty-string-p vname) (config-error "novname")))
+	   
+	     ;; NOTE: We should only get here if there are NO errors!
+	     ;; Otherwise we blow away the VLAN list...
+	     (clrhash *vlan-names*)
+	     (loop :with ndelete = (length delete)
+		:for i :from 0 :below (length vids) :do
+		(if (and (> ndelete i) (aref delete i))
+		    nil
+		    (setf (vlan-name (aref vids i)) (aref vname i)))))))
   
     (save-config)
     (config-error "success")))
