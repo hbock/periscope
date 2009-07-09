@@ -45,6 +45,9 @@ Starts a separate thread to run the collector and handle its callbacks."
      (run collector)) :name "Periscope Collector"))
 
 ;;; HTML generation helper functions and macros.
+(defmacro with-html ((&key prologue) &body body)
+  `(who:with-html-output-to-string (*standard-output* nil :prologue ,prologue :indent t)
+     ,@body))
 
 (defun generate-navigation ()
   "Generate Periscope's navigation sidebar."
@@ -82,10 +85,6 @@ Starts a separate thread to run the collector and handle its callbacks."
 	      (:li (:a :href "/config" "Control Panel"))
 	      (when *web-show-diag*
 		(htm (:li (:a :href "/uuddlrlrbastart" "Diagnostics Panel")))))))))))
-
-(defmacro with-html ((&key prologue) &body body)
-  `(who:with-html-output-to-string (*standard-output* nil :prologue ,prologue :indent t)
-     ,@body))
 
 (defmacro with-periscope-page ((title &key login) &body body)
   "Generate a Periscope-template page."
