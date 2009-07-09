@@ -304,6 +304,7 @@ div.config-section table.sources td,
 div.config-section table.input td {
   width:auto;
   padding:3px;
+  text-align:center;
 }
 
 div.config-section table.input th {
