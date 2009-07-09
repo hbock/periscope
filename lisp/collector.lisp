@@ -50,11 +50,12 @@
   (%collector-stop (get-ptr object))
   object)
 
-(defmethod add-remote ((collector collector) (host string))
+(defmethod add-remote ((collector collector) (host string) &optional (port 561))
   "Add a remote host to be processed when START is called."
-  (let ((ptr (%argus-remote-add (get-ptr collector) host)))
+  (let* ((hoststr (format nil "~a:~d" host port))
+	 (ptr (%argus-remote-add (get-ptr collector) hoststr)))
     (when (null-pointer-p ptr)
-      (error "Error adding host ~a to the collector." host))
+      (error "Error adding host ~a to the collector." hoststr))
     (let ((source (make-instance 'source :ptr ptr :path host)))
       (push source (remote-sources collector)))))
 
@@ -104,3 +105,8 @@
     (run collector))
   (setf *flow-list* (nreverse *flow-list*)))
 
+(defmethod remote-port ((object source))
+  (%argus-remote-port (get-ptr object)))
+
+(defmethod remote-ip ((object source))
+  (%argus-remote-ip (get-ptr object)))

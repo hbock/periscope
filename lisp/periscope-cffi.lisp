@@ -90,6 +90,12 @@
 (defcfun ("periscope_argus_remote_is_connected" %argus-connected-p) :int
   (input :pointer))
 
+(defcfun ("periscope_argus_remote_ip" %argus-remote-ip) :uint32
+  (input :pointer))
+
+(defcfun ("periscope_argus_remote_port" %argus-remote-port) :uint16
+  (input :pointer))
+
 (defcfun ("periscope_argus_set_filter" %argus-set-filter) :int
   (collector periscope-collector)
   (filter :string))
