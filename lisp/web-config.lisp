@@ -218,14 +218,16 @@ of integers corresponding to these numbers.  Duplicate and invalid port numbers 
 	   "The collector is not running." (:br)
 	   (:b (:a :href "/manage-sources?action=run" "Click here to run the collector.")))))
     
-    (when *collector*
-      (print-remote-sources *collector*))
+    (print-remote-sources *collector*)
 
     (with-config-form ("/manage-sources" "Add Argus Server" "add")
       (:table
-       (when (string= error "invalidhost"))
-       (error-message
-	(format nil "Error: Host \"~a:~a\" did not resolve or is a duplicate." host port))
+       (cond
+	 ((string= error "invalidhost")
+	  (error-message
+	   (format nil "Error: Hostname \"~a:~a\" did not resolve or is a duplicate." host port)))
+	 ((string= error "emptyhost")
+	  (error-message "Error: Hostname cannot not be empty!")))
        (:tr
 	(:td "Hostname")
 	(:td (input "hostname" "")))
@@ -245,7 +247,7 @@ of integers corresponding to these numbers.  Duplicate and invalid port numbers 
      (format nil "~a?error=~a~:[~;&~:*~{~a=~a~^&~}~]" *redirect-page* type more-params))))
 
 (hunchentoot:define-easy-handler (manage-sources :uri "/manage-sources")
-    (action hostname (port :parameter-type 'integer) (sid :parameter-type 'integer))
+    (action hostname (port :parameter-type 'integer) (remove :parameter-type 'array))
   (valid-session-or-lose)
   (let ((*redirect-page* "/sources"))
     (cond
@@ -254,31 +256,33 @@ of integers corresponding to these numbers.  Duplicate and invalid port numbers 
 	 (web-run-collector *collector*)))
       
       ((string= action "add")
+       (when (empty-string-p hostname)
+	 (error-redirect "emptyhost"))
+       
        (handler-case
 	   (add-remote *collector* hostname)
 	 (simple-error ()
 	   (error-redirect "invalidhost" :host hostname :port port))))
       
-      ((string= action "remove")
-       (when sid
+      ((string= action "manage")
+       (setf remove (map 'vector (lambda (s) (parse-integer s :junk-allowed t)) remove))
+       (when (plusp (length remove))
 	 (setf (remote-sources *collector*)
-	       (delete-if (lambda (src)
-			    (= (pointer-address (get-ptr src)) sid))
-			  (remote-sources *collector*)))))))
+	       (remove-if (lambda (src)
+			    (find (pointer-address (get-ptr src)) remove))
+			  (remote-sources *collector*))))))
 
-  ;;(save-config)
-  (error-redirect "success"))
+    ;;(save-config)
+    (error-redirect "success")))
 
 (defun print-remote-sources (&optional (collector *collector*))
   (when (remote-sources collector)
-    (with-html-output (*standard-output*)
-      (:div :class "config-header" "Manage Sources")
-      (:div
-       :class "config-section"
-       (:table
-	:class "sources"
-	(:tr (:th "Hostname") (:th "Port") (:th "Status") (:th "Options"))	 
-	(dolist (source (remote-sources collector))
+    (with-config-form ("/manage-sources" "Manage Sources" "manage")
+      (:table
+       :class "input"
+       (:tr (:th "Hostname") (:th "Port") (:th "Status") (:th "Remove"))
+       (loop :with i = 0
+	  :for source :in (remote-sources collector) :do
 	  (htm
 	   (:tr
 	    (:td (str (source-path source)))
@@ -289,13 +293,7 @@ of integers corresponding to these numbers.  Duplicate and invalid port numbers 
 		      "Connected"
 		      "Not Connected")))
 	    (:td
-	     (:a :href (format nil "/manage-sources?action=remove&sid=~a"
-			       (pointer-address (get-ptr source)))
-		 "Remove")
-	     " "
-	     (:a :href (format nil "/manage-sources?action=connect&id=~a"
-			       (pointer-address (get-ptr source)))
-		 (str
-		  (if (connected-p source)
-		      "Disconnect"
-		      "Connect"))))))))))))
+	     (checkbox (format nil "remove[~d]" i)
+		       :value (pointer-address (get-ptr source))))))
+	  (incf i)))
+      (submit "Apply Changes"))))
