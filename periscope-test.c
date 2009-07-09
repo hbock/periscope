@@ -226,6 +226,13 @@ main (int argc, char **argv)
       }
    }
 
+   if(periscope_argus_remote_add(&g_collector, "")) {
+      printf("BAD! Added an empty string hostname.\n");
+   }
+   if(periscope_argus_remote_add(&g_collector, "a")) {
+      printf("Added remote w/hostname 'a'??\n");
+   }
+   
    printf("Testing remote duplication error handling...\n");
    periscope_argus_remote_add(&g_collector, "127.0.0.1");
    for (i = 0; i < 5; i++) {
