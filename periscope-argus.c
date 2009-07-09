@@ -220,9 +220,6 @@ periscope_argus_remote_connect(struct PeriscopeCollector *collector, struct Argu
          parser->ArgusTotalMarRecords++;
          parser->ArgusTotalRecords++;
          
-         printf("Connected to %s:%d, Argus server version %d.%d\n",
-                remote->hostname, remote->portnum, remote->major_version, remote->minor_version);
-         
          if ((flags = fcntl(remote->fd, F_GETFL, 0L)) < 0)
             ArgusLog (LOG_ERR, "ArgusConnectRemote: fcntl error %s", strerror(errno));
          

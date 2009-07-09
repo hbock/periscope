@@ -159,11 +159,11 @@ RaProcessRecord (struct ArgusParserStruct *parser,
             break;
 
          case ARGUS_FLOW_ARP:
-            printf("TODO: ARP support?\n");
+            /* TODO: ARP support. */
             break;
             
-         default:
-            printf("Record flow subtype: %02X\n", dsrs.flow->hdr.subtype);
+         default: break;
+            /* TODO: What other flow subtypes are we interested in? */
          }
       }
    }
@@ -176,10 +176,11 @@ RaProcessManRecord (struct ArgusParserStruct *parser,
    struct ArgusRecord *rec = (struct ArgusRecord *)argus->dsrs[0];
    if(rec) {
       struct ArgusMarStruct *mar = &rec->ar_un.mar;
-      
+
+      /*
       printf("Received MAR: status %u local net %08x, netmask %08x, ver %hhu.%hhu, %llu received packets.\n",
              mar->status, mar->localnet, mar->netmask, mar->major_version, mar->minor_version,
-             mar->pktsRcvd);
+             mar->pktsRcvd);*/
    }
 }
 
