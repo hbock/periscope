@@ -183,12 +183,18 @@ periscope_argus_remote_ip(struct ArgusInput *input)
 struct ArgusInput *
 periscope_argus_remote_add(struct PeriscopeCollector *collector, char *hoststr)
 {
-   int ret;
+   int ret, count;
    struct ArgusParserStruct *parser = collector->parser;
    struct ArgusInput *input = NULL, *iter = NULL;
    uint32_t ip = 0;
 
+   count = parser->ArgusRemoteHosts->count;
    if((ret = ArgusAddHostList(parser, hoststr, ARGUS_DATA_SOURCE)) < 0) {
+      return NULL;
+   }
+   /* HACK: A host was not actually added, but Argus did not signal an error!
+    * Abort mission. */
+   if(count == parser->ArgusRemoteHosts->count) {
       return NULL;
    }
 
