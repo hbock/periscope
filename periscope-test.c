@@ -201,10 +201,6 @@ main (int argc, char **argv)
    g_collector.callbacks.process_flow = process_flow;
    g_collector.callbacks.input_complete = input_source_completed;
 
-   if(sources == 0) {
-      fprintf(stderr, "Periscope: no local sources to process. Connecting to local server.\n");
-   }
-   
    for(i = 0; i < sources; i++) {
       if(strcmp(argv[1+i], "remote") == 0) {
          i++;
@@ -218,7 +214,7 @@ main (int argc, char **argv)
    }
    for(; i < sources; i++) {
       if(periscope_argus_remote_add(&g_collector, argv[1+i]) == NULL) {
-         fprintf(stderr, "Periscope: host '%s' is not valid!\n", argv[1+i]);
+         fprintf(stderr, "Periscope: host '%s' is not valid, or duplicate!\n", argv[1+i]);
       }
    }
 
@@ -229,6 +225,18 @@ main (int argc, char **argv)
          exit(1);
       }
    }
+
+   printf("Testing remote duplication error handling...\n");
+   periscope_argus_remote_add(&g_collector, "127.0.0.1");
+   for (i = 0; i < 5; i++) {
+      if (periscope_argus_remote_add(&g_collector, "127.0.0.1") != NULL) {
+         printf("BUG ALERT!! Should not be able to add the same host multiple times.\n");
+      }
+   }
+   if(g_collector.parser->ArgusRemoteHosts->count != 1) {
+      printf("BUG ALERT!! Same host added %d times.\n", g_collector.parser->ArgusRemoteHosts->count);
+   }
+   printf("Duplication test complete.\n\n");
    
    /* Runs the Argus processor on both local and remote sources.
     * Eventually we will want to separate this, so local files can be
