@@ -20,45 +20,11 @@
 
 (defconstant +config-success+ 0)
 
-(hunchentoot:define-easy-handler (sources :uri "/sources") ()
-  (with-periscope-page ("Manage Argus Sources")
-    (:div :class "config-header" "Collector Operation")
-    (unless *collector*
-      (warning-box
-       "Collector not initialized. This is a bug.")
-      (return-from sources))
-    
-    (when (not (running-p *collector*))
-      (if (null (remote-sources *collector*))
-	  (warning-box
-	   (:p "The collector is not running, and no sources have been defined.")
-	   (:p "Please add one or more sources below before starting the collector."))
-	  (warning-box
-	   "The collector is not running." (:br)
-	   (:b (:a :href "/manage-sources?action=run" "Click here to run the collector.")))))
-    
-    (when *collector*
-      (print-remote-sources *collector*))
-    
-    (:p
-     (:form      
-      :action "/manage-sources" :method "post"
-      (:div :class "config-header" "Add Argus Server")
-      (:div
-       :class "config-section"
-       (:table
-	(:tr
-	 (:td "Hostname")
-	 (:td (input "hostname" "")))
-	(:tr
-	 (:td "Port")
-	 (:td (input "hostname" 561)))
-	(:tr
-	 (:td "SASL Authentication")
-	 (:td (checkbox "sasl"))))
-       (:input :type "hidden" :name "action" :value "add")
-       (:input :type "submit" :value "Add")
-       (:br))))))
+(defun error-message (message &key (table t))
+  (with-html-output (*standard-output*)
+    (if table
+	(htm (:tr (:td :class "error" :colspan 3 (:b (str message)))))
+	(htm (:b :class "error" (str message))))))
 
 ;;; Possible errors:
 ;;;  - "ports": error parsing port list
@@ -70,86 +36,82 @@
 ;;;  - "novname": no Name specified when editing VLANs.
 (hunchentoot:define-easy-handler (config :uri "/config") (error)
   (with-periscope-page ("Control Panel" :login t)
-    (flet ((error-message (message &key (table t))
-	     (if table
-		 (htm (:tr (:td :class "error" :colspan 3 (:b (str message)))))
-		 (htm (:b :class "error" (str message))))))
-      (unless *collector*
-	(warning-box
-	 "Collector not initialized. This is a bug.")
-	(return-from config))
+    (unless *collector*
+      (warning-box
+       "Collector not initialized. This is a bug.")
+      (return-from config))
 
-      (when (string= error "success")
-	(htm (:p "Configuration values successfully applied!")))
+    (when (string= error "success")
+      (htm (:p "Configuration values successfully applied!")))
 
-      (with-config-form ("/set-config" "Web Interface Configuration" "web")
-	(:table
-	 (:tr
-	  (:td "Web interface port")
-	  (:td (input "web-port" *web-port*)))
-	 (:tr
-	  (:td "Perform DNS reverse lookup in reports")
-	  (:td (checkbox "dnslookup" :checked *dns-lookup-p*))))
-	(:input :type "submit" :value "Apply Configuration"))
+    (with-config-form ("/set-config" "Web Interface Configuration" "web")
+      (:table
+       (:tr
+	(:td "Web interface port")
+	(:td (input "web-port" *web-port*)))
+       (:tr
+	(:td "Perform DNS reverse lookup in reports")
+	(:td (checkbox "dnslookup" :checked *dns-lookup-p*))))
+      (:input :type "submit" :value "Apply Configuration"))
 
-      (with-config-form ("/set-config" "Network Configuration" "network")
-	(:table
-	 (:tr
-	  (:td "Traffic Filter")
-	  (:td (input "filter" (if *collector* (filter *collector*) ""))))
-	 (cond
-	   ((string= error "nocidrsuffix")
-	    (error-message "Error: Network subnet mask must be specified (e.g., 192.168.10.0/24)."))
-	   ((string= error "networkparse")
-	    (error-message "Error parsing CIDR network specification.")))
-	 (:tr
-	  (:td "Local Network (CIDR)")
-	  (:td (input "network" (ip-string *internal-network* *internal-netmask*))))
-	 (:tr
-	  (:td "Notable ports (select to remove)")
-	  (:td
-	   (:select
-	    :name "remove" :multiple t 
-	    (dolist (port *notable-ports*)
-	      (htm (:option :value port (fmt "~d (~a)" port (service-name port))))))))
-	 (when (string= error "ports")
-	   (error-message "Error: Port numbers must be separated by spaces or commas."))
-	 (:tr
-	  (:td "Add notable ports:")
-	  (:td (input "ports" ""))))
-	(:input :type "submit" :value "Apply Configuration"))
+    (with-config-form ("/set-config" "Network Configuration" "network")
+      (:table
+       (:tr
+	(:td "Traffic Filter")
+	(:td (input "filter" (if *collector* (filter *collector*) ""))))
+       (cond
+	 ((string= error "nocidrsuffix")
+	  (error-message "Error: Network subnet mask must be specified (e.g., 192.168.10.0/24)."))
+	 ((string= error "networkparse")
+	  (error-message "Error parsing CIDR network specification.")))
+       (:tr
+	(:td "Local Network (CIDR)")
+	(:td (input "network" (ip-string *internal-network* *internal-netmask*))))
+       (:tr
+	(:td "Notable ports (select to remove)")
+	(:td
+	 (:select
+	  :name "remove" :multiple t 
+	  (dolist (port *notable-ports*)
+	    (htm (:option :value port (fmt "~d (~a)" port (service-name port))))))))
+       (when (string= error "ports")
+	 (error-message "Error: Port numbers must be separated by spaces or commas."))
+       (:tr
+	(:td "Add notable ports:")
+	(:td (input "ports" ""))))
+      (:input :type "submit" :value "Apply Configuration"))
 
-      (with-config-form ("/set-config" "Add VLAN Identifier" "addvlan")
-	(when (string= error "missingvlan")
-	  (error-message "Error setting VLAN identifier; both a valid VID and non-empty name
+    (with-config-form ("/set-config" "Add VLAN Identifier" "addvlan")
+      (when (string= error "missingvlan")
+	(error-message "Error setting VLAN identifier; both a valid VID and non-empty name
 must be specified!" :table nil))
-	(:table	 
-	 (:tr
-	  (:td "VLAN ID")
-	  (:td (input "newvid" "")))
-	 (:tr
-	  (:td "VLAN Name")
-	  (:td (input "newvname" ""))))
-	(:input :type "submit" :value "Add VLAN"))
+      (:table	 
+       (:tr
+	(:td "VLAN ID")
+	(:td (input "newvid" "")))
+       (:tr
+	(:td "VLAN Name")
+	(:td (input "newvname" ""))))
+      (:input :type "submit" :value "Add VLAN"))
 
-      (with-config-form ("/set-config" "Edit VLAN Identifiers" "editvlan")
-	(cond
-	  ((string= error "badvid")
-	   (error-message "Bad VLAN ID; must be a positive integer between 0-4095." :table nil))
-	  ((string= error "novname")
-	   (error-message "VLAN names must not be empty. To delete an ID, please use the
+    (with-config-form ("/set-config" "Edit VLAN Identifiers" "editvlan")
+      (cond
+	((string= error "badvid")
+	 (error-message "Bad VLAN ID; must be a positive integer between 0-4095." :table nil))
+	((string= error "novname")
+	 (error-message "VLAN names must not be empty. To delete an ID, please use the
 \"Remove\" checkbox." :table nil)))
-	(:table
-	 :class "input"
-	 (:tr (:th "VLAN ID") (:th "Name") (:th "Remove"))
-	 (loop :with index = 0
-	    :for (vid name) :in (vlan-name-list) :do
-	    (htm (:tr
-		  (:td (input (format nil "vid[~d]" index) vid :size 4))
-		  (:td (input (format nil "vname[~d]" index) name))
-		  (:td (checkbox (format nil "delete[~d]" index) :value vid))))
-	    (incf index)))
-	(:input :type "submit" :value "Commit Changes")))))
+      (:table
+       :class "input"
+       (:tr (:th "VLAN ID") (:th "Name") (:th "Remove"))
+       (loop :with index = 0
+	  :for (vid name) :in (vlan-name-list) :do
+	  (htm (:tr
+		(:td (input (format nil "vid[~d]" index) vid :size 4))
+		(:td (input (format nil "vname[~d]" index) name))
+		(:td (checkbox (format nil "delete[~d]" index) :value vid))))
+	  (incf index)))
+      (:input :type "submit" :value "Commit Changes"))))
 
 (defun ports-from-string (port-string)
   "Take a string of port numbers, separated by spaces and/or commas, and return a sorted list
@@ -239,24 +201,73 @@ of integers corresponding to these numbers.  Duplicate and invalid port numbers 
     (save-config)
     (config-error "success")))
 
+(hunchentoot:define-easy-handler (sources :uri "/sources") (error host port)
+  (with-periscope-page ("Manage Argus Sources")
+    (:div :class "config-header" "Collector Operation")
+    (unless *collector*
+      (warning-box
+       "Collector not initialized. This is a bug.")
+      (return-from sources))
+    
+    (when (not (running-p *collector*))
+      (if (null (remote-sources *collector*))
+	  (warning-box
+	   (:p "The collector is not running, and no sources have been defined.")
+	   (:p "Please add one or more sources below before starting the collector."))
+	  (warning-box
+	   "The collector is not running." (:br)
+	   (:b (:a :href "/manage-sources?action=run" "Click here to run the collector.")))))
+    
+    (when *collector*
+      (print-remote-sources *collector*))
+
+    (with-config-form ("/manage-sources" "Add Argus Server" "add")
+      (:table
+       (when (string= error "invalidhost"))
+       (error-message
+	(format nil "Error: Host \"~a:~a\" did not resolve or is a duplicate." host port))
+       (:tr
+	(:td "Hostname")
+	(:td (input "hostname" "")))
+       (:tr
+	(:td "Port")
+	(:td (input "port" 561)))
+       (:tr
+	(:td "SASL Authentication")
+	(:td (checkbox "sasl"))))
+      (:input :type "submit" :value "Add")
+      (:br))))
+
+(defun error-redirect (type &rest more-params)
+  (let ((*print-case* :downcase))
+    (hunchentoot:redirect
+     ;; This is an ABOMINATION, yet it is pretty awesome all the same.
+     (format nil "~a?error=~a~:[~;&~:*~{~a=~a~^&~}~]" *redirect-page* type more-params))))
+
 (hunchentoot:define-easy-handler (manage-sources :uri "/manage-sources")
-    (action hostname port (sid :parameter-type 'integer))
+    (action hostname (port :parameter-type 'integer) (sid :parameter-type 'integer))
   (valid-session-or-lose)
-  (when (and (not (running-p *collector*))
-	     (string= action "run"))
-    (web-run-collector *collector*))
-  (cond
-    ((string= action "add")
-     (add-remote *collector* hostname))
-    ((string= action "remove")
-     (when sid
-       (setf (remote-sources *collector*)
-	     (delete-if (lambda (src)
-			  (= (pointer-address (get-ptr src)) sid))
-			(remote-sources *collector*))))))
+  (let ((*redirect-page* "/sources"))
+    (cond
+      ((string= action "run")
+       (when (not (running-p *collector*))
+	 (web-run-collector *collector*)))
+      
+      ((string= action "add")
+       (handler-case
+	   (add-remote *collector* hostname)
+	 (simple-error ()
+	   (error-redirect "invalidhost" :host hostname :port port))))
+      
+      ((string= action "remove")
+       (when sid
+	 (setf (remote-sources *collector*)
+	       (delete-if (lambda (src)
+			    (= (pointer-address (get-ptr src)) sid))
+			  (remote-sources *collector*)))))))
 
   ;;(save-config)
-  (hunchentoot:redirect "/sources?error=0"))
+  (error-redirect "success"))
 
 (defun print-remote-sources (&optional (collector *collector*))
   (when (remote-sources collector)

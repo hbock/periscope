@@ -35,6 +35,7 @@
 (defvar *web-show-diag* nil)
 (defvar *web-login-required-p* nil)
 (defvar *web-user-db* (make-hash-table :test #'equal))
+(defvar *redirect-page* nil)
 
 (defvar *collector* nil)
 (defvar *shutdown-cond* (bt:make-condition-variable))
