@@ -202,7 +202,7 @@ of integers corresponding to these numbers.  Duplicate and invalid port numbers 
     (config-error "success")))
 
 (hunchentoot:define-easy-handler (sources :uri "/sources") (error host port)
-  (with-periscope-page ("Manage Argus Sources")
+  (with-periscope-page ("Manage Argus Sources" :login t)
     (:div :class "config-header" "Collector Operation")
     (unless *collector*
       (warning-box
