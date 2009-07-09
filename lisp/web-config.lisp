@@ -280,14 +280,14 @@ of integers corresponding to these numbers.  Duplicate and invalid port numbers 
     (with-config-form ("/manage-sources" "Manage Sources" "manage")
       (:table
        :class "input"
-       (:tr (:th "Hostname") (:th "Port") (:th "Status") (:th "Remove"))
+       (:tr (:th "Hostname") (:th "IP") (:th "Port") (:th "Status") (:th "Remove"))
        (loop :with i = 0
 	  :for source :in (remote-sources collector) :do
 	  (htm
 	   (:tr
 	    (:td (str (source-path source)))
-	    ;; TODO: Implement me!
-	    (:td (str 561))
+	    (:td (str (ip-string (remote-ip source))))
+	    (:td (str (remote-port source)))
 	    (:td (str
 		  (if (connected-p source)
 		      "Connected"
