@@ -93,7 +93,7 @@ as an MD5 sum."
      :collect user))
 
 (defun logout (&optional (user (user)))
-  (when user
+  (when (and user (session user))
     (hunchentoot:remove-session (session user))
     (setf (session user) nil)))
 
