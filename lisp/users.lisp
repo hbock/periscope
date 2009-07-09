@@ -103,7 +103,8 @@ as an MD5 sum."
 (defun create-login-forms (&optional (db *web-user-db*))
   `(progn
      ,@(loop :for username :being :the :hash-keys :in db :using (:hash-value user) :collect
-	  `(create-login ,username ,(password-hash user) ,(display-name user)))))
+	  `(create-login ,username ,(password-hash user) ,(display-name user)
+			 :admin ,(admin-p user)))))
 
 (hunchentoot:define-easy-handler (login :uri "/login")
     (denied redirect)
@@ -137,75 +138,80 @@ as an MD5 sum."
 ;;;  - "nopassword": Empty password field(s).
 ;;;  - "passmatch": Passwords don't match.
 ;;;  - "subnet": Invalid subnet specifier.
+;;;  - "unadminself": Tried to remove administrator from own account.
 (hunchentoot:define-easy-handler (user-config :uri "/users") (error)
   (with-periscope-page ("User Login Configuration" :admin t)
-    (flet ((error-message (message &key (table t))
-	     (if table
-		 (htm (:tr (:td :class "error" :colspan 3 (:b (str message)))))
-		 (htm (:b :class "error" (str message))))))
-      (with-config-form ("/set-user-config" "Login Configuration" "configure")
+    (with-config-form ("/set-user-config" "Login Configuration" "configure")
+      (:table
+       (:tr
+	(:td "Require login for all pages")
+	(:td (checkbox "required" :checked *web-login-required-p*))))
+      (:br)
+      (:input :type "submit" :value "Apply Configuration"))
+
+    (when (login-available-p)
+      (with-config-form ("/set-user-config" "User Logins" "manage")
+	(cond
+	  ((string= error "unadminself")
+	   (error-message "Error: You cannot remove administrator privileges from your own
+account." :table nil)))
 	(:table
-	 (:tr
-	  (:td "Require login for all pages")
-	  (:td (checkbox "required" :checked *web-login-required-p*))))
+	 :class "input"
+	 (:tr (:th "Username") (:th "Display Name") (:th "Administrator") (:th "Remove User"))
+	 (loop
+	    :with i = 0
+	    :for user :in (user-list) :do
+	    (let ((username (username user)))
+	      (htm
+	       (:tr
+		(:td
+		 (str username)
+		 (:input :type "hidden" :name (format nil "user[~d]" i) :value (username user)))
+		(:td (input (format nil "name[~d]" i) (display-name user)))
+		(:td (checkbox (format nil "admin[~d]" i) :checked (admin-p user)))
+		(:td (checkbox (format nil "delete[~d]" i) :value username))))
+	      (incf i))))
 	(:br)
-	(:input :type "submit" :value "Apply Configuration"))
+	(:input :type "submit" :value "Apply Configuration")))
 
-      (when (login-available-p)
-	(with-config-form ("/set-user-config" "User Logins" "manage")
-	  (:table
-	   :class "input"
-	   (:tr (:th "Username") (:th "Display Name") (:th "Remove User"))
-	   (loop
-	      :with i = 0
-	      :for user :in (user-list) :do
-	      (let ((username (username user)))
-		(htm
-		 (:tr (:td (str username))
-		      (:td (input (format nil "name[~d]" i) (display-name user)))
-		      (:td (checkbox (format nil "delete[~d]" i) :value username))))
-		(incf i))))
-	  (:br)
-	  (:input :type "submit" :value "Apply Configuration")))
+    (with-config-form ("/set-user-config" "Add New User" "newuser")
+      (:table
+       (:tr (:th :colspan 2 "Login Information"))
+       (when (string= error "username")
+	 (error-message "You must specify a username."))
+       (:tr
+	(:td "Username")
+	(:td (input "username" "")))
+       (when (string= error "dispname")
+	 (error-message "You must specify a display name (e.g., Don Schattle)."))
+       (:tr
+	(:td "Display Name")
+	(:td (input "displayname" "")))
+       (cond ((string= error "nopassword")
+	      (error-message "You must fill in BOTH password fields."))
+	     ((string= error "passmatch")
+	      (error-message "Passwords do not match!")))
+       (:tr
+	(:td "Password")
+	(:td (password-input "password1")))
+       (:tr
+	(:td "Password (re-type)")
+	(:td (password-input "password2")))
 
-      (with-config-form ("/set-user-config" "Add New User" "newuser")
-	(:table
-	 (:tr (:th :colspan 2 "Login Information"))
-	 (when (string= error "username")
-	   (error-message "You must specify a username."))
-	 (:tr
-	  (:td "Username")
-	  (:td (input "username" "")))
-	 (when (string= error "dispname")
-	   (error-message "You must specify a display name (e.g., Don Schattle)."))
-	 (:tr
-	  (:td "Display Name")
-	  (:td (input "displayname" "")))
-	 (cond ((string= error "nopassword")
-		(error-message "You must fill in BOTH password fields."))
-	       ((string= error "passmatch")
-		(error-message "Passwords do not match!")))
-	 (:tr
-	  (:td "Password")
-	  (:td (password-input "password1")))
-	 (:tr
-	  (:td "Password (re-type)")
-	  (:td (password-input "password2")))
-
-	 (:tr (:th :colspan 2 "Permissions and Filters"))
-	 (when (string= error "subnet")
-	   (error-message "Invalid CIDR network specification!"))
-	 (:tr
-	  (:td "Subnet Filter (CIDR notation)")
-	  (:td (input "subnet" "" :size 18)))
-	 (:tr
-	  (:td "VLAN Filter")
-	  (:td (input "vlan" "" :size 4)))
-	 (:tr
-	  (:td "Allow Configuration")
-	  (:td (checkbox "configp"))))
-	(:br)
-	(:input :type "submit" :value "Add User")))))
+       (:tr (:th :colspan 2 "Permissions and Filters"))
+       (when (string= error "subnet")
+	 (error-message "Invalid CIDR network specification!"))
+       (:tr
+	(:td "Subnet Filter (CIDR notation)")
+	(:td (input "subnet" "" :size 18)))
+       (:tr
+	(:td "VLAN Filter")
+	(:td (input "vlan" "" :size 4)))
+       (:tr
+	(:td "Administrator privileges")
+	(:td (checkbox "configp"))))
+      (:br)
+      (:input :type "submit" :value "Add User"))))
 
 (hunchentoot:define-easy-handler (do-login :uri "/do-login")
     (username password redirect action)
@@ -241,7 +247,10 @@ of integers corresponding to these numbers.  Duplicate and invalid VLAN IDs are 
 
 (hunchentoot:define-easy-handler (set-user-config :uri "/set-user-config")
     (action username displayname password1 password2 subnet vlan configp
-	    required (delete :parameter-type 'array))
+	    required
+	    (user :parameter-type 'array)
+	    (delete :parameter-type 'array)
+	    (admin  :parameter-type 'array))
   (valid-session-or-lose :admin t)
 
   (flet ((config-error (type)
@@ -252,15 +261,21 @@ of integers corresponding to these numbers.  Duplicate and invalid VLAN IDs are 
        (setf *web-login-required-p* (not (null required))))
 
       ((string= action "manage")
-       (when (and delete (arrayp delete))
-	 (let ((to-delete (remove nil delete)))
-	   (loop 
-	      :for i :from 0 :below (length to-delete) :do
-	      (let ((user (user (aref to-delete i))))
-		;; If the user deletes a logged-in user, he must be logged off,
-		;; so remove session.
-		(logout user)
-		(remhash (username user) *web-user-db*))))))
+       (loop
+	  :for i :from 0 :below (length user) :do
+	  (let ((u (user (aref user i))))
+	    (cond
+	      ((and (> (length delete) i) (aref delete i))
+	       ;; If the user deletes a logged-in user, he must be logged off,
+	       ;; so remove session.
+	       (logout u)
+	       (remhash (username u) *web-user-db*)))
+
+	    (if (and (> (length admin) i) (aref admin i))
+		(setf (admin-p u) t)
+		(if (string= (aref user i) (username (user)))
+		    (config-error "unadminself")
+		    (setf (admin-p u) nil))))))
 
       ((string= action "newuser")
        (cond
