@@ -35,7 +35,7 @@
 ;;;  - "badvid": no parseable VID when editing VLANs.
 ;;;  - "novname": no Name specified when editing VLANs.
 (hunchentoot:define-easy-handler (config :uri "/config") (error)
-  (with-periscope-page ("Control Panel" :login t)
+  (with-periscope-page ("Control Panel" :admin t)
     (unless *collector*
       (warning-box
        "Collector not initialized. This is a bug.")
@@ -126,7 +126,7 @@ of integers corresponding to these numbers.  Duplicate and invalid port numbers 
 	    (vname :parameter-type 'array)
 	    (delete :parameter-type 'array))
 
-  (valid-session-or-lose)
+  (valid-session-or-lose :admin t)
 
   (flet ((config-error (type)
 	   (hunchentoot:redirect (format nil "/config?error=~a" type))))
@@ -202,7 +202,7 @@ of integers corresponding to these numbers.  Duplicate and invalid port numbers 
     (config-error "success")))
 
 (hunchentoot:define-easy-handler (sources :uri "/sources") (error host port)
-  (with-periscope-page ("Manage Argus Sources" :login t)
+  (with-periscope-page ("Manage Argus Sources" :admin t)
     (:div :class "config-header" "Collector Operation")
     (unless *collector*
       (warning-box
@@ -248,7 +248,7 @@ of integers corresponding to these numbers.  Duplicate and invalid port numbers 
 
 (hunchentoot:define-easy-handler (manage-sources :uri "/manage-sources")
     (action hostname (port :parameter-type 'integer) (remove :parameter-type 'array))
-  (valid-session-or-lose)
+  (valid-session-or-lose :admin t)
   (let ((*redirect-page* "/sources"))
     (cond
       ((string= action "run")

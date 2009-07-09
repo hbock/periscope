@@ -26,14 +26,14 @@
    (display-name :initarg :display-name :accessor display-name)
    (title :initarg :title :accessor title)
    (password-hash :initarg :password-hash :accessor password-hash :initform nil)
-   (privileges :accessor privileges :initform nil)
+   (admin :initarg :admin-p :accessor admin-p :initform nil)
    (filters :accessor filters :initform nil)
    (session :accessor session :initform nil)))
 
 (defun hash-sequence (sequence)
   (md5:md5sum-sequence sequence))
 
-(defun create-login (username password display-name &key (title "User"))
+(defun create-login (username password display-name &key (title "User") admin)
   "Create a web-user login.  The password may be a string or an array containing an
 MD5 sum of a password.  If passed as a string, the password will be hashed and stored
 as an MD5 sum."
@@ -49,7 +49,8 @@ as an MD5 sum."
 				   (etypecase password
 				     (string (hash-sequence password))
 				     (md5sum password))
-				   :title title)))
+				   :title title
+				   :admin-p admin)))
 	  (setf (gethash username *web-user-db*) user)))))
 
 (defun user (&optional username)
@@ -62,24 +63,28 @@ as an MD5 sum."
   "Return true if logins are available (i.e., at least one user login)."
   (plusp (hash-table-count *web-user-db*)))
 
-(defun valid-session-p ()
+(defun valid-session-p (&key admin)
   "Return true if the current Periscope login session exists and is valid."
   (let ((username (hunchentoot:session-value 'username))
 	(userhash (hunchentoot:session-value 'userhash)))
     (when (and username userhash (equalp userhash (hash-sequence username)))
       (multiple-value-bind (user existsp)
 	  (gethash username *web-user-db*)
-	(and existsp (not (null (session user))))))))
+	(and existsp (not (null (session user))) (or (not admin) (admin-p user)))))))
 
 (defun login-required-p ()
   "Returns true if logins are generally required to access the Periscope web interface."
   (and *web-login-required-p* (login-available-p)))
 
-(defun valid-session-or-lose ()
+(defun valid-session-or-lose (&key admin)
   "If logins are required and no valid session is available, redirect to the login page."
-  (unless (or (not (login-available-p)) (valid-session-p))
-    (hunchentoot:redirect (format nil "/login?denied=login&redirect=~a"
-				  (hunchentoot:script-name hunchentoot:*request*))))
+  (cond
+    ((or (not (login-available-p)) (not (valid-session-p)))
+     (hunchentoot:redirect (format nil "/login?denied=login&redirect=~a"
+				   (hunchentoot:script-name hunchentoot:*request*))))
+    
+    ((and admin (not (admin-p (user))))
+     (hunchentoot:redirect "/nowhere")))
   t)
 
 (defun user-list ()
@@ -133,7 +138,7 @@ as an MD5 sum."
 ;;;  - "passmatch": Passwords don't match.
 ;;;  - "subnet": Invalid subnet specifier.
 (hunchentoot:define-easy-handler (user-config :uri "/users") (error)
-  (with-periscope-page ("User Login Configuration" :login t)
+  (with-periscope-page ("User Login Configuration" :admin t)
     (flet ((error-message (message &key (table t))
 	     (if table
 		 (htm (:tr (:td :class "error" :colspan 3 (:b (str message)))))
@@ -237,7 +242,7 @@ of integers corresponding to these numbers.  Duplicate and invalid VLAN IDs are 
 (hunchentoot:define-easy-handler (set-user-config :uri "/set-user-config")
     (action username displayname password1 password2 subnet vlan configp
 	    required (delete :parameter-type 'array))
-  (valid-session-or-lose)
+  (valid-session-or-lose :admin t)
 
   (flet ((config-error (type)
 	   (hunchentoot:redirect (format nil "/users?error=~a" type))))
@@ -275,6 +280,6 @@ of integers corresponding to these numbers.  Duplicate and invalid VLAN IDs are 
 	      (declare (ignore e))
 	      (config-error "subnet")))))
 
-       (create-login username password1 displayname))))
+       (create-login username password1 displayname :admin (not (null configp))))))
   (save-config)
   (hunchentoot:redirect "/users"))

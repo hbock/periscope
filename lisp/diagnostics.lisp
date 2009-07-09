@@ -78,7 +78,7 @@
 ;;; Periscope Diagnostics Test Suite
 (hunchentoot:define-easy-handler (diagnostic-handler :uri "/uuddlrlrbastart") (begin)
   (declare (ignore begin))
-  (with-periscope-page ("Diagnostic Suite" :login t)
+  (with-periscope-page ("Diagnostic Suite" :admin t)
     (:h2 "Periscope Diagnostic Suite")
     (:p (who:fmt "Welcome to the diagnostic test suite for Periscope ~a. " *periscope-version*))
     
@@ -95,6 +95,8 @@ and your child.  Unfortunately, we cannot reboot your child.")
 
 (hunchentoot:define-easy-handler (set-diag :uri "/set-diag")
     (showbt showdiag swank (swankport :parameter-type 'integer))
+  (valid-session-or-lose :admin t)
+
   (setf hunchentoot:*show-lisp-errors-p* (and showbt (string= showbt "showbt")))
   (setf *web-show-diag* (and showdiag (string= showdiag "showdiag")))
   (setf *enable-swank-p* (and swank (string= swank "swank")))

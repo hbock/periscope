@@ -75,7 +75,7 @@ Starts a separate thread to run the collector and handle its callbacks."
           (:ul
 	   (:li (:a :href "/service-names" "Service Names"))
 	   (:li (:a :href "/search" "Search Logs"))))
-     (when (or (not (login-available-p)) (valid-session-p))
+     (when (or (not (login-available-p)) (and (valid-session-p :admin t)))
        (htm
 	(:li :class "root"
 	     "Configuration"
@@ -86,11 +86,11 @@ Starts a separate thread to run the collector and handle its callbacks."
 	      (when *web-show-diag*
 		(htm (:li (:a :href "/uuddlrlrbastart" "Diagnostics Panel")))))))))))
 
-(defmacro with-periscope-page ((title &key login) &body body)
+(defmacro with-periscope-page ((title &key login admin) &body body)
   "Generate a Periscope-template page."
   `(progn
-     ,(if login
-	  `(valid-session-or-lose)
+     ,(if (or admin login)
+	  `(valid-session-or-lose :admin ,admin)
 	  `(when (login-required-p)
 	     (valid-session-or-lose)))
      (with-html (:prologue t)
