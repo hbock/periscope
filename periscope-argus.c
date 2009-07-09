@@ -174,10 +174,16 @@ periscope_argus_remote_ip(struct ArgusInput *input)
 {
 /* I LOVE PROGRAMMING IN C! */
 #if defined(HAVE_GETADDRINFO)
-   return ((struct sockaddr_in *)input->host->ai_addr)->sin_addr.s_addr;
+   return ntohl(((struct sockaddr_in *)input->host->ai_addr)->sin_addr.s_addr);
 #else
    return ntohl(((struct in_addr *)input->host->h_addr_list[0])->s_addr);
 #endif
+}
+
+uint16_t
+periscope_argus_remote_port(struct ArgusInput *input)
+{
+   return input->portnum;
 }
 
 struct ArgusInput *
