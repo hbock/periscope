@@ -156,6 +156,10 @@ solely of whitespace."
   (with-html-output (*standard-output*)
     (:input :type "checkbox" :name name :value value :checked checked)))
 
+(defun submit (&optional text)
+  (with-html-output (*standard-output*)
+    (:input :type "submit" :value text)))
+
 (defun input (name default &key (size 20) label)
   (with-html-output (*standard-output*)
     (when label
