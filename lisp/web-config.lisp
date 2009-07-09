@@ -260,7 +260,7 @@ of integers corresponding to these numbers.  Duplicate and invalid port numbers 
 	 (error-redirect "emptyhost"))
        
        (handler-case
-	   (add-remote *collector* hostname)
+	   (add-remote *collector* hostname port)
 	 (simple-error ()
 	   (error-redirect "invalidhost" :host hostname :port port))))
       
