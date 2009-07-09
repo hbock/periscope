@@ -169,24 +169,51 @@ periscope_argus_local_add(struct PeriscopeCollector *collector, char *pathname)
    return 0;      
 }
 
+uint32_t
+periscope_argus_remote_ip(struct ArgusInput *input)
+{
+/* I LOVE PROGRAMMING IN C! */
+#if defined(HAVE_GETADDRINFO)
+   return ((struct sockaddr_in *)input->host->ai_addr)->sin_addr.s_addr;
+#else
+   return ntohl(((struct in_addr *)input->host->h_addr_list[0])->s_addr);
+#endif
+}
+
 struct ArgusInput *
 periscope_argus_remote_add(struct PeriscopeCollector *collector, char *hoststr)
 {
    int ret;
    struct ArgusParserStruct *parser = collector->parser;
+   struct ArgusInput *input = NULL, *iter = NULL;
+   uint32_t ip = 0;
 
    if((ret = ArgusAddHostList(parser, hoststr, ARGUS_DATA_SOURCE)) < 0) {
       return NULL;
    }
 
+   /* This may be a race condition.  It shouldn't matter right now, but there
+    * should be a better way to do this... */
+   input = (struct ArgusInput *)parser->ArgusRemoteHosts->end;
+   ip = periscope_argus_remote_ip(input);
+
+   /* Don't allow adding the same host twice - determined by the host's IP and port number. */
+   for (iter = (struct ArgusInput *)parser->ArgusRemoteHosts->start;
+        iter && iter != parser->ArgusRemoteHosts->end;
+        iter = (struct ArgusInput *)iter->qhdr.nxt) {
+      if((ip == periscope_argus_remote_ip(iter)) &&
+         (input->portnum == iter->portnum)) {
+         ArgusRemoveFromQueue(parser->ArgusRemoteHosts, &input->qhdr, ARGUS_LOCK);
+         return NULL;
+      }
+   }
+   
    /* The Argus library seems to require this flag be set when remote data
     * sources are used. */
    parser->Sflag = 1;
    parser->nflag = 1; /* We will do our own DNS queries, if necessary. */
 
-   /* This may be a race condition.  It shouldn't matter right now, but there
-    * should be a better way to do this... */
-   return (struct ArgusInput *)parser->ArgusRemoteHosts->end;
+   return input;
 }
 
 struct ArgusInput *
