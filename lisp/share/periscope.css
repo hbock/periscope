@@ -305,11 +305,15 @@ div.config-section table.input td {
   width:auto;
   padding:3px;
   text-align:center;
+  background-color:#eee;
+  border:1px solid #ccc;
 }
 
 div.config-section table.input th {
   text-align:center;
   padding:5px;
+  background-color:#ddd;
+  border:1px solid #bbb;
 }
 
 div.config-section th {

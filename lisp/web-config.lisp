@@ -217,8 +217,13 @@ of integers corresponding to these numbers.  Duplicate and invalid port numbers 
 	  (warning-box
 	   "The collector is not running." (:br)
 	   (:b (:a :href "/manage-sources?action=run" "Click here to run the collector.")))))
-    
-    (print-remote-sources *collector*)
+
+    (with-config-form ("/manage-sources" "Manage Sources" "manage")
+      (:table
+       :class "input"
+       (print-sources (available-sources *collector*) "Available")
+       (print-sources (active-sources *collector*) "Active"))
+      (submit "Apply Changes"))
 
     (with-config-form ("/manage-sources" "Add Argus Server" "add")
       (:table
@@ -275,25 +280,22 @@ of integers corresponding to these numbers.  Duplicate and invalid port numbers 
     ;;(save-config)
     (error-redirect "success")))
 
-(defun print-remote-sources (&optional (collector *collector*))
-  (when (remote-sources collector)
-    (with-config-form ("/manage-sources" "Manage Sources" "manage")
-      (:table
-       :class "input"
-       (:tr (:th "Hostname") (:th "IP") (:th "Port") (:th "Status") (:th "Remove"))
-       (loop :with i = 0
-	  :for source :in (remote-sources collector) :do
-	  (htm
-	   (:tr
-	    (:td (str (source-path source)))
-	    (:td (str (ip-string (remote-ip source))))
-	    (:td (str (remote-port source)))
-	    (:td (str
-		  (if (connected-p source)
-		      "Connected"
-		      "Not Connected")))
-	    (:td
-	     (checkbox (format nil "remove[~d]" i)
-		       :value (pointer-address (get-ptr source))))))
-	  (incf i)))
-      (submit "Apply Changes"))))
+(defun print-sources (list title)
+  (when list
+    (with-html-output (*standard-output*)
+      (:tr (:th :colspan 6 (:b (fmt "~a Sources" title))))
+      (:tr (:th "Hostname") (:th "IP") (:th "Port") (:th "Use SASL") (:th "Status") (:th "Remove"))
+      (loop :with i = 0
+	 :for source :in list :do
+	 (htm
+	  (:tr
+	   (:td (str (hostname source)))
+	   (:td (str (ip-string (remote-ip source))))
+	   (:td (str (port source)))
+	   ;; TODO: Implement me!
+	   (:td "No")
+	   (:td (str (if (connected-p source) "Connected" "Not Connected")))
+	   (:td
+	    (checkbox (format nil "remove[~d]" i)
+		      :value (pointer-address (get-ptr source))))))
+	 (incf i)))))
