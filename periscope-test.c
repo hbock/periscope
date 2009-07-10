@@ -224,6 +224,35 @@ periscope_test_suite(int *ntest)
       }
    }
 
+   tests++;
+   {
+      struct ArgusQueueHeader *hdr;
+      struct ArgusInput *input;
+      struct PeriscopeInputInfo info;
+      
+      input = periscope_argus_remote_add(&g_collector, "tinderbox:561");
+      hdr = periscope_argus_remote_pending_queue(&g_collector);
+      i = 0;
+
+      do {
+         hdr = hdr->nxt;
+         i++;
+      } while(hdr != hdr->queue->end);
+      printf("Official count: %d Recorded count: %d\n", hdr->queue->count, i);
+
+      if(periscope_argus_remote_info(input, &info) < 0) {
+         fail++
+         printf("FAIL remote info get!\n");
+      } else {
+         printf("PASS remote info: Ver. %d.%d host %s port %hu\n",
+                info.major_version, info.minor_version,
+                info.hostname, info.port);
+      }
+      periscope_argus_remote_remove(&g_collector, input);
+      
+   }
+         
+
    if(ntest) *ntest = tests;
    return fail;
 }
