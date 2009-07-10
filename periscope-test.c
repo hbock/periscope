@@ -178,6 +178,57 @@ void sighandler(int signal)
 }
 
 int
+periscope_test_suite(int *ntest)
+{
+   int i, fail = 0, tests = 0;
+   /* Test suite */
+   tests++;
+   if(periscope_argus_remote_add(&g_collector, "")) {
+      printf("FAIL Added an empty string hostname.\n");
+      fail++;
+   } else printf("PASS Adding empty string hostname failed.\n");
+
+   tests++;
+   if(periscope_argus_remote_add(&g_collector, "a")) {
+      printf("FAIL Added non-resolving remote w/hostname 'a'\n");
+      fail++;
+   } printf("PASS Adding non-resolving hostname string failed.\n");
+   
+   {
+      tests++;
+      struct ArgusInput *input = periscope_argus_remote_add(&g_collector, "127.0.0.1");
+      if(input == NULL) {
+         printf("FAIL add 127.0.0.1.\n");
+         fail++;
+      } else {
+         printf("PASS add 127.0.0.1.\n");
+      }
+
+      tests++;
+      for (i = 0; i < 5; i++) {
+         if (periscope_argus_remote_add(&g_collector, "127.0.0.1") != NULL) {
+            printf("FAIL duplicate host add must return error.\n");
+            fail++;
+            break;
+         }
+      }
+      if(i == 5)
+         printf("PASS duplicate host add returned error.\n");
+
+      tests++;
+      if(periscope_argus_remote_remove(&g_collector, input) < 0) {
+         printf("FAIL remove 127.0.0.1\n");
+         fail++;
+      } else {
+         printf("PASS remove 127.0.0.1\n");
+      }
+   }
+
+   if(ntest) *ntest = tests;
+   return fail;
+}
+
+int
 main (int argc, char **argv)
 {
    int i, sources = (argc - 1);
@@ -201,60 +252,53 @@ main (int argc, char **argv)
    g_collector.callbacks.process_flow = process_flow;
    g_collector.callbacks.input_complete = input_source_completed;
 
-   for(i = 0; i < sources; i++) {
-      if(strcmp(argv[1+i], "remote") == 0) {
-         i++;
-         break;
+   if(argc >= 2 && strcmp(argv[1], "unittest") == 0) {
+      int tests, fail;
+
+      printf("Running libperiscope C Unit Test Suite.\n");
+      fail = periscope_test_suite(&tests);
+
+      if(fail > 0) {
+         printf("Failed %d of %d tests!\n", fail, tests);
+      } else
+         printf("All %d tests passed!\n", tests);
+   } else {
+      for(i = 0; i < sources; i++) {
+         if(strcmp(argv[1+i], "remote") == 0) {
+            i++;
+            break;
+         }
+         
+         if(periscope_argus_local_add(&g_collector, argv[1+i]) == -1) {
+            fprintf(stderr, "Periscope: file '%s' doesn't exist.\n", argv[1+i]);
+            exit(1);
+         }
+      }
+      for(; i < sources; i++) {
+         if(periscope_argus_remote_add(&g_collector, argv[1+i]) == NULL) {
+            fprintf(stderr, "Periscope: host '%s' is not valid, or duplicate!\n", argv[1+i]);
+         }
       }
       
-      if(periscope_argus_local_add(&g_collector, argv[1+i]) == -1) {
-         fprintf(stderr, "Periscope: file '%s' doesn't exist.\n", argv[1+i]);
-         exit(1);
+      if(filter) {
+         if(periscope_argus_set_filter(&g_collector, filter) < 0) {
+            fprintf(stderr, "Periscope: syntax error in filter '%s'!\n", filter);
+            periscope_collector_free(&g_collector);
+            exit(1);
+         }
       }
-   }
-   for(; i < sources; i++) {
-      if(periscope_argus_remote_add(&g_collector, argv[1+i]) == NULL) {
-         fprintf(stderr, "Periscope: host '%s' is not valid, or duplicate!\n", argv[1+i]);
-      }
-   }
+      
+      /* Runs the Argus processor on both local and remote sources.
+       * Eventually we will want to separate this, so local files can be
+       * processed at any time with another parser in another thread. */
+      periscope_collector_run(&g_collector);
 
-   if(filter) {
-      if(periscope_argus_set_filter(&g_collector, filter) < 0) {
-         fprintf(stderr, "Periscope: syntax error in filter '%s'!\n", filter);
-         periscope_collector_free(&g_collector);
-         exit(1);
-      }
+      /* Once Argus completes processing local and remote data sources,
+       * close all sources and free memory associated with Periscope and
+       * Argus. */
+      periscope_collector_free(&g_collector);
+      
+      printf("Periscope: Shutting down after normal operation.\n");
    }
-
-   if(periscope_argus_remote_add(&g_collector, "")) {
-      printf("BAD! Added an empty string hostname.\n");
-   }
-   if(periscope_argus_remote_add(&g_collector, "a")) {
-      printf("Added remote w/hostname 'a'??\n");
-   }
-   
-   printf("Testing remote duplication error handling...\n");
-   periscope_argus_remote_add(&g_collector, "127.0.0.1");
-   for (i = 0; i < 5; i++) {
-      if (periscope_argus_remote_add(&g_collector, "127.0.0.1") != NULL) {
-         printf("BUG ALERT!! Should not be able to add the same host multiple times.\n");
-      }
-   }
-   if(g_collector.parser->ArgusRemoteHosts->count != 1) {
-      printf("BUG ALERT!! Same host added %d times.\n", g_collector.parser->ArgusRemoteHosts->count);
-   }
-   printf("Duplication test complete.\n\n");
-   
-   /* Runs the Argus processor on both local and remote sources.
-    * Eventually we will want to separate this, so local files can be
-    * processed at any time with another parser in another thread. */
-   periscope_collector_run(&g_collector);
-
-   /* Once Argus completes processing local and remote data sources,
-    * close all sources and free memory associated with Periscope and
-    * Argus. */
-   periscope_collector_free(&g_collector);
-
-   printf("Periscope: Shutting down after normal operation.\n");
    return 0;
 }
