@@ -24,7 +24,11 @@
 
 (defclass source ()
   ((ptr :initarg :ptr :initform nil :accessor get-ptr)
-   (path :initarg :path :initform nil :accessor source-path)))
+   (path :initarg :path :initform nil :accessor source-path)
+   (major-version :initarg :major-version :reader major-version)
+   (minor-version :initarg :minor-version :reader minor-version)
+   (hostname :initarg :hostname :reader hostname)
+   (port :initarg :port :reader port)))
 
 (defmethod initialize-instance :after ((object collector) &key)
   (let ((ptr (foreign-alloc 'periscope-collector)))
@@ -110,3 +114,25 @@
 
 (defmethod remote-ip ((object source))
   (%argus-remote-ip (get-ptr object)))
+
+(defun get-argus-sources (queue)
+  (let (sources)
+    (dolist (input (argus-queue-list queue))
+      (with-foreign-object (info 'periscope-input-info)
+	(unless (zerop (%argus-remote-info input info))
+	  (error "Error getting info for ArgusInput ~a" input))
+	(with-foreign-slots ((major-version minor-version hostname port) info periscope-input-info)
+	  (push (make-instance 'source :major-version major-version
+			       :minor-version minor-version
+			       :hostname hostname
+			       :port port
+			       :ptr input
+			       :path "NONE")
+		sources))))
+    sources))
+
+(defmethod pending-sources ((object collector))
+  (get-argus-sources (%argus-remote-pending-queue (get-ptr object))))
+
+(defmethod active-sources ((object collector))
+  (get-argus-sources (%argus-remote-active-queue (get-ptr object))))
