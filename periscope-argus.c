@@ -211,7 +211,7 @@ periscope_argus_remote_add(struct PeriscopeCollector *collector, char *hoststr)
 
    /* Don't allow adding the same host twice - determined by the host's IP and port number. */
    for (iter = (struct ArgusInput *)parser->ArgusRemoteHosts->start;
-        iter && iter != parser->ArgusRemoteHosts->end;
+        iter && (struct ArgusQueueHeader *)iter != parser->ArgusRemoteHosts->end;
         iter = (struct ArgusInput *)iter->qhdr.nxt) {
       if((ip == periscope_argus_remote_ip(iter)) &&
          (input->portnum == iter->portnum)) {
@@ -239,6 +239,21 @@ periscope_argus_remote_remove(struct PeriscopeCollector *collector, struct Argus
    } else {
       return -1;
    }
+}
+
+int
+periscope_argus_remote_info(struct ArgusInput *input, struct PeriscopeInputInfo *info)
+{
+   if(input && info) {
+      info->major_version = input->major_version;
+      info->minor_version = input->minor_version;
+      info->port = input->portnum;
+      info->qhdr = &input->qhdr;
+      info->hostname = input->hostname;
+
+      return 0;
+   }
+   return -1;
 }
 
 struct ArgusInput *
@@ -287,6 +302,17 @@ periscope_argus_remote_connect(struct PeriscopeCollector *collector, struct Argu
       }
    }
    return -1;
+}
+
+struct ArgusQueueHeader *
+periscope_argus_remote_active_queue(struct PeriscopeCollector *collector)
+{
+   return collector->parser->ArgusActiveHosts->start;
+}
+struct ArgusQueueHeader *
+periscope_argus_remote_pending_queue(struct PeriscopeCollector *collector)
+{
+   return collector->parser->ArgusRemoteHosts->start;
 }
 
 int

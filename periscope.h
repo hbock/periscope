@@ -81,6 +81,16 @@ struct PeriscopeCollector {
    uint8_t running;
 };
 
+/* relevant info from an ArgusInput structure, since it is difficult to accurately
+ * grab info from the Argus structure within CFFI - many fields are #ifdef'd, which
+ * I cannot consistently determine from lisp. */
+struct PeriscopeInputInfo {
+   struct ArgusQueueHeader *qhdr;
+   int major_version, minor_version;
+   char *hostname;
+   unsigned short port;
+};
+
 #define periscope_callback(collector, callback, ...)			\
    do {									\
       if((collector)->callbacks.callback) {				\
@@ -121,6 +131,12 @@ int periscope_argus_remote_connect(struct PeriscopeCollector *collector, struct 
 int periscope_argus_remote_process(struct PeriscopeCollector *collector);
 int periscope_argus_remote_is_connected(struct ArgusInput *input);
 
+struct ArgusQueueHeader *
+periscope_argus_remote_active_queue(struct PeriscopeCollector *collector);
+struct ArgusQueueHeader *
+periscope_argus_remote_pending_queue(struct PeriscopeCollector *collector);
+
+int periscope_argus_remote_info(struct ArgusInput *input, struct PeriscopeInputInfo *info);
 uint16_t periscope_argus_remote_port(struct ArgusInput *input);
 uint32_t periscope_argus_remote_ip(struct ArgusInput *input);
 int periscope_argus_close_input(struct PeriscopeCollector *collector, struct ArgusInput *input);
