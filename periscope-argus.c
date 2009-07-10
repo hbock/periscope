@@ -228,6 +228,19 @@ periscope_argus_remote_add(struct PeriscopeCollector *collector, char *hoststr)
    return input;
 }
 
+int
+periscope_argus_remote_remove(struct PeriscopeCollector *collector, struct ArgusInput *input)
+{
+   if(input->qhdr.queue) {
+      if(ArgusRemoveFromQueue(input->qhdr.queue, (struct ArgusQueueHeader *)input, ARGUS_LOCK) == NULL) {
+         return -1;
+      }
+      return 0;
+   } else {
+      return -1;
+   }
+}
+
 struct ArgusInput *
 periscope_argus_remote_direct_connect(struct PeriscopeCollector *collector, char *hoststr)
 {

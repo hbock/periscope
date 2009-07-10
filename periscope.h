@@ -116,6 +116,7 @@ periscope_argus_remote_add(struct PeriscopeCollector *collector, char *hoststr);
 struct ArgusInput *
 periscope_argus_remote_direct_connect(struct PeriscopeCollector *collector, char *hoststr);
 
+int periscope_argus_remote_remove(struct PeriscopeCollector *collector, struct ArgusInput *remote);
 int periscope_argus_remote_connect(struct PeriscopeCollector *collector, struct ArgusInput *remote);
 int periscope_argus_remote_process(struct PeriscopeCollector *collector);
 int periscope_argus_remote_is_connected(struct ArgusInput *input);
