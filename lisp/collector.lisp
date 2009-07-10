@@ -131,7 +131,7 @@
 		sources))))
     sources))
 
-(defmethod pending-sources ((object collector))
+(defmethod available-sources ((object collector))
   (get-argus-sources (%argus-remote-pending-queue (get-ptr object))))
 
 (defmethod active-sources ((object collector))
