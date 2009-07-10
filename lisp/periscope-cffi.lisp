@@ -50,6 +50,13 @@
   (time :pointer)
   (net :pointer))
 
+(defcstruct periscope-input-info
+  (qhdr :pointer)
+  (major-version :int)
+  (minor-version :int)
+  (hostname :string)
+  (port :ushort))
+
 (defcenum ip-protocols
   (:ip 0)
   (:icmp 1)
@@ -87,6 +94,14 @@
   (collector periscope-collector)
   (hoststr :string))
 
+(defcfun ("periscope_argus_remote_remove" %argus-remote-remove) :pointer
+  (collector periscope-collector)
+  (input :pointer))
+
+(defcfun ("periscope_argus_remote_info" %argus-remote-info) :int
+  (collector periscope-collector)
+  (input :pointer))
+
 (defcfun ("periscope_argus_remote_is_connected" %argus-connected-p) :int
   (input :pointer))
 
@@ -95,6 +110,12 @@
 
 (defcfun ("periscope_argus_remote_port" %argus-remote-port) :uint16
   (input :pointer))
+
+(defcfun ("periscope_argus_remote_pending_queue" %argus-remote-pending-queue) :pointer
+  (collector periscope-collector))
+
+(defcfun ("periscope_argus_remote_active_queue" %argus-remote-active-queue) :pointer
+  (collector periscope-collector))
 
 (defcfun ("periscope_argus_set_filter" %argus-set-filter) :int
   (collector periscope-collector)

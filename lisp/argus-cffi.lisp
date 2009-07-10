@@ -86,6 +86,14 @@
   (src argus-time)
   (dst argus-time))
 
+(defcstruct argus-queue
+  (count :uint))
+
+(defcstruct argus-queue-header
+  (nxt :pointer)
+  (prv :pointer)
+  (queue :pointer))
+
 (defcenum argus-flow-types
   (:ipv4 #x01)
   (:ipv6 #x02)
@@ -110,6 +118,23 @@
   (:dest-packets-retransmitted #x00000200)
   (:src-reset  #x000001000)
   (:dest-reset #x000002000))
+
+(defun argus-queue-count (queue-header)
+  "Returns the number of elements in the ArgusQueueStruct associated with an ArgusQueueHeader."
+  (if (not (null-pointer-p queue-header))
+      (with-foreign-slots ((queue) queue-header argus-queue-header)
+	(foreign-slot-value queue 'argus-queue 'count))
+      0))
+
+(defun argus-queue-list (qhdr)
+  "Build up a list of foreign pointers held in an ArgusQueueHeader structure."
+  (loop
+     :with c-count = (argus-queue-count qhdr)
+     :with count = 0
+     :while (< count c-count)
+     :collect qhdr :do
+     (setf qhdr (foreign-slot-value qhdr 'argus-queue-header 'nxt))
+     (incf count)))
 
 (declaim (inline get-icmp get-ip get-flow get-metrics get-vlan))
 (defun get-ip (flow)
