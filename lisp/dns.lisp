@@ -35,14 +35,21 @@
    (ldb (byte 8  0) ip)))
 
 (defun start-dns ()
-  (setf *dns-available-p* t)
-  (setf *dns-thread* (bt:make-thread #'dns-thread :name "DNS Reverse Lookups")))
+  "Start the DNS resolver thread."
+  (unless (bt:thread-alive-p *dns-thread*)
+    (setf *dns-available-p* t)
+    (setf *dns-thread* (bt:make-thread #'dns-thread :name "DNS Reverse Lookups"))))
 
 (defun stop-dns (&key (join t))
+  "Stop and optionally join the DNS resolver thread."
   (setf *dns-available-p* nil)
   (bt:condition-notify *dns-cond*)
   (when join
     (bt:join-thread *dns-thread*)))
+
+(defun clear-dns ()
+  "Clear the current DNS cache."
+  (clrhash *dns-cache*))
 
 (defun dns-thread ()
   (loop :while *dns-available-p* :do
