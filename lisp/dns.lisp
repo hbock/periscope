@@ -41,6 +41,7 @@
 
 (defun stop-dns (&key (join t))
   (setf *dns-available-p* nil)
+  (bt:condition-notify *dns-cond*)
   (when join
     (bt:join-thread *dns-thread*)))
 
@@ -48,13 +49,14 @@
   (loop :while *dns-available-p* :do
      (let ((host
 	    (bt:with-lock-held (*dns-lock*)
-	      (loop :while (null *dns-requests*) :do
-		 (bt:condition-wait *dns-cond* *dns-lock*))
-	      (setf *dns-requests* (remove-duplicates *dns-requests*))
-	      (pop *dns-requests*))))
-       (let ((hostname (reverse-lookup host)))
-	 (bt:with-lock-held (*dns-lock*)
-	   (setf (gethash host *dns-cache*) hostname))))))
+	      (cond
+		((null *dns-requests*) (bt:condition-wait *dns-cond* *dns-lock*))
+		(t (setf *dns-requests* (remove-duplicates *dns-requests*))
+		   (pop *dns-requests*))))))
+       (when host
+	 (let ((hostname (reverse-lookup host)))
+	   (bt:with-lock-held (*dns-lock*)
+	     (setf (gethash host *dns-cache*) hostname)))))))
 
 (defun reverse-lookup (ip)
   (if (broadcast-address-p ip)
