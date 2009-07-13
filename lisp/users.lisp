@@ -78,13 +78,14 @@ as an MD5 sum."
 
 (defun valid-session-or-lose (&key admin)
   "If logins are required and no valid session is available, redirect to the login page."
-  (cond
-    ((or (not (login-available-p)) (not (valid-session-p)))
-     (hunchentoot:redirect (format nil "/login?denied=login&redirect=~a"
-				   (hunchentoot:script-name hunchentoot:*request*))))
+  (when (login-available-p)
+    (cond
+      ((not (valid-session-p))
+       (hunchentoot:redirect (format nil "/login?denied=login&redirect=~a"
+				     (hunchentoot:script-name hunchentoot:*request*))))
     
-    ((and admin (not (admin-p (user))))
-     (hunchentoot:redirect "/nowhere")))
+      ((and admin (not (admin-p (user))))
+       (hunchentoot:redirect "/nowhere"))))
   t)
 
 (defun user-list ()
