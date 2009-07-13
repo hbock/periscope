@@ -42,7 +42,7 @@
   (bt:condition-notify *shutdown-cond*))
 
 (defun main ()
-  (handler-bind ((simple-error
+  (handler-bind ((periscope-config-error
 		  (lambda (c)
 		    (declare (ignore c))
 		    (invoke-restart 'create-new-config-file))))

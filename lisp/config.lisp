@@ -26,7 +26,8 @@
 	    (mapcar (lambda (pathname)
 		      (merge-pathnames "periscope-rc.lisp" pathname)) pathnames))
    (restart-case
-       (error "Could not find periscope-rc.lisp in any of:~%~{  ~a~^~%~}." pathnames)
+       (periscope-config-error
+	"Could not find periscope-rc.lisp in any of:~%~{  ~a~^~%~}." pathnames)
      (create-new-config-file ()
        :report "Create a blank configuration file in your home directory."
        ;; Hack implementation of "touch"
@@ -38,6 +39,7 @@
 
 (defun load-config (&optional (pathname *configuration-file-pathnames*))
   "Load the configuration Lisp file directly."
+  (clrhash *web-user-db*)
   (load (find-config-file pathname)))
 
 (defun save-config (&optional (pathname *configuration-file-pathnames*))
