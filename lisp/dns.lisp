@@ -60,7 +60,11 @@
 		(t (setf *dns-requests* (remove-duplicates *dns-requests*))
 		   (pop *dns-requests*))))))
        (when host
-	 (let ((hostname (reverse-lookup host)))
+	 (let ((hostname
+		;; Attempt to force a 1-second timeout on all DNS requests.
+		;; Most lookups that take more than that end up being NXDOMAIN.
+		(handler-case (bt:with-timeout (1) (reverse-lookup host))
+		  (bt:timeout () nil))))
 	   (bt:with-lock-held (*dns-lock*)
 	     (setf (gethash host *dns-cache*) hostname)))))))
 
