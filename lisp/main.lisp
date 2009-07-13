@@ -32,6 +32,7 @@
   (let ((collector (make-instance 'collector)))
     (with-collector-callbacks (process_flow) collector
 	(setf process_flow (callback receive-flow)))
+    (setf (filter collector) "tcp or icmp or udp")
     collector))
 
 (defun worker-thread ()
