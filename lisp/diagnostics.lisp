@@ -56,6 +56,11 @@
 	   (:td (if *collector*
 		    (str (get-ptr *collector*))
 		    (str "Not initialized!"))))
+      (:tr (:td "DNS cache size") (:td (fmt "~d entries" (hash-table-count *dns-cache*))))
+      (:tr (:td "DNS requests pending lookup")
+	   (:td (fmt "~d addresses"
+		     (bt:with-lock-held (*dns-lock*) (length *dns-requests*)))))
+      (:tr (:td "DNS thread running?") (:td (fmt "~:[No~;Yes~]" (bt:thread-alive-p *dns-thread*))))
       #+sbcl (sbcl-parameters)))))
 
 #+sbcl 
