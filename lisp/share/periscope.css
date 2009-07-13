@@ -303,7 +303,7 @@ div.config-section td {
 div.config-section table.sources td,
 div.config-section table.input td {
   width:auto;
-  padding:3px;
+  padding:7px;
   text-align:center;
   background-color:#eee;
   border:1px solid #ccc;
