@@ -41,6 +41,7 @@
    (:file "argus-cffi")
    (:file "collector")
    (:file "utility")
+   (:file "dns")
    ;; Central classes
    (:file "reports")
    (:file "flow")
