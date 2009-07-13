@@ -218,12 +218,13 @@ of integers corresponding to these numbers.  Duplicate and invalid port numbers 
 	   "The collector is not running." (:br)
 	   (:b (:a :href "/manage-sources?action=run" "Click here to run the collector.")))))
 
-    (with-config-form ("/manage-sources" "Manage Sources" "manage")
-      (:table
-       :class "input"
-       (print-sources (available-sources *collector*) "Available")
-       (print-sources (active-sources *collector*) "Active"))
-      (submit "Apply Changes"))
+    (unless (not (or (available-sources *collector*) (active-sources *collector*)))
+      (with-config-form ("/manage-sources" "Manage Sources" "manage")
+	(:table
+	 :class "input"
+	 (print-sources (available-sources *collector*) "Available")
+	 (print-sources (active-sources *collector*) "Active"))
+	(submit "Apply Changes")))
 
     (with-config-form ("/manage-sources" "Add Argus Server" "add")
       (:table
@@ -270,12 +271,15 @@ of integers corresponding to these numbers.  Duplicate and invalid port numbers 
 	   (error-redirect "invalidhost" :host hostname :port port))))
       
       ((string= action "manage")
-       (setf remove (map 'vector (lambda (s) (parse-integer s :junk-allowed t)) remove))
-       (when (plusp (length remove))
-	 (setf (remote-sources *collector*)
-	       (remove-if (lambda (src)
-			    (find (pointer-address (get-ptr src)) remove))
-			  (remote-sources *collector*))))))
+       (setf remove
+	     (remove nil (map 'vector (lambda (s) (parse-integer s :junk-allowed t)) remove)))
+       
+       (handler-case
+	   (loop :for index :from 0 :below (length remove) :do
+	      (let ((source (find (aref remove index) (available-sources *collector*))))
+		(when source (remove-source source *collector*))))
+	 (simple-error ()
+	   (hunchentoot:redirect "/sources")))))
 
     ;;(save-config)
     (error-redirect "success")))
@@ -296,6 +300,5 @@ of integers corresponding to these numbers.  Duplicate and invalid port numbers 
 	   (:td "No")
 	   (:td (str (if (connected-p source) "Connected" "Not Connected")))
 	   (:td
-	    (checkbox (format nil "remove[~d]" i)
-		      :value (pointer-address (get-ptr source))))))
+	    (checkbox (format nil "remove[~d]" i) :value (remote-ip source)))))
 	 (incf i)))))
