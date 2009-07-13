@@ -53,7 +53,8 @@
 	   '(*web-port* *web-show-diag* hunchentoot:*show-lisp-errors-p*
 	     *swank-port* *enable-swank-p*
 	     *notable-ports*
-	     *internal-network* *internal-netmask*)))
+	     *internal-network* *internal-netmask*
+	     *dns-available-p*)))
   (format stream "~S~%" (dump-hash-tables '(*vlan-names*)))
   (format stream "~S~%" (create-login-forms)))
 
