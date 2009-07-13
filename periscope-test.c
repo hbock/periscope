@@ -241,7 +241,7 @@ periscope_test_suite(int *ntest)
       printf("Official count: %d Recorded count: %d\n", hdr->queue->count, i);
 
       if(periscope_argus_remote_info(input, &info) < 0) {
-         fail++
+         fail++;
          printf("FAIL remote info get!\n");
       } else {
          printf("PASS remote info: Ver. %d.%d host %s port %hu\n",
