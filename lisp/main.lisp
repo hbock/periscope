@@ -56,6 +56,9 @@
   (setf *collector* (init-basic-collector))
   (format t "OK.~%")
 
+  (when *dns-available-p*
+    (start-dns))
+  
   (bt:join-thread
    (bt:make-thread #'worker-thread :name "Periscope Data Worker"))
 
