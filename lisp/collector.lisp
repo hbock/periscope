@@ -131,6 +131,13 @@
 		sources))))
     sources))
 
+(defmethod remove-source ((src source) (collector collector))
+  (if (null-pointer-p (get-ptr src))
+      (error "Cannot remove a NULL source!")
+      (unless (zerop
+	       (%argus-remote-remove (get-ptr collector) (get-ptr src)))
+	(error "Failed to remove source at ~a!" (get-ptr src)))))
+
 (defmethod available-sources ((object collector))
   (get-argus-sources (%argus-remote-pending-queue (get-ptr object))))
 
