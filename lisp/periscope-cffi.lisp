@@ -94,7 +94,7 @@
   (collector periscope-collector)
   (hoststr :string))
 
-(defcfun ("periscope_argus_remote_remove" %argus-remote-remove) :pointer
+(defcfun ("periscope_argus_remote_remove" %argus-remote-remove) :int
   (collector periscope-collector)
   (input :pointer))
 
