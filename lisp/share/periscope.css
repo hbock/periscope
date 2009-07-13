@@ -292,7 +292,9 @@ div.config-header {
   padding-bottom:3px;
   margin:0;
   margin-bottom:0.5em;
-  margin-top:1em;
+}
+div.config-section {
+  margin-bottom:1em;
 }
 
 div.config-section td {
