@@ -49,13 +49,6 @@
 	       (incf (packets-dest service) (host-packets dest))
 	       (setf (gethash port hash) service)))))))))
 
-(defmethod print-report ((object service))
-  (with-slots (hash) object
-    (loop :for port :being :the :hash-keys :in hash :using (:hash-value service) :do
-       (format t "Port ~d: (source ~d bytes ~d packets) (dest ~d bytes ~d packets~%" port
-	       (bytes-source service) (packets-source service)
-	       (bytes-dest service) (packets-dest service)))))
-
 (defmethod print-html ((object service) &key)
   (with-html-output (*standard-output*)
     (:div
