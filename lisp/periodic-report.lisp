@@ -136,8 +136,8 @@
 	(htm
 	 (:tr
 	  :class (if row-switch "rowa" "rowb")
+	  (:td (str (ip-string (host-ip host))))
 	  (:td (str (hostname (host-ip host))))
-	  (:td (str (if *dns-lookup-p* (hostname (host-ip host)) nil)))
 	  (:td (str (funcall key host)))))
 	(setf row-switch (not row-switch))))))
 

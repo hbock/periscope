@@ -51,7 +51,7 @@
 	(:td (input "web-port" *web-port*)))
        (:tr
 	(:td "Perform DNS reverse lookup in reports")
-	(:td (checkbox "dnslookup" :checked *dns-lookup-p*))))
+	(:td (checkbox "dnslookup" :checked *dns-available-p*))))
       (:input :type "submit" :value "Apply Configuration"))
 
     (with-config-form ("/set-config" "Network Configuration" "network")
@@ -143,7 +143,12 @@ of integers corresponding to these numbers.  Duplicate and invalid port numbers 
 	   (when web-port
 	     (setf *web-port* web-port))
 
-	   (setf *dns-lookup-p* (not (null dnslookup))))
+	   ;; Start and stop DNS lookup thread according to the dnslookup value.
+	   (cond
+	     ((and *dns-available-p* (null dnslookup))
+	      (stop-dns))
+	     ((and (not *dns-available-p*) (not (null dnslookup)))
+	      (start-dns))))
 	  
 	  ((string= action "network")
 	   (let ((remove-list

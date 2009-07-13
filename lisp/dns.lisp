@@ -23,7 +23,6 @@
 (defvar *dns-cond* (bt:make-condition-variable))
 
 (defvar *dns-requests* nil)
-(defvar *dns-available-p* t)
 (defvar *dns-cache* (make-hash-table :size 10000))
 
 (defun ip-to-vector (ip)
