@@ -68,5 +68,11 @@
 (define-report-handler (service "/service" "Service Type") ()
   (with-periscope-page ("Service Statistics")
     (:h2 "Service Statistics")
+
+    (:b "Tracked services, port numbers: ")
+    (fmt "~{~a~^, ~}" (mapcar #'service-name *notable-ports*))
+    (when (and (user) (admin-p (user)))
+      (htm (:a :href "/config" "(edit)")))
+
     (print-html
      (make-instance 'service :flow-list *flow-list*))))
