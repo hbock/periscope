@@ -22,8 +22,10 @@
 (defvar *flow-list* nil)
 
 ;; Version and compilation time
-(defvar *periscope-version* "0.9.91 (pre-alpha)")
-(defvar *compilation-time* (get-universal-time))
+(defvar *compilation-time* (now))
+(defvar *periscope-version*
+  (format nil "0.9.92 (pre-alpha, build ~a)" (iso8661-date-string *compilation-time*)))
+
 
 ;; Configuration
 (defparameter *configuration-file-pathnames*

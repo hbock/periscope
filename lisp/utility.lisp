@@ -145,10 +145,14 @@ digits following the decimal point."
 	 :when (>= bytes boundary) :do
 	 (return (format nil "~v$ ~a" precision (/ bytes boundary) name)))))
 
-(defun iso8661-date-string (&optional (time (local-time:now)))
+(defun date-string (&optional (time (now)))
+  (let ((format '((:year 4) #\- (:month 2) #\- (:day 2))))
+    (format-timestring nil time :format format)))
+
+(defun iso8661-date-string (&optional (time (now)))
   "Convert a universal time to an ISO8661 date string."
   (let ((format '((:year 4) #\- (:month 2) #\- (:day 2) #\T (:hour 2) #\: (:min 2) #\: (:sec 2))))
-    (local-time:format-timestring t time :format format)))
+    (format-timestring nil time :format format)))
 
 (defun next-hour (timestamp)
   (local-time:timestamp+ (local-time:timestamp-minimize-part timestamp :min) 1 :hour))

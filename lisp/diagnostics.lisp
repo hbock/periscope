@@ -42,10 +42,7 @@
      :class "config-section"
      (:table
       (:tr (:td "Declared version") (:td (str *periscope-version*)))
-      (multiple-value-bind (sec min hour date month year) (decode-universal-time *compilation-time*)
-	(declare (ignore sec))
-	(htm
-	 (:tr (:td "Compilation time") (:td (fmt "~a-~a-~a ~a:~a" year month date hour min)))))
+      (:tr (:td "Compilation time") (:td (str (iso8661-date-string *compilation-time*))))
       (:tr (:td "Hunchentoot version") (:td (str hunchentoot-asd:*hunchentoot-version*)))
       (:tr (:td "Machine hostname") (:td (str (machine-instance))))
       (:tr (:td "Machine hardware") (:td (str (machine-version))))
