@@ -133,6 +133,58 @@ as an MD5 sum."
 	  (htm (:input :type "hidden" :name "redirect" :value redirect)))
 	(:input :type "submit" :value "Login")))))
 
+
+(defun edit-user-form (title action &key user error)
+  (with-config-form ("/set-user-config" title action)
+    (:table
+     (:tr (:th :colspan 2 "Login Information"))
+     (when (string= error "username")
+       (error-message "You must specify a username."))
+     (if user
+	 (htm (:input :type "hidden" :name "username" :value (username user)))
+	 (htm
+	  (:tr
+	   (:td "Username")
+	   (:td (input "username" (if user (username user) "") :disabled (not (null user)))))))
+     (when (string= error "dispname")
+       (error-message "You must specify a display name (e.g., Don Schattle)."))
+     (:tr
+      (:td "Display Name")
+      (:td (input "displayname" (if user (display-name user) ""))))
+     (cond ((string= error "nopassword")
+	    (error-message "You must fill in BOTH password fields."))
+	   ((string= error "passmatch")
+	    (error-message "Passwords do not match!")))
+     (:tr
+      (:td "Password")
+      (:td (password-input "password1")))
+     (:tr
+      (:td "Password (re-type)")
+      (:td (password-input "password2")))
+
+     (:tr (:th :colspan 2 "Permissions and Filters"))
+     (when (string= error "subnet")
+       (error-message "Invalid CIDR network specification!"))
+     (:tr
+      (:td "Subnet Filter (CIDR notation)")
+      (:td (input "subnet" "" :size 18)))
+     (:tr
+      (:td "VLAN Filter")
+      (:td (input "vlan" "" :size 4)))
+     (:tr
+      (:td "Administrator privileges")
+      (:td (checkbox "configp" :checked (when user (admin-p user))))))
+    (:br)
+    (:input :type "submit" :value "Commit Changes")))
+
+(hunchentoot:define-easy-handler (edit-user :uri "/edit-user") (error user)
+  (with-periscope-page ("Edit User" :admin t)
+    (let ((user (user user)))
+      (if user
+	  (edit-user-form (format nil "Edit User [~a]" (username user)) "edituser"
+			  :user user :error error)
+	  (hunchentoot:redirect "/users")))))
+
 ;;; Errors:
 ;;;  - "username": Empty username.
 ;;;  - "dispname": Empty display name.
@@ -158,7 +210,7 @@ as an MD5 sum."
 account." :table nil)))
 	(:table
 	 :class "input"
-	 (:tr (:th "Username") (:th "Display Name") (:th "Administrator") (:th "Remove User"))
+	 (:tr (:th "Username ") (:th "Display Name") (:th "Edit User") (:th "Remove User"))
 	 (loop
 	    :with i = 0
 	    :for user :in (user-list) :do
@@ -166,53 +218,16 @@ account." :table nil)))
 	      (htm
 	       (:tr
 		(:td
-		 (str username)
-		 (:input :type "hidden" :name (format nil "user[~d]" i) :value (username user)))
-		(:td (input (format nil "name[~d]" i) (display-name user)))
-		(:td (checkbox (format nil "admin[~d]" i) :checked (admin-p user)))
+		 (:b (str username))
+		 (:input :type "hidden" :name (format nil "user[~d]" i) :value username))
+		(:td (str (display-name user)))
+		(:td (:a :href (format nil "/edit-user?user=~a" username) "Edit"))
 		(:td (checkbox (format nil "delete[~d]" i) :value username))))
 	      (incf i))))
 	(:br)
 	(:input :type "submit" :value "Apply Configuration")))
 
-    (with-config-form ("/set-user-config" "Add New User" "newuser")
-      (:table
-       (:tr (:th :colspan 2 "Login Information"))
-       (when (string= error "username")
-	 (error-message "You must specify a username."))
-       (:tr
-	(:td "Username")
-	(:td (input "username" "")))
-       (when (string= error "dispname")
-	 (error-message "You must specify a display name (e.g., Don Schattle)."))
-       (:tr
-	(:td "Display Name")
-	(:td (input "displayname" "")))
-       (cond ((string= error "nopassword")
-	      (error-message "You must fill in BOTH password fields."))
-	     ((string= error "passmatch")
-	      (error-message "Passwords do not match!")))
-       (:tr
-	(:td "Password")
-	(:td (password-input "password1")))
-       (:tr
-	(:td "Password (re-type)")
-	(:td (password-input "password2")))
-
-       (:tr (:th :colspan 2 "Permissions and Filters"))
-       (when (string= error "subnet")
-	 (error-message "Invalid CIDR network specification!"))
-       (:tr
-	(:td "Subnet Filter (CIDR notation)")
-	(:td (input "subnet" "" :size 18)))
-       (:tr
-	(:td "VLAN Filter")
-	(:td (input "vlan" "" :size 4)))
-       (:tr
-	(:td "Administrator privileges")
-	(:td (checkbox "configp"))))
-      (:br)
-      (:input :type "submit" :value "Add User"))))
+    (edit-user-form "Add New User" "newuser" :error error)))
 
 (hunchentoot:define-easy-handler (do-login :uri "/do-login")
     (username password redirect action)
@@ -254,9 +269,7 @@ of integers corresponding to these numbers.  Duplicate and invalid VLAN IDs are 
 	    (admin  :parameter-type 'array))
   (valid-session-or-lose :admin t)
 
-  (flet ((config-error (type)
-	   (hunchentoot:redirect (format nil "/users?error=~a" type))))
-  
+  (let ((*redirect-page* "/users"))
     (cond
       ((string= action "configure")
        (setf *web-login-required-p* (not (null required))))
@@ -275,27 +288,48 @@ of integers corresponding to these numbers.  Duplicate and invalid VLAN IDs are 
 	    (if (and (> (length admin) i) (aref admin i))
 		(setf (admin-p u) t)
 		(if (string= (aref user i) (username (user)))
-		    (config-error "unadminself")
+		    (error-redirect "unadminself")
 		    (setf (admin-p u) nil))))))
 
       ((string= action "newuser")
        (cond
-	 ((empty-string-p username) (config-error "username"))
-	 ((empty-string-p displayname) (config-error "dispname"))
+	 ((empty-string-p username) (error-redirect "username"))
+	 ((empty-string-p displayname) (error-redirect "dispname"))
 
 	 ((not (and password1 password2 (plusp (length password1)) (plusp (length password2))))
-	  (config-error "nopassword"))
+	  (error-redirect "nopassword"))
        
 	 ((string/= password1 password2)
-	  (config-error "passmatch"))
+	  (error-redirect "passmatch"))
        
 	 ((and subnet (plusp (length subnet)))
 	  (handler-case
 	      (parse-ip-string subnet)
 	    (parse-error (e)
 	      (declare (ignore e))
-	      (config-error "subnet")))))
+	      (error-redirect "subnet")))))
 
        (create-login username password1 displayname :admin (not (null configp))))))
+  
+  (when (string= action "edituser")
+    (let ((*redirect-page* "/edit-user")
+	  (user (user username)))
+      (cond
+	((null user)
+	 (hunchentoot:redirect "/users"))
+
+	((empty-string-p displayname)
+	 (error-redirect "dispname" :user username))
+
+	((not (empty-string-p password1 password2))
+	 (unless (string= password1 password2)
+	   (error-redirect "passmatch" :user username))
+	 (setf (password-hash user) (hash-sequence password1)))
+
+	(t
+	 (setf (display-name user) displayname)))
+      (save-config)
+      (hunchentoot:redirect (format nil "/users?error=success&edit=~a" (username user)))))
+  
   (save-config)
-  (hunchentoot:redirect "/users"))
+  (hunchentoot:redirect "/users?error=success"))
