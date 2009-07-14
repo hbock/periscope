@@ -70,7 +70,7 @@
 
 (defun reverse-lookup (ip)
   (if (broadcast-address-p ip)
-      "Broadcast"
+      (format nil "~a [Broadcast]" (ip-string ip))
       #+sbcl
       (handler-case 
 	  (sb-bsd-sockets:host-ent-name
