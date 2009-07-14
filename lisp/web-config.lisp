@@ -52,7 +52,7 @@
        (:tr
 	(:td "Perform DNS reverse lookup in reports")
 	(:td (checkbox "dnslookup" :checked *dns-available-p*))))
-      (:input :type "submit" :value "Apply Configuration"))
+      (submit "Apply Configuration"))
 
     (with-config-form ("/set-config" "Network Configuration" "network")
       (:table
@@ -79,7 +79,7 @@
        (:tr
 	(:td "Add notable ports:")
 	(:td (input "ports" ""))))
-      (:input :type "submit" :value "Apply Configuration"))
+      (submit "Apply Configuration"))
 
     (with-config-form ("/set-config" "Add VLAN Identifier" "addvlan")
       (when (string= error "missingvlan")
@@ -92,7 +92,7 @@ must be specified!" :table nil))
        (:tr
 	(:td "VLAN Name")
 	(:td (input "newvname" ""))))
-      (:input :type "submit" :value "Add VLAN"))
+      (submit "Add VLAN"))
 
     (with-config-form ("/set-config" "Edit VLAN Identifiers" "editvlan")
       (cond
@@ -111,7 +111,8 @@ must be specified!" :table nil))
 		(:td (input (format nil "vname[~d]" index) name))
 		(:td (checkbox (format nil "delete[~d]" index) :value vid))))
 	  (incf index)))
-      (:input :type "submit" :value "Commit Changes"))))
+      (:br)
+      (submit "Commit Changes"))))
 
 (defun ports-from-string (port-string)
   "Take a string of port numbers, separated by spaces and/or commas, and return a sorted list
@@ -128,83 +129,86 @@ of integers corresponding to these numbers.  Duplicate and invalid port numbers 
 
   (valid-session-or-lose :admin t)
 
-  (flet ((config-error (type)
-	   (hunchentoot:redirect (format nil "/config?error=~a" type))))
-
+  (let ((*redirect-page* "/config"))
     (unless *collector*
-      (config-error "null-collector"))
+      (error-redirect "null-collector"))
   
-    (cond ((string= action "monitor")
-	   (when filter
-	     (setf (filter *collector*) filter)))
+    (cond
+      ;; Generic monitor configuration - Argus filters, etc.
+      ((string= action "monitor")
+       (when filter
+	 (setf (filter *collector*) filter)))
 
-	  ((string= action "web")
-	   ;; TODO: Restart server!   
-	   (when web-port
-	     (setf *web-port* web-port))
+      ((string= action "web")
+       ;; TODO: Restart server!   
+       (when web-port
+	 (setf *web-port* web-port))
 
-	   ;; Start and stop DNS lookup thread according to the dnslookup value.
-	   (cond
-	     ((and *dns-available-p* (null dnslookup))
-	      (stop-dns))
-	     ((and (not *dns-available-p*) (not (null dnslookup)))
-	      (start-dns))))
+       ;; Start and stop DNS lookup thread according to the dnslookup value.
+       (cond
+	 ((and *dns-available-p* (null dnslookup))
+	  (stop-dns))
+	 ((and (not *dns-available-p*) (not (null dnslookup)))
+	  (start-dns))))
 	  
-	  ((string= action "network")
-	   (let ((remove-list
-		  (mapcar (lambda (port)
-			    (parse-integer (cdr port) :junk-allowed t))
-			  (remove-if-not (lambda (param) (string= param "remove"))
-					 (hunchentoot:post-parameters*) :key #'car))))
+      ;; Network management options: notable ports, internal network, etc.
+      ((string= action "network")
+       (let ((remove-list
+	      (mapcar (lambda (port)
+			(parse-integer (cdr port) :junk-allowed t))
+		      (remove-if-not (lambda (param) (string= param "remove"))
+				     (hunchentoot:post-parameters*) :key #'car))))
+	 (setf *notable-ports*
+	       (delete-if (lambda (port)
+			    (find port remove-list)) *notable-ports*)))
+	   
+       (when (not (empty-string-p ports))
+	 (if (ppcre:scan "^(\\d{1,5}( *|(, *)))+$" ports)
 	     (setf *notable-ports*
-		   (delete-if (lambda (port)
-				(find port remove-list)) *notable-ports*)))
+		   (sort (union *notable-ports* (ports-from-string ports)) #'<))
+	     (error-redirect "ports")))
 	   
-	   (when (not (empty-string-p ports))
-	     (if (ppcre:scan "^(\\d{1,5}( *|(, *)))+$" ports)
-		 (setf *notable-ports*
-		       (sort (union *notable-ports* (ports-from-string ports)) #'<))
-		 (config-error "ports")))
+       (when network
+	 (handler-case
+	     (multiple-value-bind (network netmask)
+		 (parse-ip-string network)
+	       (unless netmask
+		 (error-redirect "nocidrsuffix"))
+	       (setf *internal-network* network)
+	       (setf *internal-netmask* netmask))
+	   (parse-error ()
+	     (error-redirect "networkparse")))))
+
+      ;; Add new VLAN identifier
+      ((string= action "addvlan")
+       (if (and newvid newvname)
+	   (setf (vlan-name newvid) newvname)
+	   (error-redirect "missingvlan")))
+
+      ;; Edit existing VLAN identifiers
+      ((string= action "editvlan")
+       ;; User is trying to be malicious - these lengths are always equal.
+       (when (/= (length vid) (length vname))
+	 (hunchentoot:redirect "/config"))
+
+       (let ((vids (map 'vector (lambda (s) (parse-integer s :junk-allowed t)) vid)))
+	 (cond
+	   ;; VLAN ID not parseable.
+	   ((some #'null vids) (error-redirect "badvid"))
+	   ;; VLAN number is set, but name is blank
+	   ((some #'empty-string-p vname) (error-redirect "novname")))
 	   
-	   (when network
-	     (handler-case
-		 (multiple-value-bind (network netmask)
-		     (parse-ip-string network)
-		   (unless netmask
-		     (config-error "nocidrsuffix"))
-		   (setf *internal-network* network)
-		   (setf *internal-netmask* netmask))
-	       (parse-error ()
-		 (config-error "networkparse")))))
-
-	  ((string= action "addvlan")
-	   (if (and newvid newvname)
-	       (setf (vlan-name newvid) newvname)
-	       (config-error "missingvlan")))
-
-	  ((string= action "editvlan")
-	   ;; User is trying to be malicious - these lengths are always equal.
-	   (when (/= (length vid) (length vname))
-	     (hunchentoot:redirect "/config"))
-
-	   (let ((vids (map 'vector (lambda (s) (parse-integer s :junk-allowed t)) vid)))
-	     (cond
-	       ;; VLAN ID not parseable.
-	       ((some #'null vids) (config-error "badvid"))
-	       ;; VLAN number is set, but name is blank
-	       ((some #'empty-string-p vname) (config-error "novname")))
-	   
-	     ;; NOTE: We should only get here if there are NO errors!
-	     ;; Otherwise we blow away the VLAN list...
-	     (clrhash *vlan-names*)
-	     (loop :with ndelete = (length delete)
-		:for i :from 0 :below (length vids) :do
-		(if (and (> ndelete i) (aref delete i))
-		    nil
-		    (setf (vlan-name (aref vids i)) (aref vname i)))))))
+	 ;; NOTE: We should only get here if there are NO errors!
+	 ;; Otherwise we blow away the VLAN list...
+	 (clrhash *vlan-names*)
+	 (loop :with ndelete = (length delete)
+	    :for i :from 0 :below (length vids) :do
+	    (if (and (> ndelete i) (aref delete i))
+		nil
+		(setf (vlan-name (aref vids i)) (aref vname i)))))))
   
     (save-config)
-    (config-error "success")))
+    (error-redirect "success")))
 
 (hunchentoot:define-easy-handler (sources :uri "/sources") (error host port)
   (with-periscope-page ("Manage Argus Sources" :admin t)
@@ -222,13 +226,14 @@ of integers corresponding to these numbers.  Duplicate and invalid port numbers 
 	  (warning-box
 	   "The collector is not running." (:br)
 	   (:b (:a :href "/manage-sources?action=run" "Click here to run the collector.")))))
-
+    (:br)
     (unless (not (or (available-sources *collector*) (active-sources *collector*)))
       (with-config-form ("/manage-sources" "Manage Sources" "manage")
 	(:table
 	 :class "input"
 	 (print-sources (available-sources *collector*) "Available")
 	 (print-sources (active-sources *collector*) "Active"))
+	(:br)
 	(submit "Apply Changes")))
 
     (with-config-form ("/manage-sources" "Add Argus Server" "add")
@@ -248,7 +253,7 @@ of integers corresponding to these numbers.  Duplicate and invalid port numbers 
        (:tr
 	(:td "SASL Authentication")
 	(:td (checkbox "sasl"))))
-      (:input :type "submit" :value "Add")
+      (submit "Add")
       (:br))))
 
 (defun error-redirect (type &rest more-params)
@@ -267,9 +272,11 @@ of integers corresponding to these numbers.  Duplicate and invalid port numbers 
 	 (web-run-collector *collector*)))
       
       ((string= action "add")
+       ;; Empty hostnames are bad news.
        (when (empty-string-p hostname)
 	 (error-redirect "emptyhost"))
        
+       ;; An error in this case usually means the host was invalid/not resolvable.
        (handler-case
 	   (add-remote *collector* hostname port)
 	 (simple-error ()
@@ -279,6 +286,8 @@ of integers corresponding to these numbers.  Duplicate and invalid port numbers 
        (setf remove
 	     (remove nil (map 'vector (lambda (s) (parse-integer s :junk-allowed t)) remove)))
        
+       ;; Removing an invalid source will cause an error; ignore this and immediately redirect
+       ;; to /sources.  This is either a bug or a malicious attempt to access memory.
        (handler-case
 	   (loop :for index :from 0 :below (length remove) :do
 	      (let ((source (find (aref remove index) (available-sources *collector*))))
@@ -286,6 +295,7 @@ of integers corresponding to these numbers.  Duplicate and invalid port numbers 
 	 (simple-error ()
 	   (hunchentoot:redirect "/sources")))))
 
+    ;; TODO: need to implement saving sources.
     ;;(save-config)
     (error-redirect "success")))
 
