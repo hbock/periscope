@@ -298,7 +298,7 @@ of integers corresponding to these numbers.  Duplicate and invalid port numbers 
 	 :for source :in list :do
 	 (htm
 	  (:tr
-	   (:td (str (hostname source)))
+	   (:td (str (hostname (remote-ip source))))
 	   (:td (str (ip-string (remote-ip source))))
 	   (:td (str (port source)))
 	   ;; TODO: Implement me!
