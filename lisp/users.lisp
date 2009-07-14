@@ -110,7 +110,7 @@ as an MD5 sum."
 (hunchentoot:define-easy-handler (login :uri "/login")
     (denied redirect)
   
-  (unless (login-available-p)
+  (unless (and (null (user)) (login-available-p))
     (hunchentoot:redirect "/"))
   
   (let ((*web-login-required-p* nil))
@@ -145,7 +145,7 @@ as an MD5 sum."
 	 (htm
 	  (:tr
 	   (:td "Username")
-	   (:td (input "username" (if user (username user) "") :disabled (not (null user)))))))
+	   (:td (input "username" "")))))
      (when (string= error "dispname")
        (error-message "You must specify a display name (e.g., Don Schattle)."))
      (:tr
@@ -167,10 +167,10 @@ as an MD5 sum."
        (error-message "Invalid CIDR network specification!"))
      (:tr
       (:td "Subnet Filter (CIDR notation)")
-      (:td (input "subnet" "" :size 18)))
+      (:td (input "subnet" "" :size 40)))
      (:tr
       (:td "VLAN Filter")
-      (:td (input "vlan" "" :size 4)))
+      (:td (input "vlan" "" :size 20)))
      (:tr
       (:td "Administrator privileges")
       (:td (checkbox "configp" :checked (when user (admin-p user))))))
