@@ -146,11 +146,12 @@ digits following the decimal point."
 	 (return (format nil "~v$ ~a" precision (/ bytes boundary) name)))))
 
 (defun date-string (&optional (time (now)))
+  "Convert a LOCAL-TIME timestamp to a simple date string in the format YYYY-MM-DD."
   (let ((format '((:year 4) #\- (:month 2) #\- (:day 2))))
     (format-timestring nil time :format format)))
 
 (defun iso8661-date-string (&optional (time (now)))
-  "Convert a universal time to an ISO8661 date string."
+  "Convert a LOCAL-TIME timestamp to an ISO8661 date string."
   (let ((format '((:year 4) #\- (:month 2) #\- (:day 2) #\T (:hour 2) #\: (:min 2) #\: (:sec 2))))
     (format-timestring nil time :format format)))
 
