@@ -18,6 +18,17 @@
 ;;;; Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 (in-package :periscope)
 
+(defclass filter ()
+  ((title :initarg :title :reader filter-title :initform nil)
+   (vlans :initarg :vlans :initform nil)
+   (subnets :initarg :subnets :initform nil)
+   (predicate :initarg :predicate :accessor filter-predicate
+	      :initform (lambda (flow)
+			  (declare (ignore flow)) t))))
+
+(defun valid-vlan-p (vlan)
+  (typep vlan 'vlan-id))
+
 (defun vlan-filter (&rest vlan*)
   (cond
     ((null (cdr vlan*))
@@ -60,3 +71,17 @@ one filtered list per predicate."
 	    split-list)
 	(when (car split)
 	  (push (first split) split-list))))))
+
+(defmacro make-filter ((title) &body filters)
+  (let (vlans subnets)
+    (loop :for filter-desc :in filters :do
+       (ecase (first filter-desc)
+	 (:vlan
+	  (loop :for vlan :in (rest filter-desc) :do
+	     (if (valid-vlan-p vlan)
+		 (push vlan vlans)
+		 (error "~a is not a valid VLAN identifer!" vlan))))
+	 (:subnet nil)))
+    `(make-instance 'filter :title ,title :vlans (list ,@vlans)
+		    :predicate (lambda (flow)
+				 (or (funcall (apply #'vlan-filter (list ,@vlans)) flow))))))
