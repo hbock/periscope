@@ -132,10 +132,12 @@ Starts a separate thread to run the collector and handle its callbacks."
        (:input :type "hidden" :name "action" :value ,action)
        ,@body))))
 
-(defun empty-string-p (string)
+(defun empty-string-p (&rest strings)
   "Returns true if string has no useful string data; i.e., it is NIL, empty, or is composed
 solely of whitespace."
-  (or (null string) (zerop (length (string-trim #(#\Space #\Newline #\Tab) string)))))
+  (every (lambda (string)
+	   (or (null string) (zerop (length (string-trim #(#\Space #\Newline #\Tab) string)))))
+	 strings))
 
 (defmacro warning-box (&rest forms)
   `(who:with-html-output (*standard-output*)
@@ -159,11 +161,11 @@ solely of whitespace."
   (with-html-output (*standard-output*)
     (:input :type "submit" :value text)))
 
-(defun input (name default &key (size 20) label)
+(defun input (name default &key (size 20) label disabled)
   (with-html-output (*standard-output*)
     (when label
       (htm (:label :for name (str label))))
-    (:input :type "text" :name name :value default :size size)))
+    (:input :type "text" :name name :value default :size size :disabled disabled)))
 
 (defun password-input (name &key default (size 20))
   (with-html-output (*standard-output*)
