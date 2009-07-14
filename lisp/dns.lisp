@@ -36,7 +36,7 @@
 
 (defun start-dns ()
   "Start the DNS resolver thread."
-  (unless (bt:thread-alive-p *dns-thread*)
+  (unless (and (boundp '*dns-thread*) (bt:thread-alive-p *dns-thread*))
     (setf *dns-available-p* t)
     (setf *dns-thread* (bt:make-thread #'dns-thread :name "DNS Reverse Lookups"))))
 
