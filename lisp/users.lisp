@@ -192,7 +192,7 @@ as an MD5 sum."
 ;;;  - "passmatch": Passwords don't match.
 ;;;  - "subnet": Invalid subnet specifier.
 ;;;  - "unadminself": Tried to remove administrator from own account.
-(hunchentoot:define-easy-handler (user-config :uri "/users") (error)
+(hunchentoot:define-easy-handler (user-config :uri "/users") (error edit add)
   (with-periscope-page ("User Login Configuration" :admin t)
     (with-config-form ("/set-user-config" "Login Configuration" "configure")
       (:table
@@ -207,10 +207,17 @@ as an MD5 sum."
 	(cond
 	  ((string= error "unadminself")
 	   (error-message "Error: You cannot remove administrator privileges from your own
-account." :table nil)))
+account." :table nil))
+	  ((and (string= error "success"))
+	   (cond
+	     ((not (empty-string-p edit))
+	      (htm (:p (:b (fmt "Edited user '~a' successfully!" edit)))))
+	     ((not (empty-string-p add))
+	      (htm (:p (:b (fmt "Added new user '~a' successfully!" add))))))))
 	(:table
 	 :class "input"
-	 (:tr (:th "Username ") (:th "Display Name") (:th "Edit User") (:th "Remove User"))
+	 (:tr (:th "Username ") (:th "Display Name") (:th "Administrator")
+	      (:th "Edit User") (:th "Remove User"))
 	 (loop
 	    :with i = 0
 	    :for user :in (user-list) :do
@@ -221,6 +228,7 @@ account." :table nil)))
 		 (:b (str username))
 		 (:input :type "hidden" :name (format nil "user[~d]" i) :value username))
 		(:td (str (display-name user)))
+		(:td (str (if (admin-p user) "Yes" "No")))
 		(:td (:a :href (format nil "/edit-user?user=~a" username) "Edit"))
 		(:td (checkbox (format nil "delete[~d]" i) :value username))))
 	      (incf i))))
@@ -309,7 +317,8 @@ of integers corresponding to these numbers.  Duplicate and invalid VLAN IDs are 
 	      (declare (ignore e))
 	      (error-redirect "subnet")))))
 
-       (create-login username password1 displayname :admin (not (null configp))))))
+       (create-login username password1 displayname :admin (not (null configp)))
+       (error-redirect "success" :add username))))
   
   (when (string= action "edituser")
     (let ((*redirect-page* "/edit-user")
@@ -329,7 +338,7 @@ of integers corresponding to these numbers.  Duplicate and invalid VLAN IDs are 
 	(t
 	 (setf (display-name user) displayname)))
       (save-config)
-      (hunchentoot:redirect (format nil "/users?error=success&edit=~a" (username user)))))
+      (error-redirect "success" :edit (username user))))
   
   (save-config)
   (hunchentoot:redirect "/users?error=success"))
