@@ -144,18 +144,21 @@
 (defun print-busiest-hosts (title list)
   (with-html-output (*standard-output*)
     (:table
-     (:tr (:th :colspan 8 (str title)))
-     (:tr (:th)
+     (:tr (:th :colspan 9 (str title)))
+     (:tr (:th) (:th)
 	  (:th :colspan 2 "Sending")
 	  (:th :colspan 2 "Receiving")
 	  (:th :colspan 3 "Total"))
-     (:tr (:th) (:th "Packets") (:th "Bytes") (:th "Packets") (:th "Bytes")
+     (:tr (:th "Host") (:th "Hostname")
+	  (:th "Packets") (:th "Bytes")
+	  (:th "Packets") (:th "Bytes")
 	  (:th "Packets") (:th "Bytes") (:th "Flows"))
      (loop :with row-switch = t
 	:for host :in list :repeat 15 :do
 	(htm
 	 (:tr
 	  :class (if row-switch "rowa" "rowb")
+	  (:td (str (ip-string (host-ip host))))
 	  (:td (str (hostname (host-ip host))))
 	  (print-html (receiving host) :type :busiest-hosts :flows nil)
 	  (print-html (sending host)   :type :busiest-hosts :flows nil)
@@ -167,8 +170,6 @@
     (:h3 (str title))
     (with-slots (host-stats) report
       (htm (:p
-	    (fmt "Saw ~d unique hosts!" (hash-table-count host-stats))
-	    (:br)
 	    (fmt "Report generated at ~a" (iso8661-date-string
 					   (local-time:universal-to-timestamp
 					    (report-time report)))))))
