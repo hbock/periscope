@@ -120,9 +120,10 @@ as an MD5 sum."
 	 (warning-box (:p :class "denied" "You must be logged in to see this page.")))
 	((string= denied "bad")
 	 (warning-box (:p :class "denied" "Invalid credentials. Please try again."))))
+      (:br)
       (with-config-form ("/do-login" "Log in to Periscope" "login")
 	(:table
-	 :class "input"
+	 :class "login"
 	 (:tr
 	  (:td "Username")
 	  (:td (input "username" "")))

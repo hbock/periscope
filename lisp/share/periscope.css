@@ -328,3 +328,7 @@ div.config-section th {
   text-align:left;
   margin-top:10px;
 }
+
+div.config-section table.login td {
+  width:auto;
+}
