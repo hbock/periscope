@@ -291,13 +291,7 @@ of integers corresponding to these numbers.  Duplicate and invalid VLAN IDs are 
 	       ;; If the user deletes a logged-in user, he must be logged off,
 	       ;; so remove session.
 	       (logout u)
-	       (remhash (username u) *web-user-db*)))
-
-	    (if (and (> (length admin) i) (aref admin i))
-		(setf (admin-p u) t)
-		(if (string= (aref user i) (username (user)))
-		    (error-redirect "unadminself")
-		    (setf (admin-p u) nil))))))
+	       (remhash (username u) *web-user-db*))))))
 
       ((string= action "newuser")
        (cond
@@ -333,12 +327,17 @@ of integers corresponding to these numbers.  Duplicate and invalid VLAN IDs are 
 	((not (empty-string-p password1 password2))
 	 (unless (string= password1 password2)
 	   (error-redirect "passmatch" :user username))
-	 (setf (password-hash user) (hash-sequence password1)))
+	 (setf (password-hash user) (hash-sequence password1))))
 
-	(t
-	 (setf (display-name user) displayname)))
+      (if (string= username (username (user)))
+	  (error-redirect "unadminself")
+	  (setf (admin-p user) (not (null configp))))
+
+      (setf (display-name user) displayname)
+      
       (save-config)
-      (error-redirect "success" :edit (username user))))
+      (let ((*redirect-page* "/users"))
+	(error-redirect "success" :edit (username user)))))
   
   (save-config)
   (hunchentoot:redirect "/users?error=success"))
