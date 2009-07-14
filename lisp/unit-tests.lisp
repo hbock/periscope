@@ -107,17 +107,17 @@
 (deftest broadcast-test (ip netmask expected-result)
   (is (= expected-result (periscope::broadcast-address ip netmask))))
 
-(deftest broadcast-p-test (ip netmask expected-result)
-  (is (eq expected-result (periscope::broadcast-address-p ip netmask))))
+(deftest broadcast-p-test (ip network netmask expected-result)
+  (is (eq expected-result (periscope::broadcast-address-p ip network netmask))))
 
 (deftest broadcast-tests ()
   (broadcast-test #x0a000001 #xffffff00 #x0a0000ff)
   (broadcast-test #x0a123456 #xff000000 #x0affffff)
   (broadcast-test #xc0987654 #xffff0000 #xc098ffff)
   ;; Test 'universal' broadcast address
-  (broadcast-p-test #xffffffff #xff000000 t)
-  (broadcast-p-test #xffffffff #xffff0000 t)
-  (broadcast-p-test #xffffffff #xffffff00 t)
-  (broadcast-p-test #x0a0000ff #xffffff00 t)
+  (broadcast-p-test #xffffffff #x0a000000 #xff000000 t)
+  (broadcast-p-test #xffffffff #x0a0a0000 #xffff0000 t)
+  (broadcast-p-test #xffffffff #xc8c9ff00 #xffffff00 t)
+  (broadcast-p-test #x0a0000ff #x0a000000 #xffffff00 t)
   ;; Subnet address should be #x0a00ffff
-  (broadcast-p-test #x0a0000ff #xffff0000 nil))
+  (broadcast-p-test #x0a0000ff #x0a000000 #xffff0000 nil))

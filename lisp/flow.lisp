@@ -68,8 +68,8 @@
 (defmethod classify ((object flow) &key (network *internal-network*) (netmask *internal-netmask*))
   (with-slots (source dest) object
     (cond
-      ((or (broadcast-address-p (host-ip source) netmask)
-	   (broadcast-address-p (host-ip dest) netmask))
+      ((or (broadcast-address-p (host-ip source) network netmask)
+	   (broadcast-address-p (host-ip dest) network netmask))
        :internal-only)
       ((network-member-p (host-ip source) network netmask)
        (if (network-member-p (host-ip dest) network netmask)
