@@ -302,20 +302,26 @@ div.config-section td {
     padding-bottom:5px;
 }
 
+div.config-section table.input tr.rowa {
+  background-color:#aaffff;
+}
+div.config-section table.input tr.rowb {
+  background-color:#ccffff;
+}
+
 div.config-section table.sources td,
 div.config-section table.input td {
   width:auto;
   padding:7px;
   text-align:center;
-  background-color:#eee;
-  border:1px solid #ccc;
+  border:1px solid #999;
 }
 
 div.config-section table.input th {
   text-align:center;
   padding:5px;
-  background-color:#ddd;
-  border:1px solid #bbb;
+  background-color:#9FC3EE;
+  border:1px solid #666;
 }
 
 div.config-section th {
