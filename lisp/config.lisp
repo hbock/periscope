@@ -52,7 +52,9 @@
   "Write the configuration data to a stream."
   (format stream "~S~%"
 	  (symbol-value-setf-forms
-	   '(*web-port* *web-show-diag* hunchentoot:*show-lisp-errors-p*
+	   '(*web-port* *web-show-diag*
+	     *web-login-required-p*
+	     hunchentoot:*show-lisp-errors-p*
 	     *swank-port* *enable-swank-p*
 	     *notable-ports*
 	     *internal-network* *internal-netmask*
