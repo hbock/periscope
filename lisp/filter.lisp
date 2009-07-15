@@ -90,6 +90,6 @@ one filtered list per predicate."
 	     :finally (setf subnets (nreverse subnets))))))
     `(make-instance 'filter :title ,title :vlans (list ,@vlans) :subnets (list ,@subnets)
 		    :predicate (lambda (flow)
-				 (or (funcall (apply #'vlan-filter (list ,@vlans)) flow))
-				 (or (funcall (apply #'subnet-filter (list ,@subnets)) flow))))))
+				 (or (funcall (apply #'vlan-filter (list ,@vlans)) flow)
+				     (funcall (apply #'subnet-filter (list ,@subnets)) flow))))))
 
