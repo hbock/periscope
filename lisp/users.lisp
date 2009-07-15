@@ -31,9 +31,11 @@
    (session :accessor session :initform nil)))
 
 (defmethod filter-predicates ((user web-user))
+  "Return all filter predicates defined for user."
   (mapcar #'filter-predicate (filters user)))
 
 (defun hash-sequence (sequence)
+  "Return the 16-byte MD5 sum of sequence.  Essentially a wrapper around MD5:MD5SUM-SEQUENCE."
   (md5:md5sum-sequence sequence))
 
 (defun create-login (username password display-name &key (title "User") admin)
@@ -57,6 +59,8 @@ as an MD5 sum."
 	  (setf (gethash username *web-user-db*) user)))))
 
 (defun user (&optional username)
+  "Return the user with the given username, or if no parameter is provided, returns the currently
+logged-in user.  If no user is logged in, returns NIL."
   (if username
       (gethash username *web-user-db*)
       (when (boundp 'hunchentoot:*session*)
@@ -97,11 +101,13 @@ as an MD5 sum."
      :collect user))
 
 (defun logout (&optional (user (user)))
+  "Log out a particular user from the web interface; default is to log out the current user."
   (when (and user (session user))
     (hunchentoot:remove-session (session user))
     (setf (session user) nil)))
 
 (defmethod logged-in-p ((user web-user))
+  "Returns true if user is currently logged in to the web interface."
   (not (null (session user))))
 
 (defun create-login-forms (&optional (db *web-user-db*))
