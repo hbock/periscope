@@ -198,6 +198,13 @@ below." (username user)))))
      (:tr
       (:td "Administrator privileges")
       (:td (checkbox "configp" :checked (when user (admin-p user)))))
+     (:tr (:th :colspan 2 (str (if user "Add new filter:" "Initial traffic filter:"))))
+     (:tr
+      (:td "Subnet Filter (CIDR notation)")
+      (:td (input "subnet" "" :size 40)))
+     (:tr
+      (:td "VLAN Filter")
+      (:td (input "vlan" "" :size 20)))
      (when (string= error "subnet")
        (error-message "Invalid CIDR network specification!"))
      (when (and user (filters user))
@@ -208,22 +215,20 @@ below." (username user)))))
 			(mapcar (lambda (subnet)
 				  (ip-string (car subnet) (cdr subnet)))
 				(slot-value filter 'subnets)))))
-	 (dolist (filter (filters user))
-	   (htm
-	    (:tr (:th :colspan 2 (fmt "Filter '~a'" (filter-title filter))))
-	    (:tr
-	     (:td "Subnet Filter (CIDR notation)")
-	     (:td (input "subnet" (print-subnets filter) :size 40)))
-	    (:tr
-	     (:td "VLAN Filter")
-	     (:td (input "vlan" (print-vlans filter) :size 20)))))))
-     (:tr (:th :colspan 2 (str (if user "Add new filter:" "Initial traffic filter:"))))
-     (:tr
-      (:td "Subnet Filter (CIDR notation)")
-      (:td (input "subnet" "" :size 40)))
-     (:tr
-      (:td "VLAN Filter")
-      (:td (input "vlan" "" :size 20))))
+	 (htm
+	  (:tr (:th :colspan 2 "Edit Filters"))
+	  (:tr
+	   (:td
+	    :colspan 2
+	    (:table
+	     :class "input"
+	     (:tr (:th "Title") (:th "Subnet Filters") (:th "VLAN filters"))
+	     (dolist (filter (filters user))
+	       (htm
+		(:tr
+		 (:td (input "title" (filter-title filter)))
+		 (:td (input "subnet" (print-subnets filter) :size 40))
+		 (:td (input "vlan" (print-vlans filter) :size 20))))))))))))
     (:br)
     (:input :type "submit" :value "Commit Changes")))
 
