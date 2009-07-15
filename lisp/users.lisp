@@ -126,7 +126,11 @@ currently set up (for configuration purposes)."
 	    ,@(loop :for filter :in (filters user) :collect
 		 (with-slots (vlans subnets title) filter
 		   `(make-filter (,title)
-		      ,(when vlans `(:vlan ,@vlans)))))))))
+		      ,(when vlans `(:vlan ,@vlans))
+		      ,(when subnets
+			     `(:subnet
+			       ,@(loop :for (network . netmask) :in subnets :collect
+				    `(,network ,netmask)))))))))))
 
 (hunchentoot:define-easy-handler (login :uri "/login")
     (denied redirect)
@@ -187,19 +191,28 @@ currently set up (for configuration purposes)."
      (:tr
       (:td "Password (re-type)")
       (:td (password-input "password2")))
-
-     (:tr (:th :colspan 2 "Permissions and Filters"))
-     (when (string= error "subnet")
-       (error-message "Invalid CIDR network specification!"))
-     (:tr
-      (:td "Subnet Filter (CIDR notation)")
-      (:td (input "subnet" "" :size 40)))
-     (:tr
-      (:td "VLAN Filter")
-      (:td (input "vlan" "" :size 20)))
      (:tr
       (:td "Administrator privileges")
-      (:td (checkbox "configp" :checked (when user (admin-p user))))))
+      (:td (checkbox "configp" :checked (when user (admin-p user)))))
+     (when (string= error "subnet")
+       (error-message "Invalid CIDR network specification!"))
+     (when (and user (filters user))
+       (flet ((print-vlans (filter)
+		(format nil "~{~a~^, ~}" (slot-value filter 'vlans)))
+	      (print-subnets (filter)
+		(format nil "~{~a~^, ~}"
+			(mapcar (lambda (subnet)
+				  (ip-string (car subnet) (cdr subnet)))
+				(slot-value filter 'subnets)))))
+	 (dolist (filter (filters user))
+	   (htm
+	    (:tr (:th :colspan 2 (fmt "Filter '~a'" (filter-title filter))))
+	    (:tr
+	     (:td "Subnet Filter (CIDR notation)")
+	     (:td (input "subnet" (print-subnets filter) :size 40)))
+	    (:tr
+	     (:td "VLAN Filter")
+	     (:td (input "vlan" (print-vlans filter) :size 20))))))))
     (:br)
     (:input :type "submit" :value "Commit Changes")))
 
