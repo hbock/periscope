@@ -23,8 +23,14 @@
 
 ;; Version and compilation time
 (defvar *compilation-time* (now))
+;;; And
+;;;    here
+;;;        we
+;;;          GO!
 (defvar *periscope-version*
-  (format nil "0.9.92 (pre-alpha, build ~a)" (iso8661-date-string *compilation-time*)))
+  (format nil "0.9.92 (pre-alpha, build ~a)"
+	  (format-timestring nil *compilation-time*
+			     :format '((:year 4) #\- (:month 2) #\- (:day 2)))))
 
 
 ;; Configuration
