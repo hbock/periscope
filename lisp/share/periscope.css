@@ -42,6 +42,10 @@ p {
 .error {
   color:red;
 }
+.success {
+  font-weight:bold;
+  color:#000055;
+}
 .denied {
   font-weight:bold;
   color:#990000;
