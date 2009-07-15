@@ -41,11 +41,13 @@
        (or (find (host-vlan (source flow)) vlan* :test #'=)
 	   (find (host-vlan (dest flow))   vlan* :test #'=))))))
 
-(defun netmask-filter (network netmask)
-  (declare (type (unsigned-byte 32) network netmask))
+(defun subnet-filter (&rest subnet*)
   (lambda (flow)
-    (or (network-member-p (host-ip (source flow)) network netmask)
-	(network-member-p (host-ip (dest flow)) network netmask))))
+    (or
+     (some (lambda (subnet)
+	     (network-member-p (host-ip (source flow)) (car subnet) (cdr subnet))) subnet*)
+     (some (lambda (subnet)
+	     (network-member-p (host-ip (dest flow)) (car subnet) (cdr subnet))) subnet*))))
 
 (defun apply-filters (sequence predicate-list &key key)
   "Apply each predicate in predicate-list once to each element in sequence, returning
@@ -80,8 +82,14 @@ one filtered list per predicate."
 	  (loop :for vlan :in (rest filter-desc) :do
 	     (if (valid-vlan-p vlan)
 		 (push vlan vlans)
-		 (error "~a is not a valid VLAN identifer!" vlan))))
-	 (:subnet nil)))
-    `(make-instance 'filter :title ,title :vlans (list ,@vlans)
+		 (error "~a is not a valid VLAN identifer!" vlan))
+	     :finally (setf vlans (sort vlans #'<))))
+	 (:subnet
+	  (loop :for (network netmask) :in (rest filter-desc) :do
+	     (push `(cons ,network ,netmask) subnets)
+	     :finally (setf subnets (nreverse subnets))))))
+    `(make-instance 'filter :title ,title :vlans (list ,@vlans) :subnets (list ,@subnets)
 		    :predicate (lambda (flow)
-				 (or (funcall (apply #'vlan-filter (list ,@vlans)) flow))))))
+				 (or (funcall (apply #'vlan-filter (list ,@vlans)) flow))
+				 (or (funcall (apply #'subnet-filter (list ,@subnets)) flow))))))
+
