@@ -31,16 +31,16 @@
 	  (loop
 	     for i from 0 upto (length time-list)
 	     for report in reports do
-	       (print-html report)
-	       (htm
-		(:table
-		 (:tr (:th :colspan 4 "Source") (:th :colspan 4 "Destination")
-		      (:th :colspan 3 "Flow information"))
-		 (:tr (:th "IP") (:th "Port") (:th "Packets") (:th "VLAN")
-		      (:th "IP") (:th "Port") (:th "Packets") (:th "VLAN")
-		      (:th "Protocol") (:th "First Seen") (:th "Last Seen"))
-		 (loop :for flow :in (nth i time-list) :repeat 100 :do
-		    (print-html flow)))))))))))
+	     (print-html report)
+	     (htm
+	      (:table
+	       (:tr (:th :colspan 4 "Source") (:th :colspan 4 "Destination")
+		    (:th :colspan 3 "Flow information"))
+	       (:tr (:th "IP") (:th "Port") (:th "Packets") (:th "VLAN")
+		    (:th "IP") (:th "Port") (:th "Packets") (:th "VLAN")
+		    (:th "Protocol") (:th "First Seen") (:th "Last Seen"))
+	       (loop :for flow :in (nth i time-list) :repeat 100 :do
+		  (print-html flow)))))))))))
 
 (define-report-handler (test "/vlan-test" "VLAN Filter Test") ()
   (with-periscope-page ("VLAN Filter Test")
@@ -48,7 +48,7 @@
     (when *flow-list*
       (let* ((filtered-flows
 	      (if (and (user) (filters (user)))
-		  (apply-filters *flow-list* (filters (user)))
+		  (apply-filters *flow-list* (filter-predicates (user)))
 		  (list *flow-list*)))
 	     (reports
 	      (mapcar (lambda (list)
@@ -56,9 +56,14 @@
 	(htm
 	 (:div
 	  :class "stats"
-	  (loop
-	     for report in reports do
-	     (print-html report))
+	  (if (user)
+	      (loop
+		 for report in reports
+		 for filter in (filters (user)) do
+		 (print-html report :filter filter))
+	      (loop
+		 for report in reports do
+		 (print-html report)))
 	  (:h3 "First 100 Flows")
 	  (print-flows (first filtered-flows))))))))
 
