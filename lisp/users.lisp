@@ -164,8 +164,12 @@ currently set up (for configuration purposes)."
 	(:input :type "submit" :value "Login")))))
 
 
-(defun edit-user-form (title action &key user error)
+(defun edit-user-form (title action &key user error new)
   (with-config-form ("/set-user-config" title action)
+    (when new
+      (htm (:p :class "success"
+	       (fmt "User ~a added successfully! You may add traffic filters for this user
+below." (username user)))))
     (:table
      (:tr (:th :colspan 2 "Login Information"))
      (when (string= error "username")
@@ -212,16 +216,23 @@ currently set up (for configuration purposes)."
 	     (:td (input "subnet" (print-subnets filter) :size 40)))
 	    (:tr
 	     (:td "VLAN Filter")
-	     (:td (input "vlan" (print-vlans filter) :size 20))))))))
+	     (:td (input "vlan" (print-vlans filter) :size 20)))))))
+     (:tr (:th :colspan 2 (str (if user "Add new filter:" "Initial traffic filter:"))))
+     (:tr
+      (:td "Subnet Filter (CIDR notation)")
+      (:td (input "subnet" "" :size 40)))
+     (:tr
+      (:td "VLAN Filter")
+      (:td (input "vlan" "" :size 20))))
     (:br)
     (:input :type "submit" :value "Commit Changes")))
 
-(hunchentoot:define-easy-handler (edit-user :uri "/edit-user") (error user)
+(hunchentoot:define-easy-handler (edit-user :uri "/edit-user") (error user new)
   (with-periscope-page ("Edit User" :admin t)
     (let ((user (user user)))
       (if user
 	  (edit-user-form (format nil "Edit User [~a]" (username user)) "edituser"
-			  :user user :error error)
+			  :user user :error error :new (string= new "true"))
 	  (hunchentoot:redirect "/users")))))
 
 ;;; Errors:
@@ -348,9 +359,9 @@ of integers corresponding to these numbers.  Duplicate and invalid VLAN IDs are 
 	    (parse-error (e)
 	      (declare (ignore e))
 	      (error-redirect "subnet")))))
-
+       
        (create-login username password1 displayname :admin (not (null configp)))
-       (error-redirect "success" :add username))))
+       (hunchentoot:redirect (format nil "/edit-user?user=~a&new=true" username)))))
   
   (when (string= action "edituser")
     (let ((*redirect-page* "/edit-user")
