@@ -60,7 +60,10 @@
 	     *internal-network* *internal-netmask*
 	     *dns-available-p*)))
   (format stream "~S~%" (dump-hash-tables '(*vlan-names*)))
-  (format stream "~S~%" (create-login-forms)))
+  (format stream "~S~%" (create-login-forms))
+  (dolist (user (user-list))
+    ;; Only print the MAKE-FILTER forms if the user has filters.
+    (format stream "~:[~;~:*~S~%~]" (create-filter-forms user))))
 
 (defun symbol-value-setf-forms (symbol-list)
   "Given a list of symbols, construct a SETF form that will properly set all relevant values."
