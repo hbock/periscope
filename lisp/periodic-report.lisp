@@ -165,10 +165,22 @@
 	  (print-html (combine-stats (receiving host) (sending host)) :type :busiest-hosts)))
 	(setf row-switch (not row-switch))))))
 
-(defmethod print-html ((report periodic-report) &key (title "Periodic Report"))
+(defmethod print-html ((report periodic-report) &key title filter)
   (with-html-output (*standard-output*)
-    (:h3 (str title))
+    (when title (htm (:h3 (str title))))
     (with-slots (host-stats) report
+      (when filter
+	(with-slots (title vlans subnets) filter
+	  (htm
+	   (:h3 (str (filter-title filter)))
+	   (when vlans
+	     (htm (:b "VLANs: ") (fmt "~{~a~^, ~}" (mapcar #'vlan-name vlans)))) (:br)
+	   (when subnets
+	     (htm (:b "Subnets: ")
+		  (fmt "~{~a~^, ~}"
+		       (loop :for (network . netmask) :in subnets :collect
+			  (ip-string network netmask))))))))
+      
       (htm (:p
 	    (fmt "Report generated at ~a" (iso8661-date-string
 					   (local-time:universal-to-timestamp
