@@ -30,6 +30,9 @@
    (filters :accessor filters :initform nil)
    (session :accessor session :initform nil)))
 
+(defmethod filter-predicates ((user web-user))
+  (mapcar #'filter-predicate (filters user)))
+
 (defun hash-sequence (sequence)
   (md5:md5sum-sequence sequence))
 
