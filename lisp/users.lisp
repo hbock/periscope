@@ -127,10 +127,10 @@ currently set up (for configuration purposes)."
 		 (with-slots (vlans subnets title) filter
 		   `(make-filter (,title)
 		      ,(when vlans `(:vlan ,@vlans))
-		      ,(when subnets
-			     `(:subnet
-			       ,@(loop :for (network . netmask) :in subnets :collect
-				    `(,network ,netmask)))))))))))
+		      ,@(when subnets
+			      `((:subnet
+				  ,@(loop :for (network . netmask) :in subnets :collect
+				       `(,network ,netmask))))))))))))
 
 (hunchentoot:define-easy-handler (login :uri "/login")
     (denied redirect)
