@@ -102,17 +102,33 @@ as an MD5 sum."
   (not (null (session user))))
 
 (defun create-login-forms (&optional (db *web-user-db*))
+  "Output forms that, when evaluated, re-create the web user database (for configuration purposes)."
   `(progn
      ,@(loop :for username :being :the :hash-keys :in db :using (:hash-value user) :collect
 	  `(create-login ,username ,(password-hash user) ,(display-name user)
 			 :admin ,(admin-p user)))))
 
+(defmethod create-filter-forms ((user web-user))
+  "Output forms that, when evaluated, set up the users' flow filters exactly as they are
+currently set up (for configuration purposes)."
+  (when (filters user)
+    `(setf (filters (user ,(username user)))
+	   (list
+	    ,@(loop :for filter :in (filters user) :collect
+		 (with-slots (vlans subnets title) filter
+		   `(make-filter (,title)
+		      ,(when vlans `(:vlan ,@vlans)))))))))
+
 (hunchentoot:define-easy-handler (login :uri "/login")
     (denied redirect)
   
+  ;; Don't allow access to the login page if there are no users, or if a user is already
+  ;; logged in.
   (unless (and (null (user)) (login-available-p))
     (hunchentoot:redirect "/"))
   
+  ;; Shadow *WEB-LOGIN-REQUIRED-P* to force the login page to be available even when
+  ;; logins are required for all pages.  A bit of a hack...
   (let ((*web-login-required-p* nil))
     (with-periscope-page ("Login")
       (cond
@@ -263,7 +279,6 @@ account." :table nil))
     (if (and redirect (valid-session-p))
 	(hunchentoot:redirect redirect)
 	(hunchentoot:redirect "/"))))
-
 
 (defun vlans-from-string (vlan-string)
   "Take a string of VLAN identifiers, separated by spaces and/or commas, and return a sorted list
