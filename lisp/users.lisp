@@ -129,8 +129,8 @@ currently set up (for configuration purposes)."
 		      ,(when vlans `(:vlan ,@vlans))
 		      ,@(when subnets
 			      `((:subnet
-				  ,@(loop :for (network . netmask) :in subnets :collect
-				       `(,network ,netmask))))))))))))
+				 ,@(loop :for (network . netmask) :in subnets :collect
+				      `(,network ,netmask))))))))))))
 
 (hunchentoot:define-easy-handler (login :uri "/login")
     (denied redirect)
@@ -195,6 +195,8 @@ below." (username user)))))
      (:tr
       (:td "Password (re-type)")
       (:td (password-input "password2")))
+     (when (string= error "unadminself")
+       (error-message "You can not remove administrator privileges from your own account!"))
      (:tr
       (:td "Administrator privileges")
       (:td (checkbox "configp" :checked (when user (admin-p user)))))
