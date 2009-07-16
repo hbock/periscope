@@ -196,14 +196,15 @@ solely of whitespace."
 		       (setf string rest)))
     (nreverse tokens)))
 
-(defun parse-integer-list (string remove-predicate)
-  "Parse string into a list of integers, separated by commas and/or spaces, removing
-duplicates and any entries that match remove-predicate."
-  (sort
-   (remove-if
-    remove-predicate
-    (remove-duplicates
-     (mapcar (lambda (integer)
-	       (parse-integer integer :junk-allowed t))
-	     (tokenize string '(#\Space #\, #\Tab #\Newline)))))
-   #'<))
+(defun parse-integer-list (string regex bad-predicate)
+  "Parse string into a list of integers, separated by commas and/or spaces, removing duplicates.
+If string is not matched by regex, or any entry matches bad-predicate, this function signals a
+PARSE-ERROR."
+  (unless (ppcre:scan regex string)
+    (error 'parse-error))
+  (let ((integers
+	 (mapcar (lambda (integer) (parse-integer integer :junk-allowed t))
+		 (tokenize string '(#\Space #\, #\Tab #\Newline)))))
+    (when (some bad-predicate integers)
+      (error 'parse-error))
+    (sort (remove-duplicates integers) #'<)))
