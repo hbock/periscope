@@ -152,10 +152,13 @@ solely of whitespace."
     (:label :for name (str off))
     (:input :type "radio" :name name :value "false" :checked (not default))))
 
-(defun checkbox (name &key (value name) (checked nil))
+(defun input-name (name &optional index)
+  (format nil "~a~:[~;~:*[~d]~]" name index))
+
+(defun checkbox (name &key (value name) (checked nil) index)
   "Generate an HTML checkbox."
   (with-html-output (*standard-output*)
-    (:input :type "checkbox" :name name :value value :checked checked)))
+    (:input :type "checkbox" :name (input-name name index) :value value :checked checked)))
 
 (defun submit (&optional text)
   (with-html-output (*standard-output*)
@@ -165,12 +168,12 @@ solely of whitespace."
   (with-html-output (*standard-output*)
     (when label
       (htm (:label :for name (str label))))
-    (let ((name (if index (format nil "~a[~d]" name index) name)))
-      (htm (:input :type "text" :name name :value default :size size :disabled disabled)))))
+    (:input :type "text" :name (input-name name index)
+	    :value default :size size :disabled disabled)))
 
-(defun password-input (name &key default (size 20))
+(defun password-input (name &key default (size 20) index)
   (with-html-output (*standard-output*)
-    (:input :type "password" :name name :value default :size size)))
+    (:input :type "password" :name (input-name name index) :value default :size size)))
 
 (defun next-token (string &optional (char-bag '(#\Space #\Tab)))
   (let ((string (string-left-trim char-bag string)))
