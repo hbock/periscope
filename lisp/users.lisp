@@ -171,7 +171,7 @@ currently set up (for configuration purposes)."
 	       (fmt "User ~a added successfully! You may add traffic filters for this user
 below." (username user)))))
     (:table
-     (:tr (:th :colspan 2 "Login Information"))
+     (:tr (:th :colspan 2 "Login Information") (:th))
      (when (string= error "username")
        (error-message "You must specify a username."))
      (if user
@@ -202,11 +202,15 @@ below." (username user)))))
       (:td (checkbox "configp" :checked (when user (admin-p user)))))
      (:tr (:th :colspan 2 (str (if user "Add new filter:" "Initial traffic filter:"))))
      (:tr
+      (:td "Filter Title")
+      (:td (input "title[0]" "" :size 30)))
+     (:tr
       (:td "Subnet Filter (CIDR notation)")
-      (:td (input "subnet" "" :size 40)))
+      (:td (input "subnet[0]" "" :size 30)))
      (:tr
       (:td "VLAN Filter")
-      (:td (input "vlan" "" :size 20)))
+      (:td (input "vlan[0]" "" :size 30)))
+     
      (when (string= error "subnet")
        (error-message "Invalid CIDR network specification!"))
      (when (and user (filters user))
@@ -221,18 +225,20 @@ below." (username user)))))
 	  (:tr (:th :colspan 2 "Edit Filters"))
 	  (:tr
 	   (:td
-	    :colspan 2
+	    :colspan 3
 	    (:table
 	     :class "input"
-	     (:tr (:th "Title") (:th "Subnet Filters") (:th "VLAN filters"))
-	     (dolist (filter (filters user))
-	       (htm
-		(:tr
-		 (:td (input "title" (filter-title filter)))
-		 (:td (input "subnet" (print-subnets filter) :size 40))
-		 (:td (input "vlan" (print-vlans filter) :size 20))))))))))))
+	     (:tr (:th "Title") (:th "Subnet Filters") (:th "VLAN filters") (:th "Delete"))
+	     (loop :for i = 1 :then (1+ i)
+		:for filter :in (filters user) :do
+		(htm
+		 (:tr
+		  (:td (input "title" (filter-title filter) :index i :size 30))
+		  (:td (input "subnet" (print-subnets filter) :index i :size 30))
+		  (:td (input "vlan" (print-vlans filter) :index i :size 30))
+		  (:td (checkbox "delete" :index i))))))))))))
     (:br)
-    (:input :type "submit" :value "Commit Changes")))
+    (submit "Commit Changes")))
 
 (hunchentoot:define-easy-handler (edit-user :uri "/edit-user") (error user new)
   (with-periscope-page ("Edit User" :admin t)
@@ -276,19 +282,18 @@ account." :table nil))
 	 (:tr (:th "Username ") (:th "Display Name") (:th "Administrator")
 	      (:th "Edit User") (:th "Remove User"))
 	 (loop
-	    :with i = 0
+	    :for i = 0 :then (1+ i)
 	    :for user :in (user-list) :do
 	    (let ((username (username user)))
 	      (htm
 	       (:tr
 		(:td
 		 (:b (str username))
-		 (:input :type "hidden" :name (format nil "user[~d]" i) :value username))
+		 (hidden "user" username :index i))
 		(:td (str (display-name user)))
 		(:td (str (if (admin-p user) "Yes" "No")))
 		(:td (:a :href (format nil "/edit-user?user=~a" username) "Edit"))
-		(:td (checkbox (format nil "delete[~d]" i) :value username))))
-	      (incf i))))
+		(:td (checkbox "delete" :index i :value "true")))))))
 	(:br)
 	(:input :type "submit" :value "Apply Configuration")))
 
@@ -326,11 +331,13 @@ of integers corresponding to these numbers.  Duplicate and invalid VLAN IDs are 
   (parse-integer-list vlan-string (lambda (vlan) (or (zerop vlan) (> vlan 4095)))))
 
 (hunchentoot:define-easy-handler (set-user-config :uri "/set-user-config")
-    (action username displayname password1 password2 subnet vlan configp
+    (action username displayname password1 password2 configp
 	    required
-	    (user :parameter-type 'array)
+	    (user   :parameter-type 'array)
 	    (delete :parameter-type 'array)
-	    (admin  :parameter-type 'array))
+	    (title :parameter-type 'array)
+	    (subnet :parameter-type 'array)
+	    (vlan   :parameter-type 'array))
   (valid-session-or-lose :admin t)
 
   (let ((*redirect-page* "/users"))
@@ -380,20 +387,36 @@ of integers corresponding to these numbers.  Duplicate and invalid VLAN IDs are 
 	((empty-string-p displayname)
 	 (error-redirect "dispname" :user username))
 
-	((not (empty-string-p password1 password2))
-	 (unless (string= password1 password2)
-	   (error-redirect "passmatch" :user username))
-	 (setf (password-hash user) (hash-sequence password1))))
+	((and (not (empty-string-p password1 password2)) (string/= password1 password2))
+	 (error-redirect "passmatch" :user username))
 
-      (if (string= username (username (user)))
+	((/= (length title) (length subnet) (length vlan))
+	 (hunchentoot:redirect (format nil "/edit-user?user=~a" username)))
+
+	((some #'empty-string-p title)
+	 (error-redirect "badtitle" :filter (position-if #'empty-string-p title))))
+
+      (if (and (null configp) (string= username (username (user))))
 	  (error-redirect "unadminself")
 	  (setf (admin-p user) (not (null configp))))
 
+      (when (not (empty-string-p password1 password2))
+	(setf (password-hash user) (hash-sequence password1)))
+      
       (setf (display-name user) displayname)
+       
+      (loop :for i :from 0 :below (length title) :do
+	 (let ((vlans (vlans-from-string (aref vlan i)))
+	       subnets)
+	   (push
+	    (make-instance 'filter
+			   :title (aref title i) :vlans vlans
+			   :predicate (vlan-list-filter vlans))
+	    (filters user))))
       
       (save-config)
-      (let ((*redirect-page* "/users"))
-	(error-redirect "success" :edit (username user)))))
+      (let ((*redirect-page* "/edit-user"))
+	(error-redirect "success" :user (username user)))))
   
   (save-config)
   (hunchentoot:redirect "/users?error=success"))
