@@ -155,6 +155,10 @@ solely of whitespace."
 (defun input-name (name &optional index)
   (format nil "~a~:[~;~:*[~d]~]" name index))
 
+(defun hidden (name value &key index)
+  (with-html-output (*standard-output*)
+    (:input :type "hidden" :name (input-name name index) :value value)))
+
 (defun checkbox (name &key (value name) (checked nil) index)
   "Generate an HTML checkbox."
   (with-html-output (*standard-output*)
