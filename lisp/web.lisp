@@ -161,11 +161,12 @@ solely of whitespace."
   (with-html-output (*standard-output*)
     (:input :type "submit" :value text)))
 
-(defun input (name default &key (size 20) label disabled)
+(defun input (name default &key (size 20) label disabled index)
   (with-html-output (*standard-output*)
     (when label
       (htm (:label :for name (str label))))
-    (:input :type "text" :name name :value default :size size :disabled disabled)))
+    (let ((name (if index (format nil "~a[~d]" name index) name)))
+      (htm (:input :type "text" :name name :value default :size size :disabled disabled)))))
 
 (defun password-input (name &key default (size 20))
   (with-html-output (*standard-output*)
