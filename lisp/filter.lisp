@@ -26,8 +26,14 @@
 	      :initform (lambda (flow)
 			  (declare (ignore flow)) t))))
 
-(defun valid-vlan-p (vlan)
+(defun vlan-p (vlan)
   (typep vlan 'vlan-id))
+
+(defun vlan-list-filter (vlans)
+  (unless (every #'vlan-p))
+  (lambda (flow)
+    (or (find (host-vlan (source flow)) vlans :test #'=)
+	(find (host-vlan (dest flow))   vlans :test #'=))))
 
 (defun vlan-filter (&rest vlan*)
   (cond
@@ -36,10 +42,7 @@
        (lambda (flow)
 	 (or (= vlan (host-vlan (source flow)))
 	     (= vlan (host-vlan (dest flow)))))))
-    (t
-     (lambda (flow)
-       (or (find (host-vlan (source flow)) vlan* :test #'=)
-	   (find (host-vlan (dest flow))   vlan* :test #'=))))))
+    (t (vlan-list-filter vlan*))))
 
 (defun subnet-filter (&rest subnet*)
   (lambda (flow)
@@ -80,7 +83,7 @@ one filtered list per predicate."
        (ecase (first filter-desc)
 	 (:vlan
 	  (loop :for vlan :in (rest filter-desc) :do
-	     (if (valid-vlan-p vlan)
+	     (if (vlan-p vlan)
 		 (push vlan vlans)
 		 (error "~a is not a valid VLAN identifer!" vlan))
 	     :finally (setf vlans (sort vlans #'<))))
