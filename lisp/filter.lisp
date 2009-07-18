@@ -64,7 +64,7 @@
 	       ((null subnets)
 		(vlan-list-filter vlans))
 	       ((null vlans)
-		(subnet-filter subnets))
+		(subnet-list-filter subnets))
 	       (t
 		(let ((vlan-predicate (vlan-list-filter vlans))
 		      (subnet-predicate (subnet-list-filter subnets)))
