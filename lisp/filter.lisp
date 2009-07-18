@@ -45,13 +45,33 @@
 	     (= vlan (host-vlan (dest flow)))))))
     (t (vlan-list-filter vlan*))))
 
-(defun subnet-filter (&rest subnet*)
+(defun subnet-list-filter (subnet*)
   (lambda (flow)
     (or
      (some (lambda (subnet)
 	     (network-member-p (host-ip (source flow)) (car subnet) (cdr subnet))) subnet*)
      (some (lambda (subnet)
 	     (network-member-p (host-ip (dest flow)) (car subnet) (cdr subnet))) subnet*))))
+
+(defun subnet-filter (&rest subnets)
+  (subnet-list-filter subnets))
+
+(defun make-generic-filter (title &key vlans subnets)
+  (let ((predicate
+	 (cond ((not (or vlans subnets))
+		(lambda (flow)
+		  (declare (ignore flow)) t))
+	       ((null subnets)
+		(vlan-list-filter vlans))
+	       ((null vlans)
+		(subnet-filter subnets))
+	       (t
+		(let ((vlan-predicate (vlan-list-filter vlans))
+		      (subnet-predicate (subnet-list-filter subnets)))
+		  (lambda (flow)
+		    (or (funcall vlan-predicate flow)
+			(funcall subnet-predicate flow))))))))
+    (make-instance 'filter :title title :vlans vlans :subnets subnets :predicate predicate)))
 
 (defun apply-filters (sequence predicate-list &key key)
   "Apply each predicate in predicate-list once to each element in sequence, returning
@@ -92,8 +112,6 @@ one filtered list per predicate."
 	  (loop :for (network netmask) :in (rest filter-desc) :do
 	     (push `(cons ,network ,netmask) subnets)
 	     :finally (setf subnets (nreverse subnets))))))
-    `(make-instance 'filter :title ,title :vlans (list ,@vlans) :subnets (list ,@subnets)
-		    :predicate (lambda (flow)
-				 (or (funcall (apply #'vlan-filter (list ,@vlans)) flow)
-				     (funcall (apply #'subnet-filter (list ,@subnets)) flow))))))
+    `(make-generic-filter
+      :title ,title :vlans (list ,@vlans) :subnets (list ,@subnets))))
 
