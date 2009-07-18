@@ -236,7 +236,7 @@ below." (username user)))))
 		  (:td (input "title" (filter-title filter) :index i :size 30))
 		  (:td (input "subnet" (print-subnets filter) :index i :size 30))
 		  (:td (input "vlan" (print-vlans filter) :index i :size 30))
-		  (:td (checkbox "delete" :index i))))))))))))
+		  (:td (checkbox "delete" :index i :value "true"))))))))))))
     (:br)
     (submit "Commit Changes")))
 
@@ -328,11 +328,37 @@ account." :table nil))
 (defun vlans-from-string (vlan-string)
   "Take a string of VLAN identifiers, separated by spaces and/or commas, and return a sorted list
 of integers corresponding to these numbers.  Duplicate and invalid VLAN IDs are removed."
-  (parse-integer-list vlan-string "^(\\d{1,4}( *|(, *)))+$"
-		      (lambda (vlan) (or (zerop vlan) (> vlan 4095)))))
+  (parse-integer-list vlan-string "^(\\d{1,4}( *|(, *)))+$" (complement #'vlan-p)))
 
 (defun subnets-from-string (subnet-string)
-  nil)
+  (loop :for subnet :in
+     (tokenize subnet-string (list #\Space #\Tab #\,)) :collect
+     (multiple-value-bind (network netmask)
+	 (parse-ip-string subnet)
+       (cons network netmask))))
+
+(defun parse-generic-filters (title-array subnet-array vlan-array delete-array)
+  (declare (type array title-array subnet-array vlan-array delete-array))
+
+  (let (filters)
+    (loop :for i :from 0 :below (length title-array)
+       :for title = (aref title-array i)
+       :for vlan-string = (aref vlan-array i)
+       :for subnet-string = (aref subnet-array i)
+       :for delete-p = (and (plusp i)
+			    (< i (length delete-array))
+			    (string= "true" (aref delete-array i)))
+       :unless (or delete-p (empty-string-p title vlan-string subnet-string)) :do
+       (handler-case
+	   (let ((vlans (unless (empty-string-p vlan-string)
+			  (vlans-from-string vlan-string)))
+		 (subnets (unless (empty-string-p subnet-string)
+			    (subnets-from-string subnet-string))))
+	     (push (make-generic-filter title :vlans vlans :subnets subnets) filters))
+	 (parse-error (e)
+	   (declare (ignore e))
+	   (error-redirect "badfilter" :filter i))))
+    (nreverse filters)))
 
 (hunchentoot:define-easy-handler (set-user-config :uri "/set-user-config")
     (action username displayname password1 password2 configp
@@ -369,14 +395,7 @@ of integers corresponding to these numbers.  Duplicate and invalid VLAN IDs are 
 	  (error-redirect "nopassword"))
        
 	 ((string/= password1 password2)
-	  (error-redirect "passmatch"))
-       
-	 ((and subnet (plusp (length subnet)))
-	  (handler-case
-	      (parse-ip-string subnet)
-	    (parse-error (e)
-	      (declare (ignore e))
-	      (error-redirect "subnet")))))
+	  (error-redirect "passmatch")))
        
        (create-login username password1 displayname :admin (not (null configp)))
        (hunchentoot:redirect (format nil "/edit-user?user=~a&new=true" username)))))
@@ -397,8 +416,8 @@ of integers corresponding to these numbers.  Duplicate and invalid VLAN IDs are 
 	((/= (length title) (length subnet) (length vlan))
 	 (hunchentoot:redirect (format nil "/edit-user?user=~a" username)))
 
-	((some #'empty-string-p title)
-	 (error-redirect "badtitle" :filter (position-if #'empty-string-p title))))
+	((find-if #'empty-string-p title :start 1)
+	 (error-redirect "badtitle" :filter (position-if #'empty-string-p title :start 1))))
 
       (if (and (null configp) (string= username (username (user))))
 	  (error-redirect "unadminself")
@@ -408,15 +427,7 @@ of integers corresponding to these numbers.  Duplicate and invalid VLAN IDs are 
 	(setf (password-hash user) (hash-sequence password1)))
       
       (setf (display-name user) displayname)
-       
-      (loop :for i :from 0 :below (length title) :do
-	 (let ((vlans (vlans-from-string (aref vlan i)))
-	       subnets)
-	   (push
-	    (make-instance 'filter
-			   :title (aref title i) :vlans vlans
-			   :predicate (vlan-list-filter vlans))
-	    (filters user))))
+      (setf (filters user) (parse-generic-filters title subnet vlan delete))
       
       (save-config)
       (let ((*redirect-page* "/edit-user"))
