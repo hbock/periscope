@@ -36,15 +36,6 @@
     (or (find (host-vlan (source flow)) vlans :test #'=)
 	(find (host-vlan (dest flow))   vlans :test #'=))))
 
-(defun vlan-filter (&rest vlan*)
-  (cond
-    ((null (cdr vlan*))
-     (let ((vlan (car vlan*)))
-       (lambda (flow)
-	 (or (= vlan (host-vlan (source flow)))
-	     (= vlan (host-vlan (dest flow)))))))
-    (t (vlan-list-filter vlan*))))
-
 (defun subnet-list-filter (subnet*)
   (lambda (flow)
     (or
@@ -52,9 +43,6 @@
 	     (network-member-p (host-ip (source flow)) (car subnet) (cdr subnet))) subnet*)
      (some (lambda (subnet)
 	     (network-member-p (host-ip (dest flow)) (car subnet) (cdr subnet))) subnet*))))
-
-(defun subnet-filter (&rest subnets)
-  (subnet-list-filter subnets))
 
 (defun make-generic-filter (title &key vlans subnets)
   (let ((predicate
