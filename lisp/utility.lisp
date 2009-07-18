@@ -155,7 +155,7 @@ digits following the decimal point."
   (let ((format '((:year 4) #\- (:month 2) #\- (:day 2) #\T (:hour 2) #\: (:min 2) #\: (:sec 2))))
     (format-timestring nil time :format format)))
 
-(defmacro with-timeout ((expires) body)
+(defmacro with-timeout ((expires) &body body)
   #+sbcl
   `(handler-case
        (sb-ext:with-timeout ,expires
