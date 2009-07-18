@@ -73,6 +73,12 @@
 			(funcall subnet-predicate flow))))))))
     (make-instance 'filter :title title :vlans vlans :subnets subnets :predicate predicate)))
 
+(defmethod print-config-forms ((object filter))
+  (with-slots (vlans subnets title) object
+    `(make-generic-filter ,title :vlans (list ,@vlans)
+			  :subnets (list ,@(loop :for (network . netmask) :in subnets :collect
+					      `(cons ,network ,netmask))))))
+
 (defun apply-filters (sequence predicate-list &key key)
   "Apply each predicate in predicate-list once to each element in sequence, returning
 one filtered list per predicate."
@@ -98,20 +104,4 @@ one filtered list per predicate."
 	(when (car split)
 	  (push (first split) split-list))))))
 
-(defmacro make-filter ((title) &body filters)
-  (let (vlans subnets)
-    (loop :for filter-desc :in filters :do
-       (ecase (first filter-desc)
-	 (:vlan
-	  (loop :for vlan :in (rest filter-desc) :do
-	     (if (vlan-p vlan)
-		 (push vlan vlans)
-		 (error "~a is not a valid VLAN identifer!" vlan))
-	     :finally (setf vlans (sort vlans #'<))))
-	 (:subnet
-	  (loop :for (network netmask) :in (rest filter-desc) :do
-	     (push `(cons ,network ,netmask) subnets)
-	     :finally (setf subnets (nreverse subnets))))))
-    `(make-generic-filter
-      :title ,title :vlans (list ,@vlans) :subnets (list ,@subnets))))
 

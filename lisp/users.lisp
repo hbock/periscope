@@ -124,13 +124,7 @@ currently set up (for configuration purposes)."
     `(setf (filters (user ,(username user)))
 	   (list
 	    ,@(loop :for filter :in (filters user) :collect
-		 (with-slots (vlans subnets title) filter
-		   `(make-filter (,title)
-		      ,(when vlans `(:vlan ,@vlans))
-		      ,@(when subnets
-			      `((:subnet
-				 ,@(loop :for (network . netmask) :in subnets :collect
-				      `(,network ,netmask))))))))))))
+		 (print-config-forms filter))))))
 
 (hunchentoot:define-easy-handler (login :uri "/login")
     (denied redirect)
