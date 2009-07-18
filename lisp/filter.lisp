@@ -30,7 +30,8 @@
   (typep vlan 'vlan-id))
 
 (defun vlan-list-filter (vlans)
-  (unless (every #'vlan-p))
+  (unless (every #'vlan-p vlans)
+    (error "~a is not a valid VLAN ID!" (find-if-not #'vlan-p vlans)))
   (lambda (flow)
     (or (find (host-vlan (source flow)) vlans :test #'=)
 	(find (host-vlan (dest flow))   vlans :test #'=))))
