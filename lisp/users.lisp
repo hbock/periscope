@@ -321,10 +321,15 @@ account." :table nil))
 
 (defun vlans-from-string (vlan-string)
   "Take a string of VLAN identifiers, separated by spaces and/or commas, and return a sorted list
-of integers corresponding to these numbers.  Duplicate and invalid VLAN IDs are removed."
+of integers corresponding to these numbers.  Duplicate VLAN IDs are removed, and any invalid VLAN
+IDs will signal a PARSE-ERROR."
   (parse-integer-list vlan-string "^(\\d{1,4}( *|(, *)))+$" (complement #'vlan-p)))
 
 (defun subnets-from-string (subnet-string)
+  "Take a string of CIDR subnet specifications, separated by spaces and/or commas, and return 
+a list of networks and netmasks corresponding to these specifications.  Each network and netmask
+combination form a dotted list, with the CAR representing the network and the CDR the netmask.
+Invalid CIDR subnets will signal a PARSE-ERROR."
   (loop :for subnet :in
      (tokenize subnet-string (list #\Space #\Tab #\,)) :collect
      (multiple-value-bind (network netmask)
@@ -349,6 +354,8 @@ of integers corresponding to these numbers.  Duplicate and invalid VLAN IDs are 
 		 (subnets (unless (empty-string-p subnet-string)
 			    (subnets-from-string subnet-string))))
 	     (push (make-generic-filter title :vlans vlans :subnets subnets) filters))
+	 ;; The redirect for now must be done here so as to return which filter actually
+	 ;; caused the error.
 	 (parse-error (e)
 	   (declare (ignore e))
 	   (error-redirect "badfilter" :filter i))))
@@ -391,7 +398,8 @@ of integers corresponding to these numbers.  Duplicate and invalid VLAN IDs are 
 	 ((string/= password1 password2)
 	  (error-redirect "passmatch")))
        
-       (create-login username password1 displayname :admin (not (null configp)))
+       (create-login username password1 displayname
+		     :admin (or (not (login-available-p)) (not (null configp))))
        (hunchentoot:redirect (format nil "/edit-user?user=~a&new=true" username)))))
   
   (when (string= action "edituser")
