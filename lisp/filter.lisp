@@ -72,24 +72,5 @@
 one filtered list per predicate."
   (mapcar (lambda (predicate) (remove-if-not predicate sequence :key key)) predicate-list))
 
-(defun time-split (flow-sequence)
-  (flet ((%time-split (flow-sequence timestamp)
-	   (loop
-	      :for flow :in flow-sequence
-	      :if (timestamp< (start-time flow) timestamp)
-	      :collect flow :into before
-	      :else
-	      :collect flow :into after
-	      :finally (return (list before after)))))
-    (let (split-list)
-      (do* ((time (timestamp+
-		   (timestamp-minimize-part (start-time (first flow-sequence)) :min) 10 :minute)
-		  (timestamp+ time 10 :minute))
-	    (split (%time-split flow-sequence time)
-		   (%time-split (second split) time)))
-	   ((and (null (car split)) (null (second split)))	    
-	    split-list)
-	(when (car split)
-	  (push (first split) split-list))))))
 
 

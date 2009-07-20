@@ -22,7 +22,7 @@
   (with-periscope-page ("TIME-SPLIT test")
     (when *flow-list*
       (let* ((time-list
-	      (time-split *flow-list*))
+	      (time-split *flow-list* #'next-hour))
 	     (reports (mapcar (lambda (list)
 				(make-instance 'periodic-report :flow-list list)) time-list)))
 	(htm
