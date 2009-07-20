@@ -34,9 +34,9 @@ defined using DEFINE-REPORT-HANDLER."
 
 (defmacro define-report-handler ((type uri description) lambda-list &body body)
   "Define a Periscope report page as if by DEFUN."
-  `(progn
-     (defun ,type (,@lambda-list)
-       ,@body)
+  `(prog1
+       (defun ,type (,@lambda-list)
+	 ,@body)
 
      (setf *report-handler-list*
 	   (delete-if (lambda (report)
