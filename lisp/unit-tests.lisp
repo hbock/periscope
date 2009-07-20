@@ -121,3 +121,40 @@
   (broadcast-p-test #x0a0000ff #x0a000000 #xffffff00 t)
   ;; Subnet address should be #x0a00ffff
   (broadcast-p-test #x0a0000ff #x0a000000 #xffff0000 nil))
+
+(deftest vlan-string-test (vlan-string expected-result &key expected-error)
+  (if expected-error
+      (signals parse-error (periscope::vlans-from-string vlan-string))
+      (let ((result (periscope::vlans-from-string vlan-string)))
+	(is (equalp result expected-result)))))
+
+(deftest vlan-string-tests ()
+  (vlan-string-test "100 200 300 400" (list 100 200 300 400))
+  (vlan-string-test "100 200 400 300" (list 100 200 300 400))
+  (vlan-string-test "100 100, 100 100" (list 100))
+  (vlan-string-test "12400 100, 100, 100" nil :expected-error t)
+  ;; Bad VLAN ID (> 4095)
+  (vlan-string-test "12400, 100, 100, 100" nil :expected-error t)
+  ;; Junk
+  (vlan-string-test "1200, 12asdasg, 200" nil :expected-error t)
+  (vlan-string-test "1200, 12asdasg, 200" nil :expected-error t))
+
+(deftest subnet-string-test (subnet-string expected-result &key expected-error)
+  (if expected-error
+      (signals parse-error (periscope::subnets-from-string subnet-string))
+      (let ((result (periscope::subnets-from-string subnet-string)))
+	(is (equalp result expected-result)))))
+
+(deftest subnet-string-tests ()
+  (subnet-string-test "192.168.10.0/24" '((#xC0A80A00 . #xFFFFFF00)))
+  (subnet-string-test "10.0.0.0/8 192.168.10.0/24"
+		      '((#x0A000000 . #xFF000000) (#xC0A80A00 . #xFFFFFF00)))
+  (subnet-string-test "192.168.10.0/" nil :expected-error t)
+  (subnet-string-test "192.168.0.0/120" nil :expected-error t)
+  (subnet-string-test "198.7.0.0/16, 192.168.10.0/24, 10.0.0.0/24"
+		      '((#xC6070000 . #xFFFF0000) (#xC0A80A00 . #xFFFFFF00) (#xA000000 . #xFFFFFF00))
+		      :expected-error nil)
+  (subnet-string-test "198.7.0.0/16, 192.168.10.0/24, 10.0.0.0/240" nil :expected-error t)
+  (subnet-string-test "198.7.0.400/16, 192.168.10.0/24, 10.0.0.0/24" nil :expected-error t)
+  (subnet-string-test "1aldgajha, asdfa1231, 99ar9gag" nil :expected-error t)
+  (subnet-string-test "10.0.0.8/25, asdfa1231, 99ar9gag" nil :expected-error t))
