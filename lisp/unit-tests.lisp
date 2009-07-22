@@ -158,3 +158,64 @@
   (subnet-string-test "198.7.0.400/16, 192.168.10.0/24, 10.0.0.0/24" nil :expected-error t)
   (subnet-string-test "1aldgajha, asdfa1231, 99ar9gag" nil :expected-error t)
   (subnet-string-test "10.0.0.8/25, asdfa1231, 99ar9gag" nil :expected-error t))
+
+(defsuite* time-tests)
+
+(defmacro time-is (form time time2)
+  `(is ,form "Failed with times ~a -> ~a~%"
+       (local-time:universal-to-timestamp ,time)
+       (local-time:universal-to-timestamp ,time2)))
+
+(deftest half-hour-test ()
+  (flet ((half-hour (time) (periscope::next-half-hour time)))
+    (loop :for time = (half-hour (get-universal-time)) :then (half-hour time) :repeat 1000
+       :for time2 = (half-hour time) :then (half-hour time) :do
+       (time-is (= 1800 (abs (- time time2))) time time2))))
+
+(deftest hour-test ()
+  (flet ((hour (time) (periscope::next-hour time)))
+    (loop :for time = (hour (get-universal-time)) :then (hour time) :repeat 1000
+       :for time2 = (hour time) :then (hour time) :do
+       (time-is (= 3600 (abs (- time time2))) time time2))))
+
+(deftest day-test ()
+  (flet ((day (time) (periscope::next-day time)))
+    (loop :for time = (day (get-universal-time)) :then (day time) :repeat 1000
+       :for time2 = (day time) :then (day time) :do
+       (multiple-value-bind (sec min hour date month year) (decode-universal-time time)
+	 (multiple-value-bind (sec2 min2 hour2 date2 month2 year2) (decode-universal-time time2)
+	   ;; This conditional makes little babies cry.
+	   (time-is
+	    (and (= 0 sec sec2 min min2 hour hour2)
+		 (or (and (= (1+ date) date2) (= month month2) (= year year2))
+		     (and (= 1 date2) (= (1+ month) month2)
+			  (or (= year year2) (= (1+ year) year2)))
+		     (and (= 12 month) (= 1 month2))))
+	    time time2))))))
+
+(deftest week-test ()
+  (flet ((week (time) (periscope::next-week time)))
+    (loop :for time = (week (get-universal-time)) :then (week time) :repeat 1000
+       :for time2 = (week time) :then (week time) :do
+       (multiple-value-bind (sec min hour date month year day) (decode-universal-time time)
+	 (multiple-value-bind (sec2 min2 hour2 date2 month2 year2 day2) (decode-universal-time time2)
+	   (time-is
+	    (and (= 0 sec sec2 min min2 hour hour2)
+		 (= 6 day day2)
+		 (or (> date2 date)
+		     (= (1+ month) month2)
+		     (= (1+ year) year2)))
+	    time time2))))))
+
+(deftest month-test ()
+  (flet ((month (time) (periscope::next-month time)))
+    (loop :for time = (month (get-universal-time)) :then (month time) :repeat 1000
+       :for time2 = (month time) :then (month time) :do
+       (multiple-value-bind (sec min hour date month year) (decode-universal-time time)
+	 (multiple-value-bind (sec2 min2 hour2 date2 month2 year2) (decode-universal-time time2)
+	   (time-is
+	    (and (= 0 sec sec2 min min2 hour hour2)
+		 (= 1 date date2)
+		 (or (= (1+ month) month2)
+		     (and (= 12 month) (= 1 month2) (= (1+ year) year2))))
+	    time time2))))))
