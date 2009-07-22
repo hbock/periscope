@@ -143,6 +143,6 @@
 	    (split (%time-split flow-sequence time)
 		   (%time-split (second split) time)))
 	   ((and (null (car split)) (null (second split)))	    
-	    split-list)
+	    (nreverse split-list))
 	(when (car split)
 	  (push (first split) split-list))))))
