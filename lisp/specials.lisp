@@ -54,6 +54,8 @@
 (defvar *enable-swank-p* nil)
 
 (defvar *report-handler-list* nil)
+(defvar *report-directory* #P"reports/")
+
 (defvar *notable-ports* (list 22 53 80 443 51413))
 
 (defvar *service-cache* (make-hash-table :test #'equal :size 500))

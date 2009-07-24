@@ -47,3 +47,6 @@ defined using DEFINE-REPORT-HANDLER."
      (unless (find #'report-handlers hunchentoot:*dispatch-table*)
        (push #'report-handlers hunchentoot:*dispatch-table*))
      (push (list (quote ,type) ,uri ,description (function ,type)) *report-handler-list*)))
+
+(defun in-report-directory (filespec &optional (directory *report-directory*))
+  (ensure-directories-exist (merge-pathnames filespec directory)))

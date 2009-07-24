@@ -187,8 +187,13 @@ supported.")
 	 (setf outgoing ,(object-forms incoming)))
        report)))
 
-(defmethod save-report ((object report) &optional (stream *standard-output*))
-  (format stream "~S" (object-forms object)))
+(defmethod print-object ((report periodic-report) stream)
+  (format stream "~S" (object-forms report)))
+
+(defmethod save-report ((object report))
+  (with-open-file (out (in-report-directory (format nil "report-~d" (get-universal-time)))
+		       :direction :output :if-does-not-exist :create :if-exists :supersede)
+    (print-object object out)))
 
 (defmethod load-report (file)
   (load file))
