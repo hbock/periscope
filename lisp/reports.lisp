@@ -20,7 +20,8 @@
 
 (defclass report ()
   ((time :reader report-time :initform (get-universal-time))
-   (generated :reader generation-time :initform (get-universal-time))))
+   (generated :reader generation-time :initform (get-universal-time))
+   (format-version :reader report-format-version)))
 
 (defgeneric print-html (object &key)
   (:documentation "Print a report object in HTML format."))

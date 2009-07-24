@@ -18,6 +18,11 @@
 ;;;; Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 (in-package :periscope)
 
+(defvar *periodic-report-format-version* 0
+  "Current version of the PERIOD-REPORT file/class format. Used to ensure older report formats
+are processed correctly, or a proper error is signalled when a report format is no longer
+supported.")
+
 (defclass stats ()
   ((flows :initarg :flows :accessor flows :initform 0)
    (bytes :initarg :bytes :accessor bytes :initform 0)
@@ -29,7 +34,8 @@
    (external :accessor external :type stats)
    (incoming :accessor incoming :type stats)
    (outgoing :accessor outgoing :type stats)
-   (host-stats :initform (make-hash-table :size 1000))))
+   (host-stats :initform (make-hash-table :size 1000))
+   (format-version :initarg :version :initform *periodic-report-format-version*)))
 
 (defclass host-stats ()
   ((ip :initarg :ip :accessor host-ip :initform (error "Must provide IP!"))
@@ -52,7 +58,8 @@
 
 (defmethod initialize-instance :after ((object periodic-report)
 				       &key (flow-list (error "Need flows!")))
-  (with-slots (total internal external incoming outgoing host-stats) object
+  (with-slots (total internal external incoming outgoing host-stats format-version) object
+    (setf format-version *periodic-report-format-version*)
     (setf (total object)
 	  (make-instance 'stats
 			 :flows (length flow-list)
@@ -165,6 +172,27 @@
 	  (print-html (combine-stats (receiving host) (sending host)) :type :busiest-hosts)))
 	(setf row-switch (not row-switch))))))
 
+(defmethod object-forms ((object stats))
+  (with-slots (flows bytes packets) object
+    `(make-instance 'stats :flows ,flows :bytes ,bytes :packets ,packets)))
+
+(defmethod object-forms ((report periodic-report))
+  (with-slots (total internal external incoming outgoing) report
+    `(let ((report (make-instance 'periodic-report)))
+       (with-slots (total internal external incoming outgoing) report
+	 (setf total ,(object-forms total))
+	 (setf internal ,(object-forms internal))
+	 (setf external ,(object-forms external))
+	 (setf incoming ,(object-forms incoming))
+	 (setf outgoing ,(object-forms incoming)))
+       report)))
+
+(defmethod save-report ((object report) &optional (stream *standard-output*))
+  (format stream "~S" (object-forms object)))
+
+(defmethod load-report (file)
+  (load file))
+
 (defmethod print-html ((report periodic-report) &key title filter)
   (with-html-output (*standard-output*)
     (when title (htm (:h3 (str title))))
@@ -210,3 +238,4 @@
 		 :flows (flows (first stats));(reduce #'+ stats :key #'flows)
 		 :bytes (reduce #'+ stats :key #'bytes)
 		 :packets (reduce #'+ stats :key #'packets)))
+
