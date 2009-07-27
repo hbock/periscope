@@ -182,7 +182,7 @@ of integers corresponding to these numbers.  Duplicate and invalid port numbers 
       ;; Add new VLAN identifier
       ((string= action "addvlan")
        (if (and newvid newvname)
-	   (setf (vlan-name newvid) newvname)
+	   (setf (vlan-name newvid) (escape-string newvname))
 	   (error-redirect "missingvlan")))
 
       ;; Edit existing VLAN identifiers
@@ -205,7 +205,7 @@ of integers corresponding to these numbers.  Duplicate and invalid port numbers 
 	    :for i :from 0 :below (length vids) :do
 	    (if (and (> ndelete i) (aref delete i))
 		nil
-		(setf (vlan-name (aref vids i)) (aref vname i)))))))
+		(setf (vlan-name (aref vids i)) (escape-string (aref vname i))))))))
   
     (save-config)
     (error-redirect "success")))

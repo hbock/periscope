@@ -353,7 +353,8 @@ Invalid CIDR subnets will signal a PARSE-ERROR."
 			  (vlans-from-string vlan-string)))
 		 (subnets (unless (empty-string-p subnet-string)
 			    (subnets-from-string subnet-string))))
-	     (push (make-generic-filter title :vlans vlans :subnets subnets) filters))
+	     (push (make-generic-filter (escape-string title) :vlans vlans :subnets subnets)
+		   filters))
 	 ;; The redirect for now must be done here so as to return which filter actually
 	 ;; caused the error.
 	 (parse-error (e)
@@ -398,7 +399,7 @@ Invalid CIDR subnets will signal a PARSE-ERROR."
 	 ((string/= password1 password2)
 	  (error-redirect "passmatch")))
        
-       (create-login username password1 displayname
+       (create-login username password1 (escape-string displayname)
 		     :admin (or (not (login-available-p)) (not (null configp))))
        (hunchentoot:redirect (format nil "/edit-user?user=~a&new=true" username)))))
   
@@ -428,7 +429,7 @@ Invalid CIDR subnets will signal a PARSE-ERROR."
       (when (not (empty-string-p password1 password2))
 	(setf (password-hash user) (hash-sequence password1)))
       
-      (setf (display-name user) displayname)
+      (setf (display-name user) (escape-string displayname))
       (setf (filters user) (parse-generic-filters title subnet vlan delete))
       
       (save-config)
