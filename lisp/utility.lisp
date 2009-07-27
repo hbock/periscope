@@ -150,6 +150,12 @@ digits following the decimal point."
   (let ((format '((:year 4) #\- (:month 2) #\- (:day 2))))
     (format-timestring nil time :format format)))
 
+(defun long-date-string (&optional (time (now)))
+  "Convert a LOCAL-TIME timestamp to a simple date string in the format YYYY-MM-DD."
+  (let ((format '(:long-weekday ", " (:day 2) #\Space :long-month #\Space (:year 4)
+		  #\Space (:hour 2) #\: (:min 2))))
+    (format-timestring nil time :format format)))
+
 (defun iso8661-date-string (&optional (time (now)))
   "Convert a LOCAL-TIME timestamp to an ISO8661 date string."
   (let ((format '((:year 4) #\- (:month 2) #\- (:day 2) #\T (:hour 2) #\: (:min 2) #\: (:sec 2))))
