@@ -23,13 +23,17 @@
     (when *flow-list*
       (let* ((time-list
 	      (time-split *flow-list* #'next-hour))
-	     (reports (mapcar (lambda (list)
-				(make-instance 'periodic-report :flow-list list)) time-list)))
+	     (reports
+	      (mapcar
+	       (lambda (list)
+		 (make-instance 'periodic-report :flow-list list :time
+				(this-hour (end-time (first list)))))
+	       time-list)))
 	(htm
 	 (:div
 	  :class "stats"
 	  (loop
-	     for i from 0 upto (length time-list)
+	     for i from 0 upto (min 5 (length time-list))
 	     for report in reports do
 	     (print-html report)
 	     (htm
