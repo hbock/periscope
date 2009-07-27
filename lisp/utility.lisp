@@ -169,9 +169,3 @@ digits following the decimal point."
      (sb-ext:timeout () nil))
   #-sbcl
   `(progn ,@body))
-
-(defun next-hour (timestamp)
-  (local-time:timestamp+ (local-time:timestamp-minimize-part timestamp :min) 1 :hour))
-
-(defun previous-hour (timestamp)
-  (local-time:timestamp- (local-time:timestamp-minimize-part timestamp :min) 1 :hour))
