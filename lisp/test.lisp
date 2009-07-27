@@ -48,28 +48,13 @@
 
 (define-report-handler (test "/vlan-test" "VLAN Filter Test") ()
   (with-periscope-page ("VLAN Filter Test")
-    (:h2 (fmt "VLAN Filter Test - ~d flows processed" (length *flow-list*)))
+    (:h2 "VLAN Filter Test")
     (when *flow-list*
-      (let* ((filtered-flows
-	      (if (and (user) (filters (user)))
-		  (apply-filters *flow-list* (filter-predicates (user)))
-		  (list *flow-list*)))
-	     (reports
-	      (mapcar (lambda (list)
-			(make-instance 'periodic-report :flow-list list)) filtered-flows)))
-	(htm
-	 (:div
-	  :class "stats"
-	  (if (user)
-	      (loop
-		 for report in reports
-		 for filter in (filters (user)) do
-		 (print-html report :filter filter))
-	      (loop
-		 for report in reports do
-		 (print-html report)))
-	  (:h3 "First 100 Flows")
-	  (print-flows (first filtered-flows))))))))
+      (htm
+       (:div
+	:class "stats"
+	(loop :for report :in (make-filtered-reports *flow-list* (user))
+	   :do (print-html report)))))))
 
 (defun print-flows (flow-list &optional (limit 100))
   (with-html-output (*standard-output*)
