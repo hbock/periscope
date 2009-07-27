@@ -35,7 +35,8 @@ supported.")
    (incoming :accessor incoming :type stats)
    (outgoing :accessor outgoing :type stats)
    (host-stats :initform (make-hash-table :size 1000))
-   (format-version :initarg :version :initform *periodic-report-format-version*)))
+   (format-version :initarg :version :initform *periodic-report-format-version*)
+   (report-time :initarg :time :reader report-time)))
 
 (defclass host-stats ()
   ((ip :initarg :ip :accessor host-ip :initform (error "Must provide IP!"))
@@ -201,13 +202,16 @@ supported.")
 (defmethod print-html ((report periodic-report) &key title filter)
   (with-html-output (*standard-output*)
     (when title (htm (:h3 (str title))))
+    (when (slot-boundp report 'report-time)
+      (htm (:h3 (str (long-date-string (report-time report))))))
     (with-slots (host-stats) report
       (when filter
 	(with-slots (title vlans subnets) filter
 	  (htm
 	   (:h3 (str (filter-title filter)))
 	   (when vlans
-	     (htm (:b "VLANs: ") (fmt "~{~a~^, ~}" (mapcar #'vlan-name vlans)))) (:br)
+	     (htm (:b "VLANs: ") (fmt "~{~a~^, ~}" (mapcar #'vlan-name vlans))))
+	   (:br)
 	   (when subnets
 	     (htm (:b "Subnets: ")
 		  (fmt "~{~a~^, ~}"
@@ -216,8 +220,7 @@ supported.")
       
       (htm (:p
 	    (fmt "Report generated at ~a" (iso8661-date-string
-					   (local-time:universal-to-timestamp
-					    (report-time report)))))))
+					   (generation-time report))))))
     
     (:table
      (:tr (:th "") (:th "Packets") (:th "Bytes") (:th "Flows"))
