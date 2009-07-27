@@ -36,6 +36,7 @@ supported.")
    (outgoing :accessor outgoing :type stats)
    (host-stats :initform (make-hash-table :size 1000))
    (format-version :initarg :version :initform *periodic-report-format-version*)
+   (filter :initarg :filter :reader filter :initarg nil :type filter)
    (report-time :initarg :time :reader report-time)))
 
 (defclass host-stats ()
@@ -199,16 +200,16 @@ supported.")
 (defmethod load-report (file)
   (load file))
 
-(defmethod print-html ((report periodic-report) &key title filter)
+(defmethod print-html ((report periodic-report) &key title)
   (with-html-output (*standard-output*)
     (when title (htm (:h3 (str title))))
     (when (slot-boundp report 'report-time)
       (htm (:h3 (str (long-date-string (report-time report))))))
     (with-slots (host-stats) report
-      (when filter
-	(with-slots (title vlans subnets) filter
+      (when (filter report)
+	(with-slots (title vlans subnets) (filter report)
 	  (htm
-	   (:h3 (str (filter-title filter)))
+	   (:h3 (str (filter-title (filter report))))
 	   (when vlans
 	     (htm (:b "VLANs: ") (fmt "~{~a~^, ~}" (mapcar #'vlan-name vlans))))
 	   (:br)
@@ -247,3 +248,12 @@ supported.")
 		 :bytes (reduce #'+ stats :key #'bytes)
 		 :packets (reduce #'+ stats :key #'packets)))
 
+(defun make-periodic-report (flow-list &optional filter)
+  (make-instance 'periodic-report :flow-list flow-list :filter filter))
+
+(defun make-filtered-reports (flow-list &optional user)
+  (if (and user (filters user))
+      (loop :for flows :in (apply-filters flow-list (filter-predicates user))
+	 :for filter :in (filters user) :collect
+	 (make-periodic-report flows filter))
+      (make-periodic-report flow-list)))
