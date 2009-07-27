@@ -190,12 +190,15 @@ supported.")
        report)))
 
 (defmethod print-object ((report periodic-report) stream)
-  (format stream "~S" (object-forms report)))
+  (print-unreadable-object (report stream :type t :identity t)
+    (format stream "~:[~;~:*Filter ~S~], version ~d"
+	    (when (slot-boundp report 'filter) (filter-title (filter report)))
+	    (report-format-version report))))
 
 (defmethod save-report ((object report))
   (with-open-file (out (in-report-directory (format nil "report-~d" (get-universal-time)))
 		       :direction :output :if-does-not-exist :create :if-exists :supersede)
-    (print-object object out)))
+    (format stream "~S" (object-forms report))))
 
 (defmethod load-report (file)
   (load file))
@@ -256,4 +259,4 @@ supported.")
       (loop :for flows :in (apply-filters flow-list (filter-predicates user))
 	 :for filter :in (filters user) :collect
 	 (make-periodic-report flows filter))
-      (make-periodic-report flow-list)))
+      (list (make-periodic-report flow-list))))
