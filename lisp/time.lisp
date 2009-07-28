@@ -19,8 +19,6 @@
 (in-package :periscope)
 
 (deftype universal-time () '(integer 536870912))
-(defparameter +month-days+
-    #(0 31 28 31 30 31 30 31 31 30 31 30 31))
 
 (defun leap-year-p (year)
   "Returns true if year is a leap year."
@@ -28,21 +26,15 @@
        (or (zerop (mod year 400))
            (not (zerop (mod year 100))))))
 
-(defun month-days (month year)
-  (declare (type (integer 1 12) month))
-  (if (and (= month 2) (leap-year-p year))
-      29
-      (aref +month-days+ month)))
-
 (defun normalize-hour (hour)
   (mod hour 24))
 
 (defun normalize-day (day month year)
   (declare (type (integer 1 12) month))
   (if (plusp day)
-      (let ((month-days (month-days month year)))
+      (let ((month-days (days-in-month month year)))
 	(if (> day month-days) (mod day month-days) day))
-      (let ((month-days (month-days
+      (let ((month-days (days-in-month
 			 (normalize-month (1- month)) year)))
 	(+ month-days day))))
 
@@ -109,8 +101,10 @@
 (define-time-method this-week (time)
     (sec min hour date month year day)
   (declare (ignore sec min hour))
-  (let ((new-date (normalize-day (- date (if (= 6 day) 0 (1+ day))) month year)))
-    (encode-universal-time 0 0 0 new-date month year)))
+  (let* ((new-date (normalize-day (- date (if (= 6 day) 0 (1+ day))) month year))
+	 (new-month (normalize-month (if (> new-date date) (1- month) month)))
+	 (new-year (if (> new-month month) (1- year) year)))
+    (encode-universal-time 0 0 0 new-date new-month new-year)))
 
 (define-time-method next-week (time)
     (sec min hour date month year day)

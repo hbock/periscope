@@ -36,8 +36,8 @@ supported.")
    (outgoing :accessor outgoing :type stats)
    (host-stats :initform (make-hash-table :size 1000))
    (format-version :initarg :version :initform *periodic-report-format-version*)
-   (filter :initarg :filter :reader filter :initarg nil :type filter)
-   (report-time :initarg :time :reader report-time)))
+   (filter :initarg :filter :reader filter :initform nil :type filter)
+   (report-time :initarg :time :reader report-time :initform (now))))
 
 (defclass host-stats ()
   ((ip :initarg :ip :accessor host-ip :initform (error "Must provide IP!"))
@@ -58,8 +58,11 @@ supported.")
     (unless existsp
       (setf (gethash (host-ip host) table) host-stat))))
 
-(defmethod initialize-instance :after ((object periodic-report)
-				       &key (flow-list (error "Need flows!")))
+(defmethod initialize-instance :after ((object periodic-report) &key flow-list)
+  ;; Report is pre-generated, loaded from a file.
+  (unless flow-list
+    (return-from initialize-instance nil))
+  
   (with-slots (total internal external incoming outgoing host-stats format-version) object
     (setf format-version *periodic-report-format-version*)
     (setf (total object)
@@ -180,7 +183,9 @@ supported.")
 
 (defmethod object-forms ((report periodic-report))
   (with-slots (total internal external incoming outgoing) report
-    `(let ((report (make-instance 'periodic-report)))
+    `(let ((report (make-instance 'periodic-report
+				  :time ,(report-time report)
+				  :version ,(report-format-version report))))
        (with-slots (total internal external incoming outgoing) report
 	 (setf total ,(object-forms total))
 	 (setf internal ,(object-forms internal))
@@ -191,17 +196,18 @@ supported.")
 
 (defmethod print-object ((report periodic-report) stream)
   (print-unreadable-object (report stream :type t :identity t)
-    (format stream "~:[~;~:*Filter ~S~], version ~d"
-	    (when (slot-boundp report 'filter) (filter-title (filter report)))
+    (format stream "~:[~;~:*Filter ~S, ~]version ~d"
+	    (when (filter report) (filter-title (filter report)))
 	    (report-format-version report))))
 
 (defmethod save-report ((object report))
-  (with-open-file (out (in-report-directory (format nil "report-~d" (get-universal-time)))
-		       :direction :output :if-does-not-exist :create :if-exists :supersede)
-    (format stream "~S" (object-forms report))))
+  (with-open-file (stream (in-report-directory (format nil "report-~d" (report-time object)))
+			  :direction :output :if-does-not-exist :create :if-exists :supersede)
+    (format stream "~S" (object-forms object))))
 
 (defmethod load-report (file)
-  (load file))
+  (with-open-file (stream file :direction :input)
+    (eval (read stream))))
 
 (defmethod print-html ((report periodic-report) &key title)
   (with-html-output (*standard-output*)
