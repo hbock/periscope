@@ -71,4 +71,4 @@ the pathname of the log itself."
 	       (encode-universal-time 0 0 hour day month year))))
 	(when time
 	  (push (cons time file) reports))))
-    (nreverse reports)))
+    (sort (nreverse reports) #'< :key #'car)))
