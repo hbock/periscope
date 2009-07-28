@@ -24,6 +24,7 @@
   :version "0.10.0-pre-alpha"
   :description "Network auditing tool"
   :depends-on (:cffi
+	       :cl-fad
 	       :cl-who
 	       :cl-ppcre
 	       :md5
