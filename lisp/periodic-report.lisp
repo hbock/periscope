@@ -257,21 +257,24 @@ supported.")
 		 :bytes (reduce #'+ stats :key #'bytes)
 		 :packets (reduce #'+ stats :key #'packets)))
 
-(defun make-periodic-report (flow-list &optional filter)
-  (make-instance 'periodic-report :flow-list flow-list :filter filter))
+(defun make-periodic-report (flow-list &optional time filter)
+  (make-instance 'periodic-report :flow-list flow-list :filter filter
+		 :time (etypecase time
+			 (integer (universal-to-timestamp time))
+			 (local-time:timestamp time))))
 
-(defun make-filtered-reports (flow-list &optional user)
+(defun make-filtered-reports (flow-list &optional time user)
   (if (and user (filters user))
       (loop :for flows :in (apply-filters flow-list (filter-predicates user))
 	 :for filter :in (filters user) :collect
-	 (make-periodic-report flows filter))
+	 (make-periodic-report flows time filter))
       (list (make-periodic-report flow-list))))
 
-(define-report-handler (hourly "/hourly" "Hourly Traffic") ()
-  (with-periscope-page ("Hourly Traffic Reports")
-    (:h2 "Hourly Report Listing")
+(defun print-hourly-list ()
+  (with-html-output (*standard-output*)
     (:div
      :class "report-listing"
+     (:h2 "Hourly Report Listing")
      (loop
 	:with first = t
 	:with logs = (hourly-logs)
@@ -280,14 +283,15 @@ supported.")
 	(let ((log-time (car log)))
 	  (multiple-value-bind (sec min hour)
 	      (decode-universal-time log-time)
-
+	    (declare (ignore sec min))
 	    (when (/= (this-day log-time) current-day)
 	      (setf current-day (this-day log-time))
 	     
 	      (htm (if first
 		       (setf first nil)
 		       (htm (:br) (:br)))
-		   (:b (str (long-date-string (universal-to-timestamp current-day) :minutes nil)))
+		   (:b (str (long-date-string
+			     (universal-to-timestamp current-day) :minutes nil)))
 		   (:br))
 	     
 	      (if (< hour 12)
@@ -298,4 +302,18 @@ supported.")
 	      (htm (:br) (:b "PM ")))
 	   
 	    (htm (:a :href (format nil "/hourly?time=~d" log-time)
-		     (fmt "~2,'0d:~2,'0d" hour min)))))))))
+		     (fmt "~2,'0d:00" hour)))))))))
+
+(define-report-handler (hourly "/hourly" "Hourly Traffic")
+    ((time :parameter-type 'integer))
+  (with-periscope-page ("Hourly Traffic Reports")
+    (if time
+	(let* ((flows (process-local-file (hourly-log time)))
+	       (report (if (user)
+			   (make-periodic-report flows time (first (filters (user))))
+			   (make-periodic-report flows time))))
+	  (htm
+	   (:h2 "Hourly Report")
+	   (:a :href "/hourly" "Back to all hourly reports")
+	   (:div :class "stats" (print-html report))))
+	(print-hourly-list))))
