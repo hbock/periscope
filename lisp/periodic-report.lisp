@@ -196,8 +196,8 @@ supported.")
 	    (report-format-version report))))
 
 (defmethod save-report ((object report))
-  (with-open-file (out (in-report-directory (format nil "report-~d" (get-universal-time)))
-		       :direction :output :if-does-not-exist :create :if-exists :supersede)
+  (with-open-file (stream (in-report-directory (format nil "report-~d" (get-universal-time)))
+			  :direction :output :if-does-not-exist :create :if-exists :supersede)
     (format stream "~S" (object-forms report))))
 
 (defmethod load-report (file)
