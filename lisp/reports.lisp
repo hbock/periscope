@@ -35,7 +35,8 @@ defined using DEFINE-REPORT-HANDLER."
 (defmacro define-report-handler ((type uri description) lambda-list &body body)
   "Define a Periscope report page as if by DEFUN."
   `(prog1
-       (defun ,type (,@lambda-list)
+       (defun ,type (&key ,@(loop :for part :in lambda-list :collect
+			       (hunchentoot::make-defun-parameter part 'string :get)))
 	 ,@body)
 
      (setf *report-handler-list*
