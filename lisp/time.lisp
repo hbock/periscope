@@ -101,8 +101,10 @@
 (define-time-method this-week (time)
     (sec min hour date month year day)
   (declare (ignore sec min hour))
-  (let ((new-date (normalize-day (- date (if (= 6 day) 0 (1+ day))) month year)))
-    (encode-universal-time 0 0 0 new-date month year)))
+  (let* ((new-date (normalize-day (- date (if (= 6 day) 0 (1+ day))) month year))
+	 (new-month (normalize-month (if (> new-date date) (1- month) month)))
+	 (new-year (if (> new-month month) (1- year) year)))
+    (encode-universal-time 0 0 0 new-date new-month new-year)))
 
 (define-time-method next-week (time)
     (sec min hour date month year day)
