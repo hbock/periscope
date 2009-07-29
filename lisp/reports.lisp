@@ -72,3 +72,6 @@ the pathname of the log itself."
 	(when time
 	  (push (cons time file) reports))))
     (sort (nreverse reports) #'< :key #'car)))
+
+(defun last-hourly-log (&optional (pathspec *report-directory*))
+  (first (reverse (hourly-logs pathspec))))
