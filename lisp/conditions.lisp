@@ -43,3 +43,10 @@
 
 (defun periscope-config-error (control &rest args)
   (error 'periscope-config-error :format-control control :format-arguments args))
+
+(define-condition periscope-file-error (periscope-simple-error file-error)
+  ()
+  (:documentation "Error handling files related to Periscope."))
+
+(defun periscope-file-error (control &rest args)
+  (error 'periscope-file-error :format-control control :format-arguments args))
