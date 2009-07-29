@@ -209,13 +209,10 @@ supported.")
 
 (defmethod print-html ((report periodic-report) &key title)
   (with-html-output (*standard-output*)
-    (when title (htm (:h3 (str title))))
-    (when (slot-boundp report 'report-time)
-      (htm (:h3 (str (long-date-string (report-time report))))))
+    (:h3 "General Statistics")
     (with-slots (host-stats) report
-      (when (filter report)
-	(print-html (filter report)))
-      (htm (:p (fmt "Report generated at ~a" (iso8661-date-string (generation-time report))))))
+      (fmt "Report generated at ~a" (iso8661-date-string (generation-time report))))
+    
     (cond
       ((zerop (flows (total report)))
        (htm (:b "No flows matched this filter.")))
@@ -246,18 +243,21 @@ supported.")
 		 :bytes (reduce #'+ stats :key #'bytes)
 		 :packets (reduce #'+ stats :key #'packets)))
 
-(defun make-periodic-report (flow-list &optional time filter)
-  (make-instance 'periodic-report :flow-list flow-list :filter filter
-		 :time (etypecase time
-			 (integer (universal-to-timestamp time))
-			 (local-time:timestamp time))))
+(defun make-periodic-report (flow-list &optional filter)
+  (make-instance 'periodic-report :flow-list flow-list :filter filter))
 
 (defun make-filtered-reports (flow-list &optional time user)
   (if (and user (filters user))
       (loop :for flows :in (apply-filters flow-list (filter-predicates user))
 	 :for filter :in (filters user) :collect
-	 (make-periodic-report flows time filter))
-      (list (make-periodic-report flow-list))))
+	 (list time
+	       filter
+	       (make-periodic-report flows)
+	       (make-service-report flows)))
+      (list time
+	    nil
+	    (make-periodic-report flow-list)
+	    (make-service-report flow-list))))
 
 (defun print-hourly-list ()
   (with-html-output (*standard-output*)
@@ -299,13 +299,19 @@ supported.")
     (if time
 	(handler-case
 	    (let* ((flows (process-local-file (hourly-log time)))
-		   (reports (make-filtered-reports flows time (user))))
+		   (report-lists (make-filtered-reports flows time (user))))
 	      (htm
 	       (:h2 "Hourly Report")
 	       (:a :href "/hourly" "Back to all hourly reports")
 	       (:div :class "stats"
-		     (dolist (report reports)
-		       (print-html report)
+		     (dolist (report-list report-lists)
+		       (destructuring-bind (time filter &rest reports) report-list
+			 (htm
+			  (:h3 (str (long-date-string (universal-to-timestamp time))))
+			  (when filter (print-html filter)))
+			 
+			 (dolist (report reports)
+			   (print-html report)))
 		       (htm (:hr))))))
 	  ;; PROCESS-LOCAL-FILE can throw PERISCOPE-FILE-ERROR to indicate file-not-found
 	  (file-error () (hunchentoot:redirect "/nothingtoseehere")))
