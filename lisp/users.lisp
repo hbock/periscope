@@ -254,6 +254,9 @@ below." (username user)))))
     (with-config-form ("/set-user-config" "Login Configuration" "configure")
       (:table
        (:tr
+	(:td "Maximum login session time (seconds)")
+	(:td (input "sessiontime" hunchentoot:*session-max-time*)))
+       (:tr
 	(:td "Require login for all pages")
 	(:td (checkbox "required" :checked *web-login-required-p*))))
       (:br)
@@ -365,9 +368,10 @@ Invalid CIDR subnets will signal a PARSE-ERROR."
 (hunchentoot:define-easy-handler (set-user-config :uri "/set-user-config")
     (action username displayname password1 password2 configp
 	    required
+	    (sessiontime :parameter-type 'integer)
 	    (user   :parameter-type 'array)
 	    (delete :parameter-type 'array)
-	    (title :parameter-type 'array)
+	    (title  :parameter-type 'array)
 	    (subnet :parameter-type 'array)
 	    (vlan   :parameter-type 'array))
   (valid-session-or-lose :admin t)
@@ -375,7 +379,9 @@ Invalid CIDR subnets will signal a PARSE-ERROR."
   (let ((*redirect-page* "/users"))
     (cond
       ((string= action "configure")
-       (setf *web-login-required-p* (not (null required))))
+       (setf *web-login-required-p* (not (null required)))
+       (when sessiontime
+	 (setf hunchentoot:*session-max-time* sessiontime)))
 
       ((string= action "manage")
        (loop

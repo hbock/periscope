@@ -55,6 +55,7 @@
 	   '(*web-port* *web-show-diag*
 	     *web-login-required-p*
 	     hunchentoot:*show-lisp-errors-p*
+	     hunchentoot:*session-max-time*
 	     *swank-port* *enable-swank-p*
 	     *notable-ports*
 	     *internal-network* *internal-netmask*
