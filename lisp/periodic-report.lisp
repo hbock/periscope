@@ -30,10 +30,10 @@ supported.")
 
 (defclass periodic-report (report)
   ((total :accessor total :type stats)
-   (internal :accessor internal :type stats)
-   (external :accessor external :type stats)
-   (incoming :accessor incoming :type stats)
-   (outgoing :accessor outgoing :type stats)
+   (internal :accessor internal :type stats :initform (make-instance 'stats))
+   (external :accessor external :type stats :initform (make-instance 'stats))
+   (incoming :accessor incoming :type stats :initform (make-instance 'stats))
+   (outgoing :accessor outgoing :type stats :initform (make-instance 'stats))
    (host-stats :initform (make-hash-table :size 1000))
    (format-version :initarg :version :initform *periodic-report-format-version*)
    (filter :initarg :filter :reader filter :initform nil :type filter)
@@ -58,9 +58,9 @@ supported.")
     (unless existsp
       (setf (gethash (host-ip host) table) host-stat))))
 
-(defmethod initialize-instance :after ((object periodic-report) &key flow-list)
+(defmethod initialize-instance :after ((object periodic-report) &key (flow-list nil flow-list-p))
   ;; Report is pre-generated, loaded from a file.
-  (unless flow-list
+  (unless flow-list-p
     (return-from initialize-instance nil))
   
   (with-slots (total internal external incoming outgoing host-stats format-version) object
@@ -75,11 +75,7 @@ supported.")
 			 :bytes
 			 (reduce #'+ flow-list 
 				 :key (lambda (flow)
-					(+ (host-bytes (source flow)) (host-bytes (dest flow))))))
-	  internal (make-instance 'stats)
-	  external (make-instance 'stats)
-	  incoming (make-instance 'stats)
-	  outgoing (make-instance 'stats))
+					(+ (host-bytes (source flow)) (host-bytes (dest flow)))))))
 
     (dolist (flow flow-list)
       (with-slots (source dest) flow
@@ -231,20 +227,25 @@ supported.")
       (htm (:p
 	    (fmt "Report generated at ~a" (iso8661-date-string
 					   (generation-time report))))))
-    
-    (:table
-     (:tr (:th "") (:th "Packets") (:th "Bytes") (:th "Flows"))
-     (print-html (internal report) :title "Internal Only")
-     (print-html (external report) :title "External Only")
-     (print-html (incoming report) :title "Incoming")
-     (print-html (outgoing report) :title "Outgoing")
-     (print-html (total report) :title "Total"))
-    (print-scan-hosts "Possible Incoming Scan Hosts" "Local"
-		      (incoming-scan-hosts report) :key #'local-contact-count)
-    (print-scan-hosts "Possible Outgoing Scan Hosts" "Remote"
-		      (outgoing-scan-hosts report) :key #'remote-contact-count)
-    (print-busiest-hosts "Busiest Local Hosts" (busiest-hosts (local-hosts report)))
-    (print-busiest-hosts "Busiest Remote Hosts" (busiest-hosts (remote-hosts report)))))
+
+    (cond
+      ((zerop (flows (total report)))
+       (htm (:b "No flows matched this filter.")))
+      (t
+       (htm
+	(:table
+	 (:tr (:th "") (:th "Packets") (:th "Bytes") (:th "Flows"))
+	 (print-html (internal report) :title "Internal Only")
+	 (print-html (external report) :title "External Only")
+	 (print-html (incoming report) :title "Incoming")
+	 (print-html (outgoing report) :title "Outgoing")
+	 (print-html (total report) :title "Total")))
+       (print-scan-hosts "Possible Incoming Scan Hosts" "Local"
+			 (incoming-scan-hosts report) :key #'local-contact-count)
+       (print-scan-hosts "Possible Outgoing Scan Hosts" "Remote"
+			 (outgoing-scan-hosts report) :key #'remote-contact-count)
+       (print-busiest-hosts "Busiest Local Hosts" (busiest-hosts (local-hosts report)))
+       (print-busiest-hosts "Busiest Remote Hosts" (busiest-hosts (remote-hosts report)))))))
 
 (defmethod add-stats ((object stats) &key (flows 1) (bytes 0) (packets 0))
   (incf (flows object) flows)
@@ -310,13 +311,14 @@ supported.")
     (if time
 	(handler-case
 	    (let* ((flows (process-local-file (hourly-log time)))
-		   (report (if (user)
-			       (make-periodic-report flows time (first (filters (user))))
-			       (make-periodic-report flows time))))
+		   (reports (make-filtered-reports flows time (user))))
 	      (htm
 	       (:h2 "Hourly Report")
 	       (:a :href "/hourly" "Back to all hourly reports")
-	       (:div :class "stats" (print-html report))))
+	       (:div :class "stats"
+		     (dolist (report reports)
+		       (print-html report)
+		       (htm (:hr))))))
 	  ;; PROCESS-LOCAL-FILE can throw PERISCOPE-FILE-ERROR to indicate file-not-found
 	  (file-error () (hunchentoot:redirect "/nothingtoseehere")))
 	;; When 'time' GET parameter is not specified, print the list of all available
