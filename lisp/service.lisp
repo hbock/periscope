@@ -51,6 +51,12 @@
 
 (defmethod print-html ((object service) &key)
   (with-html-output (*standard-output*)
+    (:h3 "Service Statistics")
+    (:b "Tracked services, port numbers: ")
+    (fmt "~{~a~^, ~}" (mapcar #'service-name *notable-ports*))
+    (when (and (user) (admin-p (user)))
+      (htm (:a :href "/config" "(edit)")))
+
     (:div
      :class "stats"
      (:table
@@ -67,12 +73,7 @@
 
 (define-report-handler (service "/service" "Service Type") ()
   (with-periscope-page ("Service Statistics")
-    (:h2 "Service Statistics")
+    (print-html (make-instance 'service :flow-list *flow-list*))))
 
-    (:b "Tracked services, port numbers: ")
-    (fmt "~{~a~^, ~}" (mapcar #'service-name *notable-ports*))
-    (when (and (user) (admin-p (user)))
-      (htm (:a :href "/config" "(edit)")))
-
-    (print-html
-     (make-instance 'service :flow-list *flow-list*))))
+(defun make-service-report (flow-list)
+  (make-instance 'service :flow-list flow-list))
