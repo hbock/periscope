@@ -51,9 +51,9 @@
   (interrupt-process collector-process))
 
 (defun worker-thread ()
-  (loop
-     (run-collector *collector*)
-     (format t "Collector stopped, restarting..."))
+  #+nil (loop
+	   (run-collector *collector*)
+	   (format t "Collector stopped, restarting..."))
   (bt:with-lock-held (*shutdown-lock*)
     (bt:condition-wait *shutdown-cond* *shutdown-lock*)))
 
