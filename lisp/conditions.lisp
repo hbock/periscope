@@ -50,3 +50,17 @@
 
 (defun periscope-file-error (control &rest args)
   (error 'periscope-file-error :format-control control :format-arguments args))
+
+(define-condition operation-not-implemented (periscope-error)
+  ((operation :initarg :operation
+	      :reader operation-not-implemented-operation
+	      :documentation "The name of the unimplemented operation."))
+  (:report (lambda (condition stream)
+	     (format stream "The operation ~A is not yet implemented for the Lisp implementation
+~A, version ~A."
+		     (operation-not-implemented-operation condition)
+		     (lisp-implementation-type)
+		     (lisp-implementation-version)))))
+
+(defun not-implemented (name)
+  (error 'operation-not-implemented :operation name))
