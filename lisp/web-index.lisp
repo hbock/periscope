@@ -21,16 +21,50 @@
 (hunchentoot:define-easy-handler (index :uri "/") ()
   (with-periscope-page ("Home")
     (:h2 "Periscope Start Page")
-    (when (valid-session-p)
-      (htm
-       (:br)
-       (:p (fmt "Logged in as ~a " (display-name (user)))
-	   (:a :href "/do-login?action=logout" "(log out)."))))
-    
     (warning-box
      "This is pre-release software.  Use at your own risk! "
      "Keep up-to-date with the latest releases "
-     (:a :href "http://nautilus.oshean.org/wiki/Periscope" "here."))))
+     (:a :href "http://nautilus.oshean.org/wiki/Periscope" "here."))
+    (:br)
+    (:table
+     (:tr
+      (:td (:b "View Traffic Reports")
+	   (:ul
+	    (:li (:a :href "/hourly" "Hourly-generated reports")
+		 (let ((last (last-hourly-log)))
+		   (when last
+		     (htm
+		      "(Last at "
+		      (:a :href (format nil "/hourly?time=~d" (car last))
+			  (fmt "~a)" (long-date-string (universal-to-timestamp (car last)))))))))
+	    (:li (:a :href "/service" "Service-type reports"))))
+      
+      (:td (:b "Configure Periscope")
+	   (:ul
+	    (:li (:a :href "/config" "Network and web interface settings"))
+	    (:li (:a :href "/users" "Manage user logins"))
+	    (:li (:a :href "/sources" "Manage remote Argus sources"))
+	    (when *web-show-diag*
+	      (htm (:li (:a :href "/uuddlrlrbastart" "Diagnose problems with 
+Periscope internals")))))))
+     (:tr
+      (when (login-available-p)
+	(htm
+	 (:td (:b (if (valid-session-p)
+		      (fmt "User Session (Logged in as ~a)" (display-name (user)))
+		      (str "User Session")))
+	      (if (valid-session-p)
+		  (let ((user (user)))
+		    (htm
+		     (:ul (:li
+			   (:a :href "/do-login?action=logout" "Log out of Periscope"))
+			  (when (admin-p user)
+			    (htm (:li (:a :href (format nil "/edit-user?user=~a" (username user))
+					  (fmt "Modify your account"))))))))
+		   
+		  (htm
+		   (:ul
+		    (:li (:a :href "/login" "Login to Periscope"))))))))))))
 
 (hunchentoot:define-easy-handler (about :uri "/about") ()
   (with-periscope-page ("About Periscope")
