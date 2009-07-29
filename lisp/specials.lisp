@@ -27,8 +27,8 @@
 ;;;    here
 ;;;        we
 ;;;          GO!
-(defvar *periscope-version*
-  (format nil "0.9.92 (pre-alpha, build ~a)"
+(defparameter *periscope-version*
+  (format nil "0.9.93 (pre-alpha, build ~a)"
 	  (format-timestring nil *compilation-time*
 			     :format '((:year 4) #\- (:month 2) #\- (:day 2)))))
 
