@@ -308,12 +308,14 @@ supported.")
     ((time :parameter-type 'integer))
   (with-periscope-page ("Hourly Traffic Reports")
     (if time
-	(let* ((flows (process-local-file (hourly-log time)))
-	       (report (if (user)
-			   (make-periodic-report flows time (first (filters (user))))
-			   (make-periodic-report flows time))))
-	  (htm
-	   (:h2 "Hourly Report")
-	   (:a :href "/hourly" "Back to all hourly reports")
-	   (:div :class "stats" (print-html report))))
+	(handler-case
+	    (let* ((flows (process-local-file (hourly-log time)))
+		   (report (if (user)
+			       (make-periodic-report flows time (first (filters (user))))
+			       (make-periodic-report flows time))))
+	      (htm
+	       (:h2 "Hourly Report")
+	       (:a :href "/hourly" "Back to all hourly reports")
+	       (:div :class "stats" (print-html report))))
+	  (simple-error () (hunchentoot:redirect "/nothingtoseehere")))
 	(print-hourly-list))))
