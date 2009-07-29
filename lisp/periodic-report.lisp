@@ -212,22 +212,8 @@ supported.")
       (htm (:h3 (str (long-date-string (report-time report))))))
     (with-slots (host-stats) report
       (when (filter report)
-	(with-slots (title vlans subnets) (filter report)
-	  (htm
-	   (:h3 (str (filter-title (filter report))))
-	   (when vlans
-	     (htm (:b "VLANs: ") (fmt "~{~a~^, ~}" (mapcar #'vlan-name vlans))))
-	   (:br)
-	   (when subnets
-	     (htm (:b "Subnets: ")
-		  (fmt "~{~a~^, ~}"
-		       (loop :for (network . netmask) :in subnets :collect
-			  (ip-string network netmask))))))))
-      
-      (htm (:p
-	    (fmt "Report generated at ~a" (iso8661-date-string
-					   (generation-time report))))))
-
+	(print-html (filter report)))
+      (htm (:p (fmt "Report generated at ~a" (iso8661-date-string (generation-time report))))))
     (cond
       ((zerop (flows (total report)))
        (htm (:b "No flows matched this filter.")))

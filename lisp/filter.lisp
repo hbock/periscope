@@ -72,5 +72,15 @@
 one filtered list per predicate."
   (mapcar (lambda (predicate) (remove-if-not predicate sequence :key key)) predicate-list))
 
-
-
+(defmethod print-html ((object filter) &key)
+  (with-slots (title vlans subnets) object
+    (with-html-output (*standard-output*)
+      (:h3 (str (filter-title object)))
+      (when vlans
+	(htm (:b "VLANs: ") (fmt "~{~a~^, ~}" (mapcar #'vlan-name vlans))))
+      (:br)
+      (when subnets
+	(htm (:b "Subnets: ")
+	     (fmt "~{~a~^, ~}"
+		  (loop :for (network . netmask) :in subnets :collect
+		     (ip-string network netmask))))))))
