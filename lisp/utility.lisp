@@ -169,3 +169,17 @@ digits following the decimal point."
      (sb-ext:timeout () nil))
   #-sbcl
   `(progn ,@body))
+
+(defun execute-command (command status-hook &rest args)
+  #+sbcl
+  (let ((process (sb-ext:run-program command args :search t :status-hook status-hook :wait t)))
+    (values (sb-ext:process-pid process)
+	    (sb-ext:process-status process)
+	    (sb-ext:process-exit-code process)))
+
+  #-sbcl (not-implemented 'execute-command))
+
+(defun interrupt-process (process)
+  "Raise SIGINT for process."
+  #+sbcl (sb-ext:process-kill process sb-unix:sigint)
+  #-sbcl (not-implemented 'interrupt-process))
