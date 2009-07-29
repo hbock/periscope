@@ -69,8 +69,8 @@
 (defmethod add-file ((collector collector) (file string))
   (when (minusp (%argus-local-add (get-ptr collector) file))
     (if (not (probe-file file))
-	(error "File ~a does not exist!" file)
-	(error "Failed to add file ~a to the collector." file)))
+	(periscope-file-error "File ~a does not exist!" file)
+	(periscope-file-error "Failed to add file ~a to the collector." file)))
   file)
 
 (defmethod add-file ((collector collector) (file pathname))
