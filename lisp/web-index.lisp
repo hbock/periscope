@@ -30,13 +30,15 @@
      (:tr
       (:td (:b "View Traffic Reports")
 	   (:ul
-	    (:li (:a :href "/hourly" "Hourly-generated reports")
+	    (:li (:a :href "/hourly" "Hourly traffic reports")
 		 (let ((last (last-hourly-log)))
 		   (when last
 		     (htm
 		      "(Last at "
 		      (:a :href (format nil "/hourly?time=~d" (car last))
 			  (fmt "~a)" (long-date-string (universal-to-timestamp (car last)))))))))
+	    (:li "Daily traffic reports")
+	    (:li "Weekly traffic reports")
 	    (:li (:a :href "/service" "Service-type reports"))))
       
       (:td (:b "Configure Periscope")
