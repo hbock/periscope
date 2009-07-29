@@ -113,10 +113,12 @@ supported.")
 			     (+ (bytes (receiving stats)) (bytes (sending stats))))))
 
 (defmethod incoming-scan-hosts ((report periodic-report))
-  (sort (remote-hosts report) #'> :key #'local-contact-count))
+  (sort (remove-if #'zerop (remote-hosts report) :key #'local-contact-count)
+	#'> :key #'local-contact-count))
 
 (defmethod outgoing-scan-hosts ((report periodic-report))
-  (sort (local-hosts report) #'> :key #'remote-contact-count))
+  (sort (remove-if #'zerop (local-hosts report) :key #'remote-contact-count)
+	#'> :key #'remote-contact-count))
 
 (defmethod print-html ((object stats) &key (title "General Stats") (type :general) (flows t))
   (with-html-output (*standard-output*)
