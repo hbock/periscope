@@ -63,7 +63,7 @@ Starts a separate thread to run the collector and handle its callbacks."
     (:ul
      (:li (:a :href "/" "Periscope Home"))
      
-     (:li (:a :href "/traffic" "Traffic Overview"))
+     ;(:li (:a :href "/traffic" "Traffic Overview"))
      (:li :class "root"
           "Reports"
           (:ul
@@ -73,8 +73,7 @@ Starts a separate thread to run the collector and handle its callbacks."
      (:li :class "root"
           "Utilities"
           (:ul
-	   (:li (:a :href "/service-names" "Service Names"))
-	   (:li (:a :href "/search" "Search Logs"))))
+	   (:li (:a :href "/service-names" "Service Names"))))
      (when (or (not (login-available-p)) (and (valid-session-p :admin t)))
        (htm
 	(:li :class "root"
