@@ -317,5 +317,8 @@ supported.")
 	       (:h2 "Hourly Report")
 	       (:a :href "/hourly" "Back to all hourly reports")
 	       (:div :class "stats" (print-html report))))
-	  (simple-error () (hunchentoot:redirect "/nothingtoseehere")))
+	  ;; PROCESS-LOCAL-FILE can throw PERISCOPE-FILE-ERROR to indicate file-not-found
+	  (file-error () (hunchentoot:redirect "/nothingtoseehere")))
+	;; When 'time' GET parameter is not specified, print the list of all available
+	;; reports.
 	(print-hourly-list))))
