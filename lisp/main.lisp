@@ -35,7 +35,25 @@
     (setf (filter collector) "tcp or icmp or udp")
     collector))
 
+(defun run-collector (server time-period)
+  (let ((time-period-string
+	 (ecase time-period
+	   (:hour "1h")
+	   (:half-hour "30m")))
+	(output-prefix
+	 (format nil "'~a~a'" (namestring *report-directory*)
+		 (ecase time-period
+		   (:hour "hourly.%Y%m%d-%H")
+		   (:half-hour "halfhour.%Y%m%d-%H.%M")))))
+    (execute-command *collector-script* nil server time-period-string output-prefix)))
+
+(defun stop-collector (collector-process)
+  (interrupt-process collector-process))
+
 (defun worker-thread ()
+  (loop
+     (run-collector *collector*)
+     (format t "Collector stopped, restarting..."))
   (bt:with-lock-held (*shutdown-lock*)
     (bt:condition-wait *shutdown-cond* *shutdown-lock*)))
 
