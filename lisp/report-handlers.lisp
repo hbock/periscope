@@ -26,10 +26,11 @@
 	       filter
 	       (make-periodic-report flows)
 	       (make-service-report flows)))
-      (list time
-	    nil
-	    (make-periodic-report flow-list)
-	    (make-service-report flow-list))))
+      (list
+       (list time
+	     nil
+	     (make-periodic-report flow-list)
+	     (make-service-report flow-list)))))
 
 (defun in-report-directory (filespec &optional (directory *report-directory*))
   (ensure-directories-exist (merge-pathnames filespec directory)))
