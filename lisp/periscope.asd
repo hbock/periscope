@@ -59,5 +59,6 @@
    ;; Reports
    (:file "periodic-report")
    (:file "service")
+   (:file "report-handlers")
    ;; Entry point(s?)
    (:file "main")))
