@@ -48,30 +48,3 @@ defined using DEFINE-REPORT-HANDLER."
        (push #'report-handlers hunchentoot:*dispatch-table*))
      (push (list (quote ,type) ,uri ,description (function ,type)) *report-handler-list*)))
 
-(defun in-report-directory (filespec &optional (directory *report-directory*))
-  (ensure-directories-exist (merge-pathnames filespec directory)))
-
-(defun hourly-log (time &optional (directory *report-directory*))
-  (multiple-value-bind (sec min hour date month year)
-      (decode-universal-time time)
-    (declare (ignore sec min))
-    (merge-pathnames (format nil "hourly.~d~2,'0d~2,'0d-~2,'0d" year month date hour)
-		     directory)))
-
-(defun hourly-logs (&optional (pathspec *report-directory*))
-  "Find all files in pathspec matching the following filename format: hourly.YYYYMMDD-HH, where
-Y = year, M = month, D = date, and H = hour. Returns a list of all such hourly Argus logs as a
-dotted list with the CAR being the universal time indicated in the filename and the CDR being
-the pathname of the log itself."
-  (let (reports)
-    (dolist (file (fad:list-directory pathspec))
-      (let ((time
-	     (ppcre:register-groups-bind ((#'parse-integer year month day hour))
-		 ("hourly.(\\d{4})(\\d{2})(\\d{2})-(\\d{2})" (namestring file))
-	       (encode-universal-time 0 0 hour day month year))))
-	(when time
-	  (push (cons time file) reports))))
-    (sort (nreverse reports) #'< :key #'car)))
-
-(defun last-hourly-log (&optional (pathspec *report-directory*))
-  (first (reverse (hourly-logs pathspec))))
