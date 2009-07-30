@@ -404,9 +404,12 @@ Invalid CIDR subnets will signal a PARSE-ERROR."
        
 	 ((string/= password1 password2)
 	  (error-redirect "passmatch")))
+
+       (let ((user
+	      (create-login username password1 (escape-string displayname)
+			    :admin (or (not (login-available-p)) (not (null configp))))))
+	 (setf (filters user) (parse-generic-filters title subnet vlan delete)))
        
-       (create-login username password1 (escape-string displayname)
-		     :admin (or (not (login-available-p)) (not (null configp))))
        (hunchentoot:redirect (format nil "/edit-user?user=~a&new=true" username)))))
   
   (when (string= action "edituser")
