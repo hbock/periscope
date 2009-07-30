@@ -46,7 +46,7 @@ as an MD5 sum."
       (gethash username *web-user-db*)
     (declare (ignore user))
     (if existsp
-	(error "Username ~a already exists." username)
+	(periscope-config-error "Username ~a already exists." username)
 	(let ((user (make-instance 'web-user
 				   :username username
 				   :display-name display-name
@@ -158,7 +158,7 @@ currently set up (for configuration purposes)."
 	(:input :type "submit" :value "Login")))))
 
 
-(defun edit-user-form (title action &key user error new)
+(defun edit-user-form (title action &key user username error new)
   (with-config-form ("/set-user-config" title action)
     (when new
       (htm (:p :class "success"
@@ -166,8 +166,11 @@ currently set up (for configuration purposes)."
 below." (username user)))))
     (:table
      (:tr (:th :colspan 2 "Login Information") (:th))
-     (when (string= error "username")
-       (error-message "You must specify a username."))
+     (cond
+       ((string= error "username")
+	(error-message "You must specify a username."))
+       ((string= error "userexists")
+	(error-message (format nil "User '~a' already exists." username))))
      (if user
 	 (htm (:input :type "hidden" :name "username" :value (username user)))
 	 (htm
@@ -249,7 +252,7 @@ below." (username user)))))
 ;;;  - "passmatch": Passwords don't match.
 ;;;  - "subnet": Invalid subnet specifier.
 ;;;  - "unadminself": Tried to remove administrator from own account.
-(hunchentoot:define-easy-handler (user-config :uri "/users") (error edit add)
+(hunchentoot:define-easy-handler (user-config :uri "/users") (error username edit add)
   (with-periscope-page ("User Login Configuration" :admin t)
     (with-config-form ("/set-user-config" "Login Configuration" "configure")
       (:table
@@ -294,7 +297,7 @@ account." :table nil))
 	(:br)
 	(:input :type "submit" :value "Apply Configuration")))
 
-    (edit-user-form "Add New User" "newuser" :error error)))
+    (edit-user-form "Add New User" "newuser" :error error :username username)))
 
 (hunchentoot:define-easy-handler (do-login :uri "/do-login")
     (username password redirect action)
@@ -405,10 +408,12 @@ Invalid CIDR subnets will signal a PARSE-ERROR."
 	 ((string/= password1 password2)
 	  (error-redirect "passmatch")))
 
-       (let ((user
-	      (create-login username password1 (escape-string displayname)
-			    :admin (or (not (login-available-p)) (not (null configp))))))
-	 (setf (filters user) (parse-generic-filters title subnet vlan delete)))
+       (handler-case
+	   (let ((user
+		  (create-login username password1 (escape-string displayname)
+				:admin (or (not (login-available-p)) (not (null configp))))))
+	     (setf (filters user) (parse-generic-filters title subnet vlan delete)))
+	 (periscope-config-error () (error-redirect "userexists" :username username)))
        
        (hunchentoot:redirect (format nil "/edit-user?user=~a&new=true" username)))))
   
