@@ -53,7 +53,7 @@
   (with-html-output (*standard-output*)
     (:h3 "Service Statistics")
     (:b "Tracked services, port numbers: ")
-    (fmt "~{~a~^, ~}" (mapcar #'service-name *notable-ports*))
+    (fmt "~{~a~^, ~} " (mapcar #'service-name *notable-ports*))
     (when (and (user) (admin-p (user)))
       (htm (:a :href "/config" "(edit)")))
 
