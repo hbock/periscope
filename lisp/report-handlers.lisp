@@ -19,6 +19,9 @@
 (in-package :periscope)
 
 (defun make-filtered-reports (flow-list &optional time user)
+  "Return a list of report structures in the form (time filter &rest reports)
+corresponding to user's filters, as applied to the flows in flow-list. If no
+filters are defined, a list with the form (time nil &rest reports) is returned."
   (if (and user (filters user))
       (loop :for flows :in (apply-filters flow-list (filter-predicates user))
 	 :for filter :in (filters user) :collect
@@ -36,6 +39,7 @@
   (ensure-directories-exist (merge-pathnames filespec directory)))
 
 (defun hourly-log (time &optional (directory *report-directory*))
+  "Return the hourly Argus log pathname corresponding to time, searching in directory."
   (multiple-value-bind (sec min hour date month year)
       (decode-universal-time time)
     (declare (ignore sec min))
@@ -58,6 +62,7 @@ the pathname of the log itself."
     (sort (nreverse reports) #'< :key #'car)))
 
 (defun last-hourly-log (&optional (pathspec *report-directory*))
+  "Return the most newly generated hourly Argus log."
   (first (reverse (hourly-logs pathspec))))
 
 (defun print-hourly-list ()
@@ -101,7 +106,7 @@ the pathname of the log itself."
   (with-periscope-page ("Hourly Traffic Reports")
     (if time
 	(handler-case
-	    (let* ((flows (process-local-file (hourly-log time)))
+	    (let* ((flows (process-local-file (probe-file (hourly-log time))))
 		   (report-lists (make-filtered-reports flows time (user))))
 	      (htm
 	       (:h2 "Hourly Report")
