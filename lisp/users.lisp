@@ -95,6 +95,9 @@ logged-in user.  If no user is logged in, returns NIL."
        (hunchentoot:redirect "/nowhere"))))
   t)
 
+(defun user-count ()
+  (hash-table-count *web-user-db*))
+
 (defun user-list ()
   "Returns all users in the database."
   (loop :for username :being :the :hash-keys :in *web-user-db* :using (:hash-value user)
@@ -304,15 +307,16 @@ account." :table nil))
 
     (edit-user-form "Add New User" "newuser" :error error :username username)))
 
+(defun process-login (user password)
+  (let ((username (username user)))
+    (when (equalp (hash-sequence password) (password-hash user))
+      (setf (session user) (hunchentoot:start-session))
+      (setf (hunchentoot:session-value 'userhash) (hash-sequence username)
+	    (hunchentoot:session-value 'username) username))))
+
 (hunchentoot:define-easy-handler (do-login :uri "/do-login")
     (username password redirect action)
-  (flet ((bad-login () (hunchentoot:redirect "/login?denied=bad"))
-	 (process-login (user password)
-	   (when (equalp (hash-sequence password) (password-hash user))
-	     (setf (session user) (hunchentoot:start-session))
-	     (setf (hunchentoot:session-value 'userhash) (hash-sequence username)
-		   (hunchentoot:session-value 'username) username))))
-    
+  (flet ((bad-login () (hunchentoot:redirect "/login?denied=bad")))    
     (cond
       ((valid-session-p)
        (if (string= action "logout")
@@ -417,9 +421,12 @@ Invalid CIDR subnets will signal a PARSE-ERROR."
 	   (let ((user
 		  (create-login username password1 (escape-string displayname)
 				:admin (or (not (login-available-p)) (not (null configp))))))
-	     (setf (filters user) (parse-generic-filters title subnet vlan delete)))
+	     (setf (filters user) (parse-generic-filters title subnet vlan delete))
+	     ;; If this is the first user created - automatically log them in for convenience.
+	     (when (= 1 (user-count))
+	       (process-login user password1)))
 	 (periscope-config-error () (error-redirect "userexists" :username username)))
-       
+
        (hunchentoot:redirect (format nil "/edit-user?user=~a&new=true" username)))))
   
   (when (string= action "edituser")
