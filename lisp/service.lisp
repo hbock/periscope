@@ -30,13 +30,15 @@
 				       (flow-list (error "Need flowz!"))
 				       (ports *notable-ports*))
   (with-slots (hash) object
-    (setf hash (make-hash-table :size (length ports)))
+    (setf hash (make-hash-table :size (+ 3 (length ports))))
     (dolist (flow flow-list)
       (with-slots (protocol source dest) flow
 	(case protocol
+	  ;; We are only interested in TCP/UDP services and ICMP requests/replies.
 	  ((#.+ip-proto-udp+ #.+ip-proto-tcp+ #.+ip-proto-icmp+)
 	   (let ((bytes (+ (host-bytes source) (host-bytes dest)))
 		 (packets (+ (host-packets source) (host-packets dest))))
+	     ;; Calculate statistics about the transport layer protocol of the flow
 	     (let* ((type (case protocol
 			    (#.+ip-proto-tcp+ :tcp)
 			    (#.+ip-proto-udp+ :udp)
@@ -44,6 +46,8 @@
 		    (service (gethash type hash (make-instance 'service-stats))))
 	       (add-to-service service flow bytes packets)
 	       (setf (gethash type hash) service))
+	     ;; We are only interested in the destination port of the flow, which
+	     ;; tells us the intended service.
 	     (when (find (host-port dest) ports)
 	       (let* ((port (host-port dest))
 		      (service (gethash port hash (make-instance 'service-stats))))
@@ -57,7 +61,9 @@
       (:incoming (add-stats incoming :bytes bytes :packets packets))
       (:outgoing (add-stats outgoing :bytes bytes :packets packets)))))
 
-(defmethod print-matched-flow-stats ((object service) predicate &optional label-fun)
+(defmethod print-matched-service-stats ((object service) predicate &optional label-fun)
+  "Print statistics for services matching predicate, optionally transforming the name
+of the service with label-fun."
   (with-html-output (*standard-output*)
     (:div
      :class "stats"
@@ -88,12 +94,14 @@
     (fmt "~{~a~^, ~} " (mapcar #'service-name *notable-ports*))
     (when (configure-p)
       (htm (:a :href "/config" "(edit)")))
-    (print-matched-flow-stats object (lambda (val) (typep val '(unsigned-byte 16))) #'service-name)
+    (print-matched-service-stats object (lambda (val)
+					  (typep val '(unsigned-byte 16)))
+				 #'service-name)
     
     (:h3 "Protocol Statistics")
     (:b "Tracked protocols: " )
     (fmt "~{~a~^, ~} " '(:tcp :udp :icmp))
-    (print-matched-flow-stats object #'keywordp)))
+    (print-matched-service-stats object #'keywordp)))
 
 (defun make-service-report (flow-list)
   (make-instance 'service :flow-list flow-list))
