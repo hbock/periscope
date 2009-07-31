@@ -117,7 +117,7 @@ must be specified!" :table nil))
 (defun ports-from-string (port-string)
   "Take a string of port numbers, separated by spaces and/or commas, and return a sorted list
 of integers corresponding to these numbers.  Duplicate and invalid port numbers are removed."
-  (parse-integer-list port-string (lambda (port) (> port 65535))))
+  (parse-integer-list port-string "\\d{1,5}" (lambda (port) (> port 65535))))
 
 (hunchentoot:define-easy-handler (set-config :uri "/set-config")
     (action (web-port :parameter-type 'integer) dnslookup
@@ -161,7 +161,7 @@ of integers corresponding to these numbers.  Duplicate and invalid port numbers 
 	 (setf *notable-ports*
 	       (delete-if (lambda (port)
 			    (find port remove-list)) *notable-ports*)))
-	   
+
        (when (not (empty-string-p ports))
 	 (if (ppcre:scan "^(\\d{1,5}( *|(, *)))+$" ports)
 	     (setf *notable-ports*
