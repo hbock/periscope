@@ -117,6 +117,11 @@ logged-in user.  If no user is logged in, returns NIL."
 	  `(create-login ,username ,(password-hash user) ,(display-name user)
 			 :admin ,(admin-p user)))))
 
+(defun configure-p ()
+  "Returns true when it is currently allowed to edit the configuration, meaning either there
+are no users defined (anyone can edit) OR an administrator is currently logged in."
+  (or (not (login-available-p)) (and (user) (admin-p (user)))))
+
 (defmethod create-filter-forms ((user web-user))
   "Output forms that, when evaluated, set up the users' flow filters exactly as they are
 currently set up (for configuration purposes)."
