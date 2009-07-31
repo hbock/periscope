@@ -71,9 +71,5 @@
 		 (:td (str (byte-string (bytes-dest service))))
 		 (:td (fmt "~:d" (packets-dest service)))))))))))
 
-(define-report-handler (service "/service" "Service Type") ()
-  (with-periscope-page ("Service Statistics")
-    (print-html (make-instance 'service :flow-list *flow-list*))))
-
 (defun make-service-report (flow-list)
   (make-instance 'service :flow-list flow-list))
