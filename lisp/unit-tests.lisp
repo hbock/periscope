@@ -159,6 +159,23 @@
   (subnet-string-test "1aldgajha, asdfa1231, 99ar9gag" nil :expected-error t)
   (subnet-string-test "10.0.0.8/25, asdfa1231, 99ar9gag" nil :expected-error t))
 
+(deftest execute-command-test (expected-code-predicate command)
+  ;; No implementation other than SBCL yet...
+  #+sbcl
+  (multiple-value-bind (pid status code)
+      (periscope::execute-command command nil)
+    (is (plusp pid))
+    (is (eq :exited status))
+    (is (funcall expected-code-predicate code))))
+
+(deftest execute-command-tests ()
+  ;; These return codes might be different in other *nixes... best be safe for now.
+  #+linux
+  (progn
+    (execute-command-test #'zerop "ls")
+    (execute-command-test #'plusp "asdfasdfa")
+    (execute-command-test #'plusp "grep")))
+
 (defsuite* time-tests)
 
 (defmacro time-is (form time time2)
