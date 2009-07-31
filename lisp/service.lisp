@@ -22,10 +22,9 @@
   (hash))
 
 (defclass service-stats ()
-  ((bytes-source :accessor bytes-source :initform 0)
-   (bytes-dest :accessor bytes-dest :initform 0)
-   (packets-source :accessor packets-source :initform 0)
-   (packets-dest :accessor packets-dest :initform 0)))
+  ((total :accessor total :type stats :initform (make-instance 'stats))
+   (incoming :accessor incoming :type stats :initform (make-instance 'stats))
+   (outgoing :accessor outgoing :type stats :initform (make-instance 'stats))))
 
 (defmethod initialize-instance :after ((object service) &key
 				       (flow-list (error "Need flowz!"))
@@ -36,17 +35,17 @@
       (with-slots (protocol source dest) flow
 	(case protocol
 	  ((#.+ip-proto-udp+ #.+ip-proto-tcp+)
-	   (when (find (host-port source) ports)
-	     (let* ((port (host-port source))
-		    (service (gethash port hash (make-instance 'service-stats))))
-	       (incf (bytes-source service) (host-bytes source))
-	       (incf (packets-source service) (host-packets source))
-	       (setf (gethash port hash) service)))
 	   (when (find (host-port dest) ports)
 	     (let* ((port (host-port dest))
+		    (bytes (+ (host-bytes source) (host-bytes dest)))
+		    (packets (+ (host-packets source) (host-packets dest)))
 		    (service (gethash port hash (make-instance 'service-stats))))
-	       (incf (bytes-dest service) (host-bytes dest))
-	       (incf (packets-dest service) (host-packets dest))
+
+	       (with-slots (total incoming outgoing) service
+		 (add-stats total :bytes (host-bytes dest) :packets (host-packets dest))
+		 (case (classify flow)
+		   (:incoming (add-stats incoming :bytes bytes :packets packets))
+		   (:outgoing (add-stats outgoing :bytes bytes :packets packets))))
 	       (setf (gethash port hash) service)))))))))
 
 (defmethod print-html ((object service) &key)
@@ -60,16 +59,23 @@
     (:div
      :class "stats"
      (:table
-      (:tr (:th "") (:th :colspan 2 "Source") (:th :colspan 2 "Destination"))
-      (:tr (:th "Service") (:th "Bytes") (:th "Packets") (:th "Bytes") (:th "Packets"))
+      (:tr (:th "")
+	   (:th :colspan 3 "Incoming")
+	   (:th :colspan 3 "Outgoing")
+	   (:th :colspan 3 "Total"))
+      (:tr (:th "Service")
+	   (:th "Packets") (:th "Bytes") (:th "Flows")
+	   (:th "Packets") (:th "Bytes") (:th "Flows")
+	   (:th "Packets") (:th "Bytes") (:th "Flows"))
       (with-slots (hash) object
 	(loop :for port :being :the :hash-keys :in hash :using (:hash-value service) :do
-	   (htm
-	    (:tr (:td (str (or (service-name port) port)))
-		 (:td (str (byte-string (bytes-source service))))
-		 (:td (fmt "~:d" (packets-source service)))
-		 (:td (str (byte-string (bytes-dest service))))
-		 (:td (fmt "~:d" (packets-dest service)))))))))))
+	   (with-slots (total incoming outgoing) service
+	     (htm
+	      (:tr
+	       (:td (str (service-name port)))
+	       (print-html incoming :with-row nil)
+	       (print-html outgoing :with-row nil)
+	       (print-html total :with-row nil))))))))))
 
 (defun make-service-report (flow-list)
   (make-instance 'service :flow-list flow-list))
