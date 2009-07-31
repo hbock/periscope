@@ -23,11 +23,6 @@
 are processed correctly, or a proper error is signalled when a report format is no longer
 supported.")
 
-(defclass stats ()
-  ((flows :initarg :flows :accessor flows :initform 0)
-   (bytes :initarg :bytes :accessor bytes :initform 0)
-   (packets :initarg :packets :accessor packets :initform 0)))
-
 (defclass periodic-report (report)
   ((total :accessor total :type stats)
    (internal :accessor internal :type stats :initform (make-instance 'stats))
@@ -120,22 +115,6 @@ supported.")
   (sort (remove-if #'zerop (local-hosts report) :key #'remote-contact-count)
 	#'> :key #'remote-contact-count))
 
-(defmethod print-html ((object stats) &key (title "General Stats") (type :general) (flows t))
-  (with-html-output (*standard-output*)
-    (ecase type
-      (:general
-       (htm
-	(:tr (:th (str title))
-	     (:td (fmt "~:d" (packets object)))
-	     (:td (str (byte-string (bytes object))))
-	     (:td (fmt "~:d" (flows object))))))
-      (:busiest-hosts
-       (htm
-	(:td (fmt "~:d" (packets object)))
-	(:td (str (byte-string (bytes object))))
-	(when flows
-	  (htm (:td (fmt "~:d" (flows object))))))))))
-
 (defun print-scan-hosts (title host-type list &key key)
   (with-html-output (*standard-output*)
     (:table
@@ -170,9 +149,9 @@ supported.")
 	  :class (if row-switch "rowa" "rowb")
 	  (:td (str (ip-string (host-ip host))))
 	  (:td (str (hostname (host-ip host))))
-	  (print-html (receiving host) :type :busiest-hosts :flows nil)
-	  (print-html (sending host)   :type :busiest-hosts :flows nil)
-	  (print-html (combine-stats (receiving host) (sending host)) :type :busiest-hosts)))
+	  (print-html (receiving host) :with-row nil :flows nil)
+	  (print-html (sending host)   :with-row nil :flows nil)
+	  (print-html (combine-stats (receiving host) (sending host)) :with-row nil)))
 	(setf row-switch (not row-switch))))))
 
 (defmethod object-forms ((object stats))
@@ -231,11 +210,6 @@ supported.")
 			 (outgoing-scan-hosts report) :key #'remote-contact-count)
        (print-busiest-hosts "Busiest Local Hosts" (busiest-hosts (local-hosts report)))
        (print-busiest-hosts "Busiest Remote Hosts" (busiest-hosts (remote-hosts report)))))))
-
-(defmethod add-stats ((object stats) &key (flows 1) (bytes 0) (packets 0))
-  (incf (flows object) flows)
-  (incf (bytes object) bytes)
-  (incf (packets object) packets))
 
 (defun combine-stats (&rest stats)
   (make-instance 'stats

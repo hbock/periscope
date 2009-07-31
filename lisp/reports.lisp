@@ -22,6 +22,30 @@
   ((generated :reader generation-time :initform (now))
    (format-version :reader report-format-version)))
 
+(defclass stats ()
+  ((flows :initarg :flows :accessor flows :initform 0)
+   (bytes :initarg :bytes :accessor bytes :initform 0)
+   (packets :initarg :packets :accessor packets :initform 0)))
+
+(defmethod add-stats ((object stats) &key (flows 1) (bytes 0) (packets 0))
+  (incf (flows object) flows)
+  (incf (bytes object) bytes)
+  (incf (packets object) packets))
+
+(defmethod print-html ((object stats) &key (title "General Stats") (with-row t) (flows t))
+  (with-html-output (*standard-output*)
+    (if with-row
+	(htm
+	 (:tr (:th (str title))
+	      (:td (fmt "~:d" (packets object)))
+	      (:td (str (byte-string (bytes object))))
+	      (:td (fmt "~:d" (flows object)))))
+	(htm
+	 (:td (fmt "~:d" (packets object)))
+	 (:td (str (byte-string (bytes object))))
+	 (when flows
+	   (htm (:td (fmt "~:d" (flows object)))))))))
+
 (defgeneric print-html (object &key)
   (:documentation "Print a report object in HTML format."))
 
