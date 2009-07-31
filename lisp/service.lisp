@@ -34,28 +34,31 @@
     (dolist (flow flow-list)
       (with-slots (protocol source dest) flow
 	(case protocol
-	  ((#.+ip-proto-udp+ #.+ip-proto-tcp+)
-	   (when (find (host-port dest) ports)
-	     (let* ((port (host-port dest))
-		    (bytes (+ (host-bytes source) (host-bytes dest)))
-		    (packets (+ (host-packets source) (host-packets dest)))
-		    (service (gethash port hash (make-instance 'service-stats))))
+	  ((#.+ip-proto-udp+ #.+ip-proto-tcp+ #.+ip-proto-icmp+)
+	   (let ((bytes (+ (host-bytes source) (host-bytes dest)))
+		 (packets (+ (host-packets source) (host-packets dest))))
+	     (let* ((type (case protocol
+			    (#.+ip-proto-tcp+ :tcp)
+			    (#.+ip-proto-udp+ :udp)
+			    (#.+ip-proto-icmp+ :icmp)))
+		    (service (gethash type hash (make-instance 'service-stats))))
+	       (add-to-service service flow bytes packets)
+	       (setf (gethash type hash) service))
+	     (when (find (host-port dest) ports)
+	       (let* ((port (host-port dest))
+		      (service (gethash port hash (make-instance 'service-stats))))
+		 (add-to-service service flow bytes packets)
+		 (setf (gethash port hash) service))))))))))
 
-	       (with-slots (total incoming outgoing) service
-		 (add-stats total :bytes (host-bytes dest) :packets (host-packets dest))
-		 (case (classify flow)
-		   (:incoming (add-stats incoming :bytes bytes :packets packets))
-		   (:outgoing (add-stats outgoing :bytes bytes :packets packets))))
-	       (setf (gethash port hash) service)))))))))
+(defmethod add-to-service ((object service-stats) flow bytes packets)
+  (with-slots (total incoming outgoing) object
+    (add-stats total :bytes bytes :packets packets)
+    (case (classify flow)
+      (:incoming (add-stats incoming :bytes bytes :packets packets))
+      (:outgoing (add-stats outgoing :bytes bytes :packets packets)))))
 
-(defmethod print-html ((object service) &key)
+(defmethod print-matched-flow-stats ((object service) predicate &optional label-fun)
   (with-html-output (*standard-output*)
-    (:h3 "Service Statistics")
-    (:b "Tracked services, port numbers: ")
-    (fmt "~{~a~^, ~} " (mapcar #'service-name *notable-ports*))
-    (when (and (user) (admin-p (user)))
-      (htm (:a :href "/config" "(edit)")))
-
     (:div
      :class "stats"
      (:table
@@ -68,14 +71,29 @@
 	   (:th "Packets") (:th "Bytes") (:th "Flows")
 	   (:th "Packets") (:th "Bytes") (:th "Flows"))
       (with-slots (hash) object
-	(loop :for port :being :the :hash-keys :in hash :using (:hash-value service) :do
+	(loop :for port :being :the :hash-keys :in hash :using (:hash-value service)
+	   :when (funcall predicate port) :do
 	   (with-slots (total incoming outgoing) service
 	     (htm
 	      (:tr
-	       (:td (str (service-name port)))
+	       (:td (str (if label-fun (funcall label-fun port) port)))
 	       (print-html incoming :with-row nil)
 	       (print-html outgoing :with-row nil)
 	       (print-html total :with-row nil))))))))))
+
+(defmethod print-html ((object service) &key)
+  (with-html-output (*standard-output*)
+    (:h3 "Service Statistics")
+    (:b "Tracked services: ")
+    (fmt "~{~a~^, ~} " (mapcar #'service-name *notable-ports*))
+    (when (configure-p)
+      (htm (:a :href "/config" "(edit)")))
+    (print-matched-flow-stats object (lambda (val) (typep val '(unsigned-byte 16))) #'service-name)
+    
+    (:h3 "Protocol Statistics")
+    (:b "Tracked protocols: " )
+    (fmt "~{~a~^, ~} " '(:tcp :udp :icmp))
+    (print-matched-flow-stats object #'keywordp)))
 
 (defun make-service-report (flow-list)
   (make-instance 'service :flow-list flow-list))
