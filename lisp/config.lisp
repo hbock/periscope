@@ -49,6 +49,7 @@
     (write-config config-stream)))
 
 (defun network-list-forms (list)
+  "Given a list of dotted lists, create forms to recreate that list."
   `(list
     ,@(loop :for (network . netmask) :in list :collect
 	 `(cons ,network ,netmask))))
