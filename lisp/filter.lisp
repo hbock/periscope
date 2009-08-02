@@ -64,13 +64,10 @@
 		   :internal-networks internal-networks)))
 
 (defmethod print-config-forms ((object filter))
-  (flet ((collect-networks (list)
-	   (loop :for (network . netmask) :in list :collect
-	      `(cons ,network ,netmask))))
-    (with-slots (vlans subnets internal-networks title) object
-      `(make-generic-filter ,title :vlans (list ,@vlans)
-			    :subnets (list ,@(collect-networks subnets))
-			    :internal-networks (list ,@(collect-networks internal-networks))))))
+  (with-slots (vlans subnets internal-networks title) object
+    `(make-generic-filter ,title :vlans (list ,@vlans)
+			  :subnets ,(network-list-forms subnets)
+			  :internal-networks ,(network-list-forms internal-networks))))
 
 (defun apply-filters (sequence predicate-list &key key)
   "Apply each predicate in predicate-list once to each element in sequence, returning
