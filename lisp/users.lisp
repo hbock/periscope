@@ -222,10 +222,7 @@ below." (username user)))))
        (flet ((print-vlans (filter)
 		(format nil "~{~a~^, ~}" (slot-value filter 'vlans)))
 	      (print-subnets (filter)
-		(format nil "~{~a~^, ~}"
-			(mapcar (lambda (subnet)
-				  (ip-string (car subnet) (cdr subnet)))
-				(slot-value filter 'subnets)))))
+		(format nil "~{~a~^, ~}" (network-strings (slot-value filter 'subnets)))))
 	 (htm
 	  (:tr (:th :colspan 2 "Edit Filters"))
 	  (:tr

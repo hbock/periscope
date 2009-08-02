@@ -47,7 +47,7 @@
 (defun make-generic-filter (title &key vlans subnets)
   (let ((predicate
 	 (cond ((not (or vlans subnets))
-		(lambda (flow)
+	(lambda (flow)
 		  (declare (ignore flow)) t))
 	       ((null subnets)
 		(vlan-list-filter vlans))
@@ -81,7 +81,4 @@ one filtered list per predicate."
 	      (htm (:b "VLANs: ") (fmt "~{~a~^, ~}" (mapcar #'vlan-name vlans))))
 	    (:br)
 	    (when subnets
-	      (htm (:b "Subnets: ")
-		   (fmt "~{~a~^, ~}"
-			(loop :for (network . netmask) :in subnets :collect
-			   (ip-string network netmask)))))))))
+	      (htm (:b "Subnets: ") (fmt "~{~a~^, ~}" (network-strings subnets))))))))

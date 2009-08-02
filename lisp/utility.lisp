@@ -33,6 +33,10 @@ If subnet is specified, a CIDR suffix will be appended to the end of the string.
 	    (when subnet
 	      (count-bits subnet)))))
 
+(defun network-strings (network-list)
+  (mapcar (lambda (network)
+	    (ip-string (car network) (cdr network))) network-list))
+
 (defun parse-ip-string (string &key junk-allowed)
   "Parse an IPv4 string in dotted quad notation, optionally with a CIDR subnet mask,
 to a corresponding 32-bit IPv4 address and corresponding subnet mask. If the subnet mask
