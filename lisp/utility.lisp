@@ -84,6 +84,9 @@ PARSE-ERROR if string is not a valid IPv4 string unless :junk-allowed is T."
 address (255.255.255.255)."
   (or (= ip +broadcast-ip+) (= ip (broadcast-address network netmask))))
 
+(defun multicast-address-p (ip)
+  (and (>= ip +lowest-multicast-address+) (<= ip +highest-multicast-address+)))
+
 (defun create-service-cache (&optional (service-file (pathname "/etc/services")))
   "Generate the Internet service name cache for use with SERVICE-NAME.  SERVICE-FILE
 is parsed to create the cache; by default, it is created using the system file
