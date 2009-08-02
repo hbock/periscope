@@ -222,7 +222,9 @@ below." (username user)))))
        (flet ((print-vlans (filter)
 		(format nil "~{~a~^, ~}" (slot-value filter 'vlans)))
 	      (print-subnets (filter)
-		(format nil "~{~a~^, ~}" (network-strings (slot-value filter 'subnets)))))
+		(format nil "~{~a~^, ~}" (network-strings (slot-value filter 'subnets))))
+	      (print-networks (filter)
+		(format nil "~{~a~^, ~}" (network-strings (slot-value filter 'internal-networks)))))
 	 (htm
 	  (:tr (:th :colspan 2 "Edit Filters"))
 	  (:tr
@@ -230,12 +232,19 @@ below." (username user)))))
 	    :colspan 3
 	    (:table
 	     :class "input"
-	     (:tr (:th "Title") (:th "Subnet Filters") (:th "VLAN filters") (:th "Delete"))
+	     (:tr (:th "#")
+		  (:th "Title")
+		  (:th "Internal Networks")
+		  (:th "Subnets")
+		  (:th "VLANs")
+		  (:th "Delete"))
 	     (loop :for i = 1 :then (1+ i)
 		:for filter :in (filters user) :do
 		(htm
 		 (:tr
+		  (:td (str i))
 		  (:td (input "title" (filter-title filter) :index i :size 30))
+		  (:td (input "internal" (print-networks filter) :index i :size 30))
 		  (:td (input "subnet" (print-subnets filter) :index i :size 30))
 		  (:td (input "vlan" (print-vlans filter) :index i :size 30))
 		  (:td (checkbox "delete" :index i :value "true"))))))))))))
@@ -337,23 +346,13 @@ of integers corresponding to these numbers.  Duplicate VLAN IDs are removed, and
 IDs will signal a PARSE-ERROR."
   (parse-integer-list vlan-string "^(\\d{1,4}( *|(, *)))+$" (complement #'vlan-p)))
 
-(defun subnets-from-string (subnet-string)
-  "Take a string of CIDR subnet specifications, separated by spaces and/or commas, and return 
-a list of networks and netmasks corresponding to these specifications.  Each network and netmask
-combination form a dotted list, with the CAR representing the network and the CDR the netmask.
-Invalid CIDR subnets will signal a PARSE-ERROR."
-  (loop :for subnet :in
-     (tokenize subnet-string (list #\Space #\Tab #\,)) :collect
-     (multiple-value-bind (network netmask)
-	 (parse-ip-string subnet)
-       (cons network netmask))))
-
-(defun parse-generic-filters (title-array subnet-array vlan-array delete-array)
-  (declare (type array title-array subnet-array vlan-array delete-array))
+(defun parse-generic-filters (title-array internal-array subnet-array vlan-array delete-array)
+  (declare (type array internal-array title-array subnet-array vlan-array delete-array))
 
   (let (filters)
     (loop :for i :from 0 :below (length title-array)
        :for title = (aref title-array i)
+       :for internal-string = (aref internal-array i)
        :for vlan-string = (aref vlan-array i)
        :for subnet-string = (aref subnet-array i)
        :for delete-p = (and (plusp i)
@@ -361,11 +360,14 @@ Invalid CIDR subnets will signal a PARSE-ERROR."
 			    (string= "true" (aref delete-array i)))
        :unless (or delete-p (empty-string-p title vlan-string subnet-string)) :do
        (handler-case
-	   (let ((vlans (unless (empty-string-p vlan-string)
+	   (let ((internals (unless (empty-string-p internal-string)
+			      (subnets-from-string internal-string)))
+		 (vlans (unless (empty-string-p vlan-string)
 			  (vlans-from-string vlan-string)))
 		 (subnets (unless (empty-string-p subnet-string)
 			    (subnets-from-string subnet-string))))
-	     (push (make-generic-filter (escape-string title) :vlans vlans :subnets subnets)
+	     (push (make-generic-filter (escape-string title) :vlans vlans :subnets subnets
+					:internal-networks internals)
 		   filters))
 	 ;; The redirect for now must be done here so as to return which filter actually
 	 ;; caused the error.
@@ -378,11 +380,12 @@ Invalid CIDR subnets will signal a PARSE-ERROR."
     (action username displayname password1 password2 configp
 	    required
 	    (sessiontime :parameter-type 'integer)
-	    (user   :parameter-type 'array)
-	    (delete :parameter-type 'array)
-	    (title  :parameter-type 'array)
-	    (subnet :parameter-type 'array)
-	    (vlan   :parameter-type 'array))
+	    (user     :parameter-type 'array)
+	    (delete   :parameter-type 'array)
+	    (title    :parameter-type 'array)
+	    (internal :parameter-type 'array)
+	    (subnet   :parameter-type 'array)
+	    (vlan     :parameter-type 'array))
   (valid-session-or-lose :admin t)
 
   (let ((*redirect-page* "/users"))
@@ -418,7 +421,7 @@ Invalid CIDR subnets will signal a PARSE-ERROR."
 	   (let ((user
 		  (create-login username password1 (escape-string displayname)
 				:admin (or (not (login-available-p)) (not (null configp))))))
-	     (setf (filters user) (parse-generic-filters title subnet vlan delete))
+	     (setf (filters user) (parse-generic-filters title internal subnet vlan delete))
 	     ;; If this is the first user created - automatically log them in for convenience.
 	     (when (= 1 (user-count))
 	       (process-login user password1)))
@@ -453,7 +456,7 @@ Invalid CIDR subnets will signal a PARSE-ERROR."
 	(setf (password-hash user) (hash-sequence password1)))
       
       (setf (display-name user) (escape-string displayname))
-      (setf (filters user) (parse-generic-filters title subnet vlan delete))
+      (setf (filters user) (parse-generic-filters title internal subnet vlan delete))
       
       (save-config)
       (let ((*redirect-page* "/edit-user"))
