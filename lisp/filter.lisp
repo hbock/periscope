@@ -22,6 +22,7 @@
   ((title :initarg :title :reader filter-title :initform nil)
    (vlans :initarg :vlans :initform nil)
    (subnets :initarg :subnets :initform nil)
+   (internal-networks :initarg :internal-networks :initform nil)
    (predicate :initarg :predicate :accessor filter-predicate
 	      :initform (lambda (flow)
 			  (declare (ignore flow)) t))))
@@ -44,7 +45,7 @@
      (some (lambda (subnet)
 	     (network-member-p (host-ip (dest flow)) (car subnet) (cdr subnet))) subnet*))))
 
-(defun make-generic-filter (title &key vlans subnets)
+(defun make-generic-filter (title &key vlans subnets internal-networks)
   (let ((predicate
 	 (cond ((not (or vlans subnets))
 	(lambda (flow)
@@ -59,13 +60,17 @@
 		  (lambda (flow)
 		    (or (funcall vlan-predicate flow)
 			(funcall subnet-predicate flow))))))))
-    (make-instance 'filter :title title :vlans vlans :subnets subnets :predicate predicate)))
+    (make-instance 'filter :title title :vlans vlans :subnets subnets :predicate predicate
+		   :internal-networks internal-networks)))
 
 (defmethod print-config-forms ((object filter))
-  (with-slots (vlans subnets title) object
-    `(make-generic-filter ,title :vlans (list ,@vlans)
-			  :subnets (list ,@(loop :for (network . netmask) :in subnets :collect
-					      `(cons ,network ,netmask))))))
+  (flet ((collect-networks (list)
+	   (loop :for (network . netmask) :in list :collect
+	      `(cons ,network ,netmask))))
+    (with-slots (vlans subnets internal-networks title) object
+      `(make-generic-filter ,title :vlans (list ,@vlans)
+			    :subnets (list ,@(collect-networks subnets))
+			    :internal-networks (list ,@(collect-networks internal-networks))))))
 
 (defun apply-filters (sequence predicate-list &key key)
   "Apply each predicate in predicate-list once to each element in sequence, returning
@@ -73,12 +78,23 @@ one filtered list per predicate."
   (mapcar (lambda (predicate) (remove-if-not predicate sequence :key key)) predicate-list))
 
 (defmethod print-html ((object filter) &key)
-  (with-slots (title vlans subnets) object
+  (with-slots (title vlans subnets internal-networks) object
     (with-html-output (*standard-output*)
       (:div :class "filter-title"
-	    (:big (:b (str (filter-title object)))) (:br)
+	    (:big "Filter " (:b (str (filter-title object))))
+	    (:br)
+	    (:b "Internal Networks: ")
+	    (fmt "~{~a~^, ~}"
+		 (network-strings (if internal-networks
+				      internal-networks
+				      *internal-networks*)))
+	    (:br) (:br)
+	    (:i "Filter Parameters")
+	    (:br)
 	    (when vlans
-	      (htm (:b "VLANs: ") (fmt "~{~a~^, ~}" (mapcar #'vlan-name vlans))))
+	      (htm (:b "VLANs: ")
+		   (fmt "~{~a~^, ~}" (mapcar #'vlan-name vlans))))
 	    (:br)
 	    (when subnets
-	      (htm (:b "Subnets: ") (fmt "~{~a~^, ~}" (network-strings subnets))))))))
+	      (htm (:b "Subnets: ")
+		   (fmt "~{~a~^, ~}" (network-strings subnets))))))))
