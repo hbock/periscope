@@ -73,20 +73,31 @@ PARSE-ERROR if string is not a valid IPv4 string unless :junk-allowed is T."
   "Returns true if IP is a member of the IPv4 network specified by NETWORK and NETMASK."
   (= network (logand ip netmask)))
 
-(defun local-host-p (ip &optional (network *internal-network*) (netmask *internal-netmask*))
-  (network-member-p ip network netmask))
+(defun any-network-member-p (ip &optional (networks *internal-networks*))
+  "Returns true if IP is a member of the IPv4 network specified by NETWORK and NETMASK."
+  (some (lambda (network)
+	  (network-member-p ip (car network) (cdr network))) networks))
 
-(defun remote-host-p (ip &optional (network *internal-network*) (netmask *internal-netmask*))
-  (not (network-member-p ip network netmask)))
+(defun local-host-p (ip &optional (networks *internal-networks*))
+  (any-network-member-p ip networks))
+
+(defun remote-host-p (ip &optional (networks *internal-networks*))
+  (not (any-network-member-p ip networks)))
 
 (defun broadcast-address (network netmask)
   "Calculate the broadcast address for a given IP/netmask combination."
   (logand #xffffffff (logior (logand network netmask) (lognot netmask))))
 
-(defun broadcast-address-p (ip &optional (network *internal-network*) (netmask *internal-netmask*))
+(defun broadcast-address-p (ip network netmask)
   "Returns true if ip is a broadcast address in netmask, or if it is the universal broadcast
 address (255.255.255.255)."
   (or (= ip +broadcast-ip+) (= ip (broadcast-address network netmask))))
+
+(defun any-broadcast-address-p (ip &optional (networks *internal-networks*))
+  "Returns true if ip is a broadcast address in netmask, or if it is the universal broadcast
+address (255.255.255.255)."
+  (some (lambda (network)
+	  (broadcast-address-p ip (car network) (cdr network))) networks))
 
 (defun create-service-cache (&optional (service-file (pathname "/etc/services")))
   "Generate the Internet service name cache for use with SERVICE-NAME.  SERVICE-FILE
