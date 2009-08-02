@@ -64,6 +64,7 @@
 
 (defvar *internal-network* #x0a000000)
 (defvar *internal-netmask* #xffffff00)
+(defparameter *internal-networks* (list (cons #x0a000000 #xffffff00)))
 
 (defconstant +broadcast-ip+ #xffffffff)
 (defconstant +ip-proto-icmp+ 1)
