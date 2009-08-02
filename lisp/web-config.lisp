@@ -65,7 +65,7 @@
 	 ((string= error "networkparse")
 	  (error-message "Error parsing CIDR network specification.")))
        (:tr
-	(:td "Local Networks (CIDR)")
+	(:td "Default Local Networks (CIDR)")
 	(:td (input "network" (format nil "~{~a~^, ~}" (network-strings *internal-networks*))
 		    :size 30)))
        (:tr
