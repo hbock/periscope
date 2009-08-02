@@ -71,11 +71,11 @@
       ((or (any-broadcast-address-p (host-ip source) networks)
 	   (any-broadcast-address-p (host-ip dest) networks))
        :internal-only)
-      ((network-list-member-p (host-ip source) networks)
-       (if (network-list-member-p (host-ip dest) networks)
+      ((any-network-member-p (host-ip source) networks)
+       (if (any-network-member-p (host-ip dest) networks)
 	   :internal-only
 	   :outgoing))
-      ((network-list-member-p (host-ip dest) networks)
+      ((any-network-member-p (host-ip dest) networks)
        :incoming)
       (t :external-only))))
 
