@@ -25,10 +25,14 @@ filters are defined, a list with the form (time nil &rest reports) is returned."
   (if (and user (filters user))
       (loop :for flows :in (apply-filters flow-list (filter-predicates user))
 	 :for filter :in (filters user) :collect
-	 (list time
-	       filter
-	       (make-periodic-report flows)
-	       (make-service-report flows)))
+	 (with-slots (internal-networks) filter
+	   ;; This is rather inelegant, shadowing *internal-networks*, but it works well
+	   ;; without touching anything else.
+	   (let ((*internal-networks* (if internal-networks internal-networks *internal-networks*)))
+	     (list time
+		   filter
+		   (make-periodic-report flows)
+		   (make-service-report flows)))))
       (list
        (list time
 	     nil
