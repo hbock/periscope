@@ -48,6 +48,12 @@
 				 :if-does-not-exist :create :if-exists :supersede)
     (write-config config-stream)))
 
+(defun network-list-forms (list)
+  "Given a list of dotted lists, create forms to recreate that list."
+  `(list
+    ,@(loop :for (network . netmask) :in list :collect
+	 `(cons ,network ,netmask))))
+
 (defun write-config (&optional (stream *standard-output*))
   "Write the configuration data to a stream."
   (format stream "~S~%"
@@ -58,8 +64,8 @@
 	     hunchentoot:*session-max-time*
 	     *swank-port* *enable-swank-p*
 	     *notable-ports*
-	     *internal-network* *internal-netmask*
 	     *dns-available-p*)))
+  (format stream "~S~%" `(setf *internal-networks* ,(network-list-forms *internal-networks*)))
   (format stream "~S~%" (dump-hash-tables '(*vlan-names*)))
   (format stream "~S~%" (create-login-forms))
   (dolist (user (user-list))

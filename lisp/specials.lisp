@@ -64,8 +64,8 @@
 
 (defvar *vlan-names* (make-hash-table))
 
-(defvar *internal-network* #x0a000000)
-(defvar *internal-netmask* #xffffff00)
+(defparameter *notable-ports* (list 22 53 80 443 51413))
+(defparameter *internal-networks* (list (cons #x0a000000 #xffffff00)))
 
 (defconstant +lowest-multicast-address+ #xe0000000)
 (defconstant +highest-multicast-address+ #xefffffff)

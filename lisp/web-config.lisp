@@ -58,15 +58,16 @@
       (:table
        (:tr
 	(:td "Traffic Filter")
-	(:td (input "filter" (if *collector* (filter *collector*) ""))))
+	(:td (input "filter" (if *collector* (filter *collector*) "") :size 30)))
        (cond
 	 ((string= error "nocidrsuffix")
 	  (error-message "Error: Network subnet mask must be specified (e.g., 192.168.10.0/24)."))
 	 ((string= error "networkparse")
 	  (error-message "Error parsing CIDR network specification.")))
        (:tr
-	(:td "Local Network (CIDR)")
-	(:td (input "network" (ip-string *internal-network* *internal-netmask*))))
+	(:td "Default Local Networks (CIDR)")
+	(:td (input "network" (format nil "~{~a~^, ~}" (network-strings *internal-networks*))
+		    :size 30)))
        (:tr
 	(:td "Notable ports (select to remove)")
 	(:td
@@ -129,6 +130,17 @@ returned in a list as the second return value."
        (return (values (sort (remove-duplicates good) #'<)
 		       (remove-duplicates bad :test #'equal))))))
 
+(defun subnets-from-string (subnet-string)
+  "Take a string of CIDR subnet specifications, separated by spaces and/or commas, and return 
+a list of networks and netmasks corresponding to these specifications.  Each network and netmask
+combination form a dotted list, with the CAR representing the network and the CDR the netmask.
+Invalid CIDR subnets will signal a PARSE-ERROR."
+  (loop :for subnet :in
+     (tokenize subnet-string (list #\Space #\Tab #\,)) :collect
+     (multiple-value-bind (network netmask)
+	 (parse-ip-string subnet)
+       (cons network netmask))))
+
 (hunchentoot:define-easy-handler (set-config :uri "/set-config")
     (action (web-port :parameter-type 'integer) dnslookup
 	    network ports filter
@@ -182,12 +194,7 @@ returned in a list as the second return value."
 	   
        (when network
 	 (handler-case
-	     (multiple-value-bind (network netmask)
-		 (parse-ip-string network)
-	       (unless netmask
-		 (error-redirect "nocidrsuffix"))
-	       (setf *internal-network* network)
-	       (setf *internal-netmask* netmask))
+	     (setf *internal-networks* (subnets-from-string network))
 	   (parse-error ()
 	     (error-redirect "networkparse")))))
 
