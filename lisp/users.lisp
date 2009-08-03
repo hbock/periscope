@@ -145,7 +145,7 @@ currently set up (for configuration purposes)."
   ;; Shadow *WEB-LOGIN-REQUIRED-P* to force the login page to be available even when
   ;; logins are required for all pages.  A bit of a hack...
   (let ((*web-login-required-p* nil))
-    (with-periscope-page ("Login")
+    (with-periscope-page ("Login" :onload "loginFocus()")
       (cond
 	((string= denied "login")
 	 (warning-box (:p :class "denied" "You must be logged in to see this page.")))
@@ -157,7 +157,7 @@ currently set up (for configuration purposes)."
 	 :class "login"
 	 (:tr
 	  (:td "Username")
-	  (:td (input "username" "")))
+	  (:td (input "username" "" :id "login")))
 	 (:tr
 	  (:td "Password")
 	  (:td (password-input "password"))))
