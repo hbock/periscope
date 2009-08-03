@@ -83,6 +83,8 @@ Returns the IP address as a string on lookup failure."
   (cond
     ((any-broadcast-address-p ip)
      (format nil "~a [Broadcast]" (ip-string ip)))
+    ((multicast-address-p ip)
+     (format nil "~a [Multicast]" (ip-string ip)))
     
     (*dns-available-p*
      (bt:with-lock-held (*dns-lock*)
