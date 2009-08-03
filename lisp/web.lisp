@@ -168,11 +168,11 @@ solely of whitespace."
   (with-html-output (*standard-output*)
     (:input :type "submit" :value text)))
 
-(defun input (name default &key (size 20) label disabled index)
+(defun input (name default &key (size 20) label disabled index onload id)
   (with-html-output (*standard-output*)
     (when label
       (htm (:label :for name (str label))))
-    (:input :type "text" :name (input-name name index)
+    (:input :type "text" :id id :name (input-name name index) :onload onload
 	    :value default :size size :disabled disabled)))
 
 (defun password-input (name &key default (size 20) index)
