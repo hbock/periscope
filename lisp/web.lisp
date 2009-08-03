@@ -74,7 +74,7 @@ Starts a separate thread to run the collector and handle its callbacks."
           "Utilities"
           (:ul
 	   (:li (:a :href "/service-names" "Service Names"))))
-     (when (or (not (login-available-p)) (and (valid-session-p :admin t)))
+     (when (configure-p)
        (htm
 	(:li :class "root"
 	     "Configuration"
