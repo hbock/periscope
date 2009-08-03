@@ -92,6 +92,7 @@ address (255.255.255.255)."
 is parsed to create the cache; by default, it is created using the system file
 /etc/services."
   (clrhash *service-cache*)
+  (clrhash *service-reverse-cache*)
   (with-open-file (services service-file :direction :input)
     (loop :for line = (read-line services nil)
        :while line :do
@@ -99,9 +100,11 @@ is parsed to create the cache; by default, it is created using the system file
 	   ("([a-zA-Z\\d-+./]+)[ \\t\\n\\r]+(\\d+)/(udp|tcp)" line)
 	 (let ((service-names (gethash port *service-cache* (cons nil nil))))
 	   (cond ((string= protocol "tcp")
-		  (setf (car service-names) name))
+		  (setf (car service-names) name)
+		  (setf (gethash name *service-reverse-cache*) port))
 		 ((string= protocol "udp")
-		  (setf (cdr service-names) name))
+		  (setf (cdr service-names) name)
+		  (setf (gethash name *service-reverse-cache*) port))
 		 (t (error "Unknown protocol ~a!" protocol)))
 	   (setf (gethash port *service-cache*) service-names))))))
 
@@ -118,6 +121,9 @@ the port number is returned."
 	  ((:udp #.+ip-proto-udp+) (cdr service-names))
 	  (t port))
 	port)))
+
+(defun service-port (name)
+  (gethash name *service-reverse-cache*))
 
 (defun vlan-name (vlan)
   "Returns the VLAN name associated with identifier vlan (an integer).
