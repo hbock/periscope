@@ -61,29 +61,30 @@
   (bt:condition-notify *shutdown-cond*))
 
 (defun main ()
-  (handler-bind ((periscope-config-error
-		  (lambda (c)
-		    (declare (ignore c))
-		    (invoke-restart 'create-new-config-file))))
-    (load-config))
+  (let ((*package* (in-package :periscope)))
+    (handler-bind ((periscope-config-error
+		    (lambda (c)
+		      (declare (ignore c))
+		      (invoke-restart 'create-new-config-file))))
+      (load-config))
 
-  (format t "Starting Periscope ~a...~%" *periscope-version*)
-  (start-web)
-  (format t "Web front-end started.~%")
+    (format t "Starting Periscope ~a...~%" *periscope-version*)
+    (start-web)
+    (format t "Web front-end started.~%")
 
-  (format t "Initializing collector... ")
-  (setf *collector* (init-basic-collector))
-  (format t "OK.~%")
+    (format t "Initializing collector... ")
+    (setf *collector* (init-basic-collector))
+    (format t "OK.~%")
 
-  (when *dns-available-p*
-    (start-dns))
+    (when *dns-available-p*
+      (start-dns))
   
-  (bt:join-thread
-   (bt:make-thread #'worker-thread :name "Periscope Data Worker"))
+    (bt:join-thread
+     (bt:make-thread #'worker-thread :name "Periscope Data Worker"))
 
-  (format t "Received shutdown command.  Terminating web interface.~%")
-  (format t "You may have to navigate to the web interface before it will shut down.~%")
-  (stop-web)
+    (format t "Received shutdown command.  Terminating web interface.~%")
+    (format t "You may have to navigate to the web interface before it will shut down.~%")
+    (stop-web)
 
-  (format t "Completed.")
-  (return-from main 0))
+    (format t "Completed.")
+    (return-from main 0)))

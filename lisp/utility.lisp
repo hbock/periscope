@@ -33,6 +33,10 @@ If subnet is specified, a CIDR suffix will be appended to the end of the string.
 	    (when subnet
 	      (count-bits subnet)))))
 
+(defun network-strings (network-list)
+  (mapcar (lambda (network)
+	    (ip-string (car network) (cdr network))) network-list))
+
 (defun parse-ip-string (string &key junk-allowed)
   "Parse an IPv4 string in dotted quad notation, optionally with a CIDR subnet mask,
 to a corresponding 32-bit IPv4 address and corresponding subnet mask. If the subnet mask
@@ -69,26 +73,41 @@ PARSE-ERROR if string is not a valid IPv4 string unless :junk-allowed is T."
   "Returns true if IP is a member of the IPv4 network specified by NETWORK and NETMASK."
   (= network (logand ip netmask)))
 
-(defun local-host-p (ip &optional (network *internal-network*) (netmask *internal-netmask*))
-  (network-member-p ip network netmask))
+(defun any-network-member-p (ip &optional (networks *internal-networks*))
+  "Returns true if IP is a member of the IPv4 network specified by NETWORK and NETMASK."
+  (some (lambda (network)
+	  (network-member-p ip (car network) (cdr network))) networks))
 
-(defun remote-host-p (ip &optional (network *internal-network*) (netmask *internal-netmask*))
-  (not (network-member-p ip network netmask)))
+(defun local-host-p (ip &optional (networks *internal-networks*))
+  (any-network-member-p ip networks))
+
+(defun remote-host-p (ip &optional (networks *internal-networks*))
+  (not (any-network-member-p ip networks)))
 
 (defun broadcast-address (network netmask)
   "Calculate the broadcast address for a given IP/netmask combination."
   (logand #xffffffff (logior (logand network netmask) (lognot netmask))))
 
-(defun broadcast-address-p (ip &optional (network *internal-network*) (netmask *internal-netmask*))
+(defun broadcast-address-p (ip network netmask)
   "Returns true if ip is a broadcast address in netmask, or if it is the universal broadcast
 address (255.255.255.255)."
   (or (= ip +broadcast-ip+) (= ip (broadcast-address network netmask))))
+
+(defun multicast-address-p (ip)
+  (and (>= ip +lowest-multicast-address+) (<= ip +highest-multicast-address+)))
+
+(defun any-broadcast-address-p (ip &optional (networks *internal-networks*))
+  "Returns true if ip is a broadcast address in netmask, or if it is the universal broadcast
+address (255.255.255.255)."
+  (some (lambda (network)
+	  (broadcast-address-p ip (car network) (cdr network))) networks))
 
 (defun create-service-cache (&optional (service-file (pathname "/etc/services")))
   "Generate the Internet service name cache for use with SERVICE-NAME.  SERVICE-FILE
 is parsed to create the cache; by default, it is created using the system file
 /etc/services."
   (clrhash *service-cache*)
+  (clrhash *service-reverse-cache*)
   (with-open-file (services service-file :direction :input)
     (loop :for line = (read-line services nil)
        :while line :do
@@ -96,9 +115,11 @@ is parsed to create the cache; by default, it is created using the system file
 	   ("([a-zA-Z\\d-+./]+)[ \\t\\n\\r]+(\\d+)/(udp|tcp)" line)
 	 (let ((service-names (gethash port *service-cache* (cons nil nil))))
 	   (cond ((string= protocol "tcp")
-		  (setf (car service-names) name))
+		  (setf (car service-names) name)
+		  (setf (gethash name *service-reverse-cache*) port))
 		 ((string= protocol "udp")
-		  (setf (cdr service-names) name))
+		  (setf (cdr service-names) name)
+		  (setf (gethash name *service-reverse-cache*) port))
 		 (t (error "Unknown protocol ~a!" protocol)))
 	   (setf (gethash port *service-cache*) service-names))))))
 
@@ -115,6 +136,15 @@ the port number is returned."
 	  ((:udp #.+ip-proto-udp+) (cdr service-names))
 	  (t port))
 	port)))
+
+(defun service-port (name)
+  "Given a service name, attempt to look up its associated port number and return that.
+Alternatively, if name is a digit string, parse that as the port
+number.  If a service name cannot be identified, return NIL."
+  (let ((attempted-parse (parse-integer name :junk-allowed t)))
+    (if attempted-parse
+	attempted-parse
+	(gethash name *service-reverse-cache*))))
 
 (defun vlan-name (vlan)
   "Returns the VLAN name associated with identifier vlan (an integer).

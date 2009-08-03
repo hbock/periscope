@@ -63,7 +63,7 @@ Starts a separate thread to run the collector and handle its callbacks."
     (:ul
      (:li (:a :href "/" "Periscope Home"))
      
-     ;(:li (:a :href "/traffic" "Traffic Overview"))
+					;(:li (:a :href "/traffic" "Traffic Overview"))
      (:li :class "root"
           "Reports"
           (:ul
@@ -79,9 +79,10 @@ Starts a separate thread to run the collector and handle its callbacks."
 	(:li :class "root"
 	     "Configuration"
 	     (:ul
+	      (:li (:a :href "/config" "Network Configuration"))
 	      (:li (:a :href "/sources" "Argus Sources"))
-	      (:li (:a :href "/users" "User Logins"))
-	      (:li (:a :href "/config" "Control Panel"))
+	      (:li (:a :href "/users" "Manage User Logins"))
+
 	      (when *web-show-diag*
 		(htm (:li (:a :href "/uuddlrlrbastart" "Diagnostics Panel")))))))))))
 

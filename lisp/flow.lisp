@@ -65,17 +65,17 @@
       
       flow)))
 
-(defmethod classify ((object flow) &key (network *internal-network*) (netmask *internal-netmask*))
+(defmethod classify ((object flow) &key (networks *internal-networks*))
   (with-slots (source dest) object
     (cond
-      ((or (broadcast-address-p (host-ip source) network netmask)
-	   (broadcast-address-p (host-ip dest) network netmask))
+      ((or (any-broadcast-address-p (host-ip source) networks)
+	   (any-broadcast-address-p (host-ip dest) networks))
        :internal-only)
-      ((network-member-p (host-ip source) network netmask)
-       (if (network-member-p (host-ip dest) network netmask)
+      ((any-network-member-p (host-ip source) networks)
+       (if (any-network-member-p (host-ip dest) networks)
 	   :internal-only
 	   :outgoing))
-      ((network-member-p (host-ip dest) network netmask)
+      ((any-network-member-p (host-ip dest) networks)
        :incoming)
       (t :external-only))))
 

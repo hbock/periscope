@@ -69,20 +69,21 @@
 	     (setf (gethash host *dns-cache*) hostname)))))))
 
 (defun reverse-lookup (ip)
-  (if (broadcast-address-p ip)
-      (format nil "~a [Broadcast]" (ip-string ip))
-      #+sbcl
-      (handler-case 
-	  (sb-bsd-sockets:host-ent-name
-	   (sb-bsd-sockets:get-host-by-address (ip-to-vector ip)))
-	(sb-bsd-sockets:name-service-error (e)
-	  (declare (ignore e)) nil))
-      #-sbcl nil))
+  #+sbcl
+  (handler-case 
+      (sb-bsd-sockets:host-ent-name
+       (sb-bsd-sockets:get-host-by-address (ip-to-vector ip)))
+    (sb-bsd-sockets:name-service-error (e)
+      (declare (ignore e)) nil))
+  #-sbcl nil)
 
 (defun hostname (ip)
   "Given an IP address, lookup the hostname of the corresponding machine, if available.
 Returns the IP address as a string on lookup failure."
   (cond
+    ((any-broadcast-address-p ip)
+     (format nil "~a [Broadcast]" (ip-string ip)))
+    
     (*dns-available-p*
      (bt:with-lock-held (*dns-lock*)
        (multiple-value-bind (hostname existp)

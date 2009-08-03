@@ -25,10 +25,14 @@ filters are defined, a list with the form (time nil &rest reports) is returned."
   (if (and user (filters user))
       (loop :for flows :in (apply-filters flow-list (filter-predicates user))
 	 :for filter :in (filters user) :collect
-	 (list time
-	       filter
-	       (make-periodic-report flows)
-	       (make-service-report flows)))
+	 (with-slots (internal-networks) filter
+	   ;; This is rather inelegant, shadowing *internal-networks*, but it works well
+	   ;; without touching anything else.
+	   (let ((*internal-networks* (if internal-networks internal-networks *internal-networks*)))
+	     (list time
+		   filter
+		   (make-periodic-report flows)
+		   (make-service-report flows)))))
       (list
        (list time
 	     nil
@@ -66,6 +70,7 @@ the pathname of the log itself."
   (first (reverse (hourly-logs pathspec))))
 
 (defun print-hourly-list ()
+  "Print out the hourly log list HTML."
   (with-html-output (*standard-output*)
     (:div
      :class "report-listing"
@@ -107,10 +112,24 @@ the pathname of the log itself."
     (if time
 	(handler-case
 	    (let* ((flows (process-local-file (probe-file (hourly-log time))))
-		   (report-lists (make-filtered-reports flows time (user))))
+		   (report-lists (make-filtered-reports flows time (user)))
+		   (logs (mapcar #'car (hourly-logs)))
+		   (position (position time logs))
+		   (previous-time
+		    (when (plusp position)
+		      (nth (1- position) logs)))
+		   (next-time (nth (1+ position) logs)))
 	      (htm
 	       (:h2 "Hourly Report")
+	       (if previous-time
+		   (htm (:a :href (format nil "/hourly?time=~d" previous-time) "Previous Report"))
+		   (htm "Previous Report"))
+	       " | "
 	       (:a :href "/hourly" "Back to all hourly reports")
+	       " | "
+	       (if next-time
+		   (htm (:a :href (format nil "/hourly?time=~d" next-time) "Next Report"))
+		   (htm "Next Report"))
 	       (:div :class "stats"
 		     (dolist (report-list report-lists)
 		       (destructuring-bind (time filter &rest reports) report-list

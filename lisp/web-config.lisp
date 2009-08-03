@@ -58,15 +58,16 @@
       (:table
        (:tr
 	(:td "Traffic Filter")
-	(:td (input "filter" (if *collector* (filter *collector*) ""))))
+	(:td (input "filter" (if *collector* (filter *collector*) "") :size 30)))
        (cond
 	 ((string= error "nocidrsuffix")
 	  (error-message "Error: Network subnet mask must be specified (e.g., 192.168.10.0/24)."))
 	 ((string= error "networkparse")
 	  (error-message "Error parsing CIDR network specification.")))
        (:tr
-	(:td "Local Network (CIDR)")
-	(:td (input "network" (ip-string *internal-network* *internal-netmask*))))
+	(:td "Default Local Networks (CIDR)")
+	(:td (input "network" (format nil "~{~a~^, ~}" (network-strings *internal-networks*))
+		    :size 30)))
        (:tr
 	(:td "Notable ports (select to remove)")
 	(:td
@@ -115,9 +116,30 @@ must be specified!" :table nil))
       (submit "Commit Changes"))))
 
 (defun ports-from-string (port-string)
-  "Take a string of port numbers, separated by spaces and/or commas, and return a sorted list
-of integers corresponding to these numbers.  Duplicate and invalid port numbers are removed."
-  (parse-integer-list port-string "\\d{1,5}" (lambda (port) (> port 65535))))
+  "Take a string of port numbers and/or service names, separated by
+spaces and/or commas, and return a sorted list of integers
+corresponding to these numbers.  Duplicate port numbers
+are removed, and service names that could not be converted into numbers are
+returned in a list as the second return value."
+  (let* ((tokens (tokenize port-string '(#\Space #\, #\Tab #\Newline)))
+	(ports (mapcar #'service-port tokens)))
+    (loop :for port :in ports
+       :if (null port) :collect (nth (position nil ports) tokens) :into bad
+       :else :collect port :into good
+       :finally
+       (return (values (sort (remove-duplicates good) #'<)
+		       (remove-duplicates bad :test #'equal))))))
+
+(defun subnets-from-string (subnet-string)
+  "Take a string of CIDR subnet specifications, separated by spaces and/or commas, and return 
+a list of networks and netmasks corresponding to these specifications.  Each network and netmask
+combination form a dotted list, with the CAR representing the network and the CDR the netmask.
+Invalid CIDR subnets will signal a PARSE-ERROR."
+  (loop :for subnet :in
+     (tokenize subnet-string (list #\Space #\Tab #\,)) :collect
+     (multiple-value-bind (network netmask)
+	 (parse-ip-string subnet)
+       (cons network netmask))))
 
 (hunchentoot:define-easy-handler (set-config :uri "/set-config")
     (action (web-port :parameter-type 'integer) dnslookup
@@ -163,19 +185,16 @@ of integers corresponding to these numbers.  Duplicate and invalid port numbers 
 			    (find port remove-list)) *notable-ports*)))
 
        (when (not (empty-string-p ports))
-	 (if (ppcre:scan "^(\\d{1,5}( *|(, *)))+$" ports)
-	     (setf *notable-ports*
-		   (sort (union *notable-ports* (ports-from-string ports)) #'<))
-	     (error-redirect "ports")))
+	 (multiple-value-bind (good bad)
+	     (ports-from-string ports)
+	   (unless (null bad)
+	     (error-redirect "ports"
+			     :badports (format nil "~{~A~^,~}" (mapcar #'escape-string bad))))
+	   (setf *notable-ports* (sort (union *notable-ports* good) #'<))))
 	   
        (when network
 	 (handler-case
-	     (multiple-value-bind (network netmask)
-		 (parse-ip-string network)
-	       (unless netmask
-		 (error-redirect "nocidrsuffix"))
-	       (setf *internal-network* network)
-	       (setf *internal-netmask* netmask))
+	     (setf *internal-networks* (subnets-from-string network))
 	   (parse-error ()
 	     (error-redirect "networkparse")))))
 
