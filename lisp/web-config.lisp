@@ -115,9 +115,19 @@ must be specified!" :table nil))
       (submit "Commit Changes"))))
 
 (defun ports-from-string (port-string)
-  "Take a string of port numbers, separated by spaces and/or commas, and return a sorted list
-of integers corresponding to these numbers.  Duplicate and invalid port numbers are removed."
-  (parse-integer-list port-string "\\d{1,5}" (lambda (port) (> port 65535))))
+  "Take a string of port numbers and/or service names, separated by
+spaces and/or commas, and return a sorted list of integers
+corresponding to these numbers.  Duplicate port numbers
+are removed, and service names that could not be converted into numbers are
+returned in a list as the second return value."
+  (let* ((tokens (tokenize port-string '(#\Space #\, #\Tab #\Newline)))
+	(ports (mapcar #'service-port tokens)))
+    (loop :for port :in ports
+       :if (null port) :collect (nth (position nil ports) tokens) :into bad
+       :else :collect port :into good
+       :finally
+       (return (values (sort (remove-duplicates good) #'<)
+		       (remove-duplicates bad :test #'equal))))))
 
 (hunchentoot:define-easy-handler (set-config :uri "/set-config")
     (action (web-port :parameter-type 'integer) dnslookup
@@ -163,10 +173,8 @@ of integers corresponding to these numbers.  Duplicate and invalid port numbers 
 			    (find port remove-list)) *notable-ports*)))
 
        (when (not (empty-string-p ports))
-	 (if (ppcre:scan "^(\\d{1,5}( *|(, *)))+$" ports)
-	     (setf *notable-ports*
-		   (sort (union *notable-ports* (ports-from-string ports)) #'<))
-	     (error-redirect "ports")))
+	 (setf *notable-ports*
+	       (sort (union *notable-ports* (ports-from-string ports)) #'<)))
 	   
        (when network
 	 (handler-case
