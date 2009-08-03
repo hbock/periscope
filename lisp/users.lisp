@@ -210,10 +210,13 @@ below." (username user)))))
       (:td "Filter Title")
       (:td (input "title[0]" "" :size 30)))
      (:tr
-      (:td "Subnet Filter (CIDR notation)")
+      (:td "Internal networks (CIDR notation)")
+      (:td (input "internal[0]" "" :size 30)))
+     (:tr
+      (:td "Included subnets (CIDR notation)")
       (:td (input "subnet[0]" "" :size 30)))
      (:tr
-      (:td "VLAN Filter")
+      (:td "Included VLANs")
       (:td (input "vlan[0]" "" :size 30)))
      
      (when (string= error "subnet")
@@ -243,10 +246,10 @@ below." (username user)))))
 		(htm
 		 (:tr
 		  (:td (str i))
-		  (:td (input "title" (filter-title filter) :index i :size 30))
-		  (:td (input "internal" (print-networks filter) :index i :size 30))
-		  (:td (input "subnet" (print-subnets filter) :index i :size 30))
-		  (:td (input "vlan" (print-vlans filter) :index i :size 30))
+		  (:td (input "title" (filter-title filter) :index i :size 20))
+		  (:td (input "internal" (print-networks filter) :index i :size 20))
+		  (:td (input "subnet" (print-subnets filter) :index i :size 20))
+		  (:td (input "vlan" (print-vlans filter) :index i :size 20))
 		  (:td (checkbox "delete" :index i :value "true"))))))))))))
     (:br)
     (submit "Commit Changes")))
