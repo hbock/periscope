@@ -123,7 +123,7 @@ logged-in user.  If no user is logged in, returns NIL."
 (defun configure-p ()
   "Returns true when it is currently allowed to edit the configuration, meaning either there
 are no users defined (anyone can edit) OR an administrator is currently logged in."
-  (or (not (login-available-p)) (and (user) (admin-p (user)))))
+  (or (not (login-available-p)) (valid-session-p :admin t)))
 
 (defmethod create-filter-forms ((user web-user))
   "Output forms that, when evaluated, set up the users' flow filters exactly as they are
