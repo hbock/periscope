@@ -123,7 +123,13 @@ the port number is returned."
 	port)))
 
 (defun service-port (name)
-  (gethash name *service-reverse-cache*))
+  "Given a service name, attempt to look up its associated port number and return that.
+Alternatively, if name is a digit string, parse that as the port
+number.  If a service name cannot be identified, return NIL."
+  (let ((attempted-parse (parse-integer name :junk-allowed t)))
+    (if attempted-parse
+	attempted-parse
+	(gethash name *service-reverse-cache*))))
 
 (defun vlan-name (vlan)
   "Returns the VLAN name associated with identifier vlan (an integer).
