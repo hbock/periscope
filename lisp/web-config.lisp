@@ -173,8 +173,12 @@ returned in a list as the second return value."
 			    (find port remove-list)) *notable-ports*)))
 
        (when (not (empty-string-p ports))
-	 (setf *notable-ports*
-	       (sort (union *notable-ports* (ports-from-string ports)) #'<)))
+	 (multiple-value-bind (good bad)
+	     (ports-from-string ports)
+	   (unless (null bad)
+	     (error-redirect "ports"
+			     :badports (format nil "~{~A~^,~}" (mapcar #'escape-string bad))))
+	   (setf *notable-ports* (sort (union *notable-ports* good) #'<))))
 	   
        (when network
 	 (handler-case
