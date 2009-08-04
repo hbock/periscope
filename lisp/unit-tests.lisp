@@ -162,8 +162,8 @@
 (deftest execute-command-test (expected-code-predicate command)
   ;; No implementation other than SBCL yet...
   #+sbcl
-  (multiple-value-bind (pid status code)
-      (periscope::execute-command command nil)
+  (multiple-value-bind (code pid status)
+      (periscope::process-wait (periscope::process-create command nil))
     (is (plusp pid))
     (is (eq :exited status))
     (is (funcall expected-code-predicate code))))
