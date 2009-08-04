@@ -45,10 +45,18 @@
 		 (ecase time-period
 		   (:hour "hourly.%Y%m%d-%H")
 		   (:half-hour "halfhour.%Y%m%d-%H.%M")))))
-    (execute-command *collector-script* nil server time-period-string output-prefix)))
+    (unwind-protect
+	 (progn
+	   (setf *collector-process*
+		 (process-create (probe-file *collector-script*) nil
+				 ;; Arguments
+				 server time-period-string output-prefix))
+	   (process-wait *collector-process*))
+      (stop-collector *collector-process*)
+      (setf *collector-process* nil))))
 
 (defun stop-collector (collector-process)
-  (interrupt-process collector-process))
+  (process-wait (process-signal collector-process)))
 
 (defun worker-thread ()
   #+nil (loop
@@ -60,7 +68,7 @@
 (defun shutdown ()
   (bt:condition-notify *shutdown-cond*))
 
-(defun main ()
+(defun main (&key (with-collector t))
   (let ((*package* (in-package :periscope)))
     (handler-bind ((periscope-config-error
 		    (lambda (c)
