@@ -44,6 +44,34 @@ if [ ! -x $rabins ] && [ ! -x $rasplit ]; then
     exit 3
 fi
 
+# Check arguments - none can be empty.
 if [ -z "$1" ] || [ -z "$2" ] || [ -z "$3" ]; then usage; fi
 
-$rabins -S $1 -M time $2 -B 20s -w - | $rasplit -M time $2 -w "$3"
+sighandler()
+{
+    # Find all child processes of this script ($$)...
+    for pid in $(ps -ef | awk "\$3 == $$ { print \$2 }")
+    do
+	# ...and kill them dead.  Gracefully, of course :)
+	kill -TERM $pid &> /dev/null
+    done
+    exit 0
+}
+# We only send SIGTERM from Periscope, but best be safe.
+trap sighandler SIGINT SIGTERM SIGHUP
+
+# Run rabins/rasplit pipe as a job - we need to do this so we will
+# actually trap SIGTERM. If we don't, bash will wait until rabins/rasplit
+# finish before invoking the trap handler.
+$rabins -S $1 -M time $2 -B 20s -w - | $rasplit -M time $2 -w "$3" &
+
+# Busy wait while rabins/rasplit run.  Sleep momentarily to yield the processor.
+# This is a hack, I know.
+# The handler may not be called immediately - it will be called in-between invocations
+# of 'sleep 0.5' below... bash must wait until running child processes complete before
+# handling any pending signals.  Which is why this hack is needed in the first place!
+while [ 1 ]; do
+    sleep 0.5
+done
+
+exit 0
