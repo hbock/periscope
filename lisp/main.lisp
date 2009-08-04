@@ -41,32 +41,34 @@
 	   (:hour "1h")
 	   (:half-hour "30m")))
 	(output-prefix
-	 (format nil "'~a~a'" (namestring *report-directory*)
+	 (format nil "~a~a" (namestring *report-directory*)
 		 (ecase time-period
 		   (:hour "hourly.%Y%m%d-%H")
 		   (:half-hour "halfhour.%Y%m%d-%H.%M")))))
-    (unwind-protect
-	 (progn
-	   (setf *collector-process*
-		 (process-create (probe-file *collector-script*) nil
-				 ;; Arguments
-				 server time-period-string output-prefix))
-	   (process-wait *collector-process*))
-      (stop-collector *collector-process*)
-      (setf *collector-process* nil))))
+    (setf *collector-process*
+	  (process-create (probe-file *collector-script*) nil
+			  ;; Arguments
+			  server time-period-string output-prefix))
+    (process-wait *collector-process*)))
 
 (defun stop-collector (collector-process)
   (process-wait (process-signal collector-process)))
 
-(defun worker-thread ()
-  #+nil (loop
-	   (run-collector *collector*)
-	   (format t "Collector stopped, restarting..."))
-  (bt:with-lock-held (*shutdown-lock*)
-    (bt:condition-wait *shutdown-cond* *shutdown-lock*)))
+(defun collector-running-p ()
+  (process-alive-p *collector-process*))
+
+(defun collector-thread ()
+  (loop :until *shutdown-p* :do
+     (run-collector "tinderbox" :hour)
+     (format t "Collector stopped, restarting...")))
 
 (defun shutdown ()
+  (setf *shutdown-p* t)
+  (stop-collector)
   (bt:condition-notify *shutdown-cond*))
+
+(defun repl-main ()
+  (main :with-collector nil))
 
 (defun main (&key (with-collector t))
   (let ((*package* (in-package :periscope)))
@@ -86,9 +88,10 @@
 
     (when *dns-available-p*
       (start-dns))
-  
-    (bt:join-thread
-     (bt:make-thread #'worker-thread :name "Periscope Data Worker"))
+
+    (when with-collector
+      (bt:join-thread
+       (bt:make-thread #'worker-thread :name "Periscope Data Worker")))
 
     (format t "Received shutdown command.  Terminating web interface.~%")
     (format t "You may have to navigate to the web interface before it will shut down.~%")
