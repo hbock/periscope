@@ -51,6 +51,8 @@
 
 (defvar *shutdown-cond* (bt:make-condition-variable))
 (defvar *shutdown-lock* (bt:make-lock))
+(defvar *shutdown-p* nil)
+
 (defvar *dns-available-p* t)
 
 (defvar *swank-port* 20571)
