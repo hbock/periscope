@@ -164,6 +164,14 @@ order by VLAN ID."
    (loop :for vid :being :the :hash-keys :in *vlan-names* :using (:hash-value name)
       :collect (list vid name)) #'< :key #'first))
 
+(defun name-protocol (protocol)
+  "Returns a string representation of an internet or transport protocol."
+  (ecase protocol
+    (#.+ip-proto-icmp+ "ICMP")
+    (#.+ip-proto-igmp+ "IGMP")
+    (#.+ip-proto-tcp+  "TCP")
+    (#.+ip-proto-udp+  "UDP")))
+
 (defun byte-string (bytes &optional (precision 2))
   "Convert BYTES from an integer to a size string, optionally specifying the precision in
 digits following the decimal point."
@@ -213,3 +221,5 @@ digits following the decimal point."
   "Raise SIGINT for process."
   #+sbcl (sb-ext:process-kill process sb-unix:sigint)
   #-sbcl (not-implemented 'interrupt-process))
+
+
