@@ -200,16 +200,37 @@ digits following the decimal point."
   #-sbcl
   `(progn ,@body))
 
-(defun execute-command (command status-hook &rest args)
+(defun process-create (command status-hook &rest args)
+  "Create an external process using command and args. Does not wait for the process
+to complete."
   #+sbcl
-  (let ((process (sb-ext:run-program command args :search t :status-hook status-hook :wait t)))
-    (values (sb-ext:process-pid process)
-	    (sb-ext:process-status process)
-	    (sb-ext:process-exit-code process)))
-
+  (sb-ext:run-program command args :search t :status-hook status-hook :wait nil
+		      :output *standard-output*)
   #-sbcl (not-implemented 'execute-command))
 
-(defun interrupt-process (process)
-  "Raise SIGINT for process."
-  #+sbcl (sb-ext:process-kill process sb-unix:sigint)
+(defun process-wait (process)
+  "Block until process exits. Returns the process exit code, pid, and status.
+Process status is implementation-specific."
+  #+sbcl
+  (progn
+    (sb-ext:process-wait process)
+    (values (sb-ext:process-exit-code process)
+	    (sb-ext:process-pid process)
+	    (sb-ext:process-status process)))
+  
+  #-sbcl (not-implemented 'wait-for-process))
+
+(defun process-alive-p (process)
+  "Returns true if process is currently running (i.e., not terminated or stopped)."
+  #+sbcl (and process (sb-ext:process-alive-p process))
+  #-sbcl (not-implemented 'process-alive-p))
+
+(defun process-signal (process &optional (sig
+					  #+sbcl sb-unix:sigterm
+					  #-sbcl 15))
+  "Raise a signal for process.  By default, raises SIGTERM."
+  #+sbcl
+  (progn
+    (sb-ext:process-kill process sig)
+    process)
   #-sbcl (not-implemented 'interrupt-process))
