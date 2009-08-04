@@ -25,8 +25,8 @@
 # Called from Lisp using EXECUTE-COMMAND.
 # To stop, simply raise SIGINT to this process.
 
-rabins=${PREFIX}rabins
-rasplit=${PREFIX}rasplit
+rabins=$(which ${PREFIX}rabins)
+rasplit=$(which ${PREFIX}rasplit)
 
 error_message()
 {
@@ -36,12 +36,12 @@ error_message()
 usage()
 {
     error_message "Usage: $0 argus-server time-period output-format"
-    exit 1
+    exit 2
 }
 
 if [ ! -x $rabins ] && [ ! -x $rasplit ]; then
     error_message "Error: rabins/rasplit not found. Please install argus-clients!"
-    exit 1
+    exit 3
 fi
 
 if [ -z "$1" ] || [ -z "$2" ] || [ -z "$3" ]; then usage; fi
