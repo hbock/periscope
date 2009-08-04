@@ -110,6 +110,9 @@
 (deftest broadcast-p-test (ip network netmask expected-result)
   (is (eq expected-result (periscope::broadcast-address-p ip network netmask))))
 
+(deftest any-broadcast-p-test (ip network-list expected-result)
+  (is (eq expected-result (periscope::any-broadcast-address-p ip network-list))))
+
 (deftest broadcast-tests ()
   (broadcast-test #x0a000001 #xffffff00 #x0a0000ff)
   (broadcast-test #x0a123456 #xff000000 #x0affffff)
@@ -120,7 +123,14 @@
   (broadcast-p-test #xffffffff #xc8c9ff00 #xffffff00 t)
   (broadcast-p-test #x0a0000ff #x0a000000 #xffffff00 t)
   ;; Subnet address should be #x0a00ffff
-  (broadcast-p-test #x0a0000ff #x0a000000 #xffff0000 nil))
+  (broadcast-p-test #x0a0000ff #x0a000000 #xffff0000 nil)
+  ;;
+  (let ((test-networks '((#x0a000000 . #xff000000)
+			 (#x0a0a0000 . #xffff0000)
+			 (#xc0a80a00 . #xffffff00))))
+    (any-broadcast-p-test #x0a0000ff test-networks nil)
+    (any-broadcast-p-test #x0a0affff test-networks t)
+    (any-broadcast-p-test #xc0a80aff test-networks t)))
 
 (deftest vlan-string-test (vlan-string expected-result &key expected-error)
   (if expected-error
