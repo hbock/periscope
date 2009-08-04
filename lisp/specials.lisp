@@ -46,7 +46,9 @@
 (defvar *redirect-page* nil)
 
 (defvar *collector* nil)
-(defvar *collector-script* #P"../racollector.sh")
+(defvar *collector-script* #P"../racollector")
+(defvar *collector-process* nil)
+
 (defvar *shutdown-cond* (bt:make-condition-variable))
 (defvar *shutdown-lock* (bt:make-lock))
 (defvar *dns-available-p* t)
