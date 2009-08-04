@@ -52,27 +52,45 @@
       (:tr (:td "Collector foreign pointer")
 	   (:td (if *collector*
 		    (str (get-ptr *collector*))
-		    (str "Not initialized!"))))
-      (:tr (:td "DNS cache size") (:td (fmt "~d entries" (hash-table-count *dns-cache*))))
-      (:tr (:td "DNS requests pending lookup")
-	   (:td (fmt "~d addresses"
-		     (bt:with-lock-held (*dns-lock*) (length *dns-requests*)))))
-      (:tr (:td "DNS thread running?") (:td (fmt "~:[No~;Yes~]" (bt:thread-alive-p *dns-thread*))))
-      #+sbcl (sbcl-parameters)))))
+		    (str "Not initialized!"))))))
+    (collector-diag)
+    (dns-diag)
+    #+sbcl (sbcl-parameters)))
 
+(defun y-or-n-td (generalized-boolean)
+  (with-html-output (*standard-output*)
+    (:td (fmt "~:[No~;Yes~]" generalized-boolean))))
+
+(defun dns-diag ()
+  (with-config-form ("/nothingtoseehere" "DNS Lookup Thread" "dns")
+    (:table
+     (:tr (:td "DNS cache size") (:td (fmt "~d entries" (hash-table-count *dns-cache*))))
+     (:tr (:td "DNS requests pending lookup")
+	  (:td (fmt "~d addresses"
+		    (bt:with-lock-held (*dns-lock*) (length *dns-requests*)))))
+     (:tr (:td "DNS thread running?") (y-or-n-td (bt:thread-alive-p *dns-thread*))))))
+
+(defun collector-diag ()
+  (with-config-form ("/nothingtoseehere" "Collector Process Information" "collector")
+    (:table
+     (:tr (:td "Collector process running?") (y-or-n-td (process-alive-p *collector-process*)))
+     (:tr (:td "Collector PID") (:td (str (if *collector-process*
+					      (process-pid *collector-process*)
+					      "N/A")))))))
 #+sbcl 
 (defun sbcl-parameters ()
   (let ((uid (sb-posix:getuid))
 	(gid (sb-posix:getgid)))
-    (with-html-output (*standard-output*)
-      (:tr (:td "Process ID") (:td (fmt "~d" (sb-posix:getpid))))
-      (:tr (:td "Process UID")
-	   (:td (fmt "~d (~a)" uid (sb-posix:passwd-name (sb-posix:getpwuid uid)))))
-      (:tr (:td "Process GID")
-	   (:td (fmt "~d (~a)" gid (sb-posix:group-name (sb-posix:getgrgid gid)))))
-      (:tr (:td "Command line arguments") (:td (fmt "~{\"~a\"~^, ~}" sb-ext:*posix-argv*)))
-      (:tr (:td "Total GC run time")
-	   (:td (fmt "~$ seconds" (/ sb-ext:*gc-run-time* internal-time-units-per-second)))))))
+    (with-config-form ("/nothingtoseehere" "SBCL Parameters" "sbcl")
+      (:table
+       (:tr (:td "Process ID") (:td (fmt "~d" (sb-posix:getpid))))
+       (:tr (:td "Process UID")
+	    (:td (fmt "~d (~a)" uid (sb-posix:passwd-name (sb-posix:getpwuid uid)))))
+       (:tr (:td "Process GID")
+	    (:td (fmt "~d (~a)" gid (sb-posix:group-name (sb-posix:getgrgid gid)))))
+       (:tr (:td "Command line arguments") (:td (fmt "~{\"~a\"~^, ~}" sb-ext:*posix-argv*)))
+       (:tr (:td "Total GC run time")
+	    (:td (fmt "~$ seconds" (/ sb-ext:*gc-run-time* internal-time-units-per-second))))))))
 
 (hunchentoot:define-easy-handler (shutdown :uri "/shutdown") ()
   (shutdown))
