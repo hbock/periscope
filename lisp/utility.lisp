@@ -206,7 +206,7 @@ to complete."
   #+sbcl
   (sb-ext:run-program command args :search t :status-hook status-hook :wait nil
 		      :output *standard-output*)
-  #-sbcl (not-implemented 'execute-command))
+  #-sbcl (not-implemented 'process-create))
 
 (defun process-wait (process)
   "Block until process exits. Returns the process exit code, pid, and status.
@@ -218,7 +218,7 @@ Process status is implementation-specific."
 	    (sb-ext:process-pid process)
 	    (sb-ext:process-status process)))
   
-  #-sbcl (not-implemented 'wait-for-process))
+  #-sbcl (not-implemented 'process-wait))
 
 (defun process-alive-p (process)
   "Returns true if process is currently running (i.e., not terminated or stopped)."
@@ -233,4 +233,8 @@ Process status is implementation-specific."
   (progn
     (sb-ext:process-kill process sig)
     process)
-  #-sbcl (not-implemented 'interrupt-process))
+  #-sbcl (not-implemented 'process-signal))
+
+(defun process-pid (process)
+  #+sbcl (sb-ext:process-pid process)
+  #-sbcl (not-implemented 'process-pid))
