@@ -144,6 +144,18 @@
     (any-broadcast-p-test #x0a0affff test-networks t)
     (any-broadcast-p-test #xc0a80aff test-networks t)))
 
+(deftest network-strings-test (networks expected-results)
+  (is (equalp expected-results (periscope::network-strings networks))))
+
+(deftest network-strings-tests ()
+  (network-strings-test '((#x0a000000 . #xff000000)
+			  (#x0a0a0000 . #xffff0000)
+			  (#xc0a80a00 . #xffffff00))
+			'("10.0.0.0/8" "10.10.0.0/16" "192.168.10.0/24"))
+  (network-strings-test '((3322406913 . 4294901760)
+			  (#xc0a8ff00 . #xffffff00))
+			'("198.7.232.1/16" "192.168.255.0/24")))
+
 (deftest vlan-string-test (vlan-string expected-result &key expected-error)
   (if expected-error
       (signals parse-error (periscope::vlans-from-string vlan-string))
