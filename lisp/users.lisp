@@ -146,11 +146,9 @@ currently set up (for configuration purposes)."
   ;; logins are required for all pages.  A bit of a hack...
   (let ((*web-login-required-p* nil))
     (with-periscope-page ("Login" :onload "loginFocus()")
-      (cond
-	((string= denied "login")
-	 (warning-box (:p :class "denied" "You must be logged in to see this page.")))
-	((string= denied "bad")
-	 (warning-box (:p :class "denied" "Invalid credentials. Please try again."))))
+      (string-case denied
+	("login" (warning-box (:p :class "denied" "You must be logged in to see this page.")))
+	("bad" (warning-box (:p :class "denied" "Invalid credentials. Please try again."))))
       (:br)
       (with-config-form ("/do-login")
 	(with-config-section ("Log in to Periscope" "login")
@@ -167,36 +165,32 @@ currently set up (for configuration purposes)."
 	  (:input :type "submit" :value "Login"))))))
 
 
-(defun edit-user-form (title action &key user username error new)
+(defun edit-user-form (title action &key user username displayname error new configp)
   (with-config-section (title action)
     (when new
       (htm (:span :class "success"
 		  (fmt "User ~a added successfully! You may add traffic filters for this user
 below." (username user)))
 	   (:br) (:br)))
-    (:b (:a :href "/users" "Return to user login configuration"))
     (:table
      (:tr (:th :colspan 2 "Login Information") (:th))
-     (cond
-       ((string= error "username")
-	(error-message "You must specify a username."))
-       ((string= error "userexists")
-	(error-message (format nil "User '~a' already exists." username))))
+     (string-case error
+       ("username" (error-message "You must specify a username."))
+       ("userexists" (error-message (format nil "User '~a' already exists." username))))
      (if user
 	 (hidden "username" (username user))
 	 (htm
 	  (:tr
 	   (:td "Username")
-	   (:td (input "username" "")))))
+	   (:td (input "username" username)))))
      (when (string= error "dispname")
        (error-message "You must specify a display name (e.g., Don Schattle)."))
      (:tr
       (:td "Display Name")
-      (:td (input "displayname" (if user (display-name user) ""))))
-     (cond ((string= error "nopassword")
-	    (error-message "You must fill in BOTH password fields."))
-	   ((string= error "passmatch")
-	    (error-message "Passwords do not match!")))
+      (:td (input "displayname" (if user (display-name user) displayname))))
+     (string-case error
+       ("nopassword" (error-message "You must fill in BOTH password fields."))
+       ("passmatch" (error-message "Passwords do not match!")))
      (:tr
       (:td "Password")
       (:td (password-input "password1")))
@@ -207,7 +201,7 @@ below." (username user)))
        (error-message "You can not remove administrator privileges from your own account!"))
      (:tr
       (:td "Administrator privileges")
-      (:td (checkbox "configp" :checked (when user (admin-p user)))))
+      (:td (checkbox "configp" :checked (if user (admin-p user) (string= configp "configp")))))
      (:tr (:th :colspan 2 (str (if user "Add new filter:" "Initial traffic filter:"))))
      (:tr
       (:td "Filter Title")
@@ -257,20 +251,24 @@ below." (username user)))
     (:br)
     (submit "Apply Configuration")))
 
-(hunchentoot:define-easy-handler (edit-user :uri "/edit-user") (error user new add)
+(hunchentoot:define-easy-handler (edit-user :uri "/edit-user")
+    (error user new add displayname configp)
   (with-periscope-page ("Edit User" :admin t)
+    (:p (:b (:a :href "/users" "Return to user login configuration")))
     (with-config-form ("/do-edit-user")
       (cond
 	((and add (string= add "true"))
 	 (hidden "action" "new")
-	 (edit-user-form "Add New User" "newuser" :error error :username user))
+	 (edit-user-form "Add New User" "newuser" :error error :username user
+			 :displayname displayname :configp configp))
 
 	(t
 	 (hidden "action" "edit")
 	 (let ((user (user user)))
 	   (if user
-	       (edit-user-form (format nil "Edit User [~a]" (username user)) "edituser"
-			       :user user :error error :new (string= new "true"))
+	       (edit-user-form (format nil "Edit User (~a)" (username user)) "edituser"
+			       :user user  :error error
+			       :new (string= new "true"))
 	       (hunchentoot:redirect "/users"))))))))
 
 ;;; Errors:
@@ -301,11 +299,11 @@ below." (username user)))
       
       (when (login-available-p)
 	(with-config-section ("User Logins" "manage")
-	  (cond
-	    ((string= error "unadminself")
+	  (string-case error
+	    ("unadminself"
 	     (error-message "Error: You cannot remove administrator privileges from your own
 account." :table nil))
-	    ((and (string= error "success"))
+	    ("success"
 	     (cond
 	       ((not (empty-string-p edit))
 		(htm (:p (:b (fmt "Edited user '~a' successfully!" edit)))))
@@ -435,25 +433,31 @@ IDs will signal a PARSE-ERROR."
     (string-case action
       ;; Create a new login.
       ("new"
-       (cond
-	 ((empty-string-p username) (error-redirect "username"))
-	 ((empty-string-p displayname) (error-redirect "dispname"))
+       (flet ((error-redirect (type)
+		(error-redirect type
+				:add "true"
+				:user username
+				:displayname (escape-string displayname)
+				:configp configp)))
+	 (cond
+	   ((empty-string-p username) (error-redirect "username"))
+	   ((empty-string-p displayname) (error-redirect "dispname"))
 
-	 ((not (and password1 password2 (plusp (length password1)) (plusp (length password2))))
-	  (error-redirect "nopassword"))
+	   ((not (and password1 password2 (plusp (length password1)) (plusp (length password2))))
+	    (error-redirect "nopassword"))
        
-	 ((string/= password1 password2)
-	  (error-redirect "passmatch")))
+	   ((string/= password1 password2)
+	    (error-redirect "passmatch")))
 
-       (handler-case
-	   (let ((user
-		  (create-login username password1 (escape-string displayname)
-				:admin (or (not (login-available-p)) (not (null configp))))))
-	     (setf (filters user) (parse-generic-filters title internal subnet vlan delete))
-	     ;; If this is the first user created - automatically log them in for convenience.
-	     (when (= 1 (user-count))
-	       (process-login user password1)))
-	 (periscope-config-error () (error-redirect "userexists" :username username)))
+	 (handler-case
+	     (let ((user
+		    (create-login username password1 (escape-string displayname)
+				  :admin (or (not (login-available-p)) (not (null configp))))))
+	       (setf (filters user) (parse-generic-filters title internal subnet vlan delete))
+	       ;; If this is the first user created - automatically log them in for convenience.
+	       (when (= 1 (user-count))
+		 (process-login user password1)))
+	   (periscope-config-error () (error-redirect "userexists"))))
        (hunchentoot:redirect (format nil "/edit-user?user=~a&new=true" username))) 
       
       ;; Edit an existing login.
