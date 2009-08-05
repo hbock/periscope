@@ -43,9 +43,9 @@
       
       (:td (:b "Configure Periscope")
 	   (:ul
-	    (:li (:a :href "/config" "Network and web interface settings"))
-	    (:li (:a :href "/users" "Manage user logins"))
-	    (:li (:a :href "/sources" "Manage remote Argus sources"))
+	    (:li (:a :href "/periscope-config" "Manage Periscope settings"))
+	    (:li (:a :href "/network-config" "Default network settings"))
+	    (:li (:a :href "/users" "Manage user logins and filters"))
 	    (when *web-show-diag*
 	      (htm (:li (:a :href "/uuddlrlrbastart" "Diagnose problems with 
 Periscope internals")))))))
