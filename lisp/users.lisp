@@ -123,7 +123,7 @@ logged-in user.  If no user is logged in, returns NIL."
 (defun configure-p ()
   "Returns true when it is currently allowed to edit the configuration, meaning either there
 are no users defined (anyone can edit) OR an administrator is currently logged in."
-  (or (not (login-available-p)) (and (user) (admin-p (user)))))
+  (or (not (login-available-p)) (valid-session-p :admin t)))
 
 (defmethod create-filter-forms ((user web-user))
   "Output forms that, when evaluated, set up the users' flow filters exactly as they are
@@ -145,7 +145,7 @@ currently set up (for configuration purposes)."
   ;; Shadow *WEB-LOGIN-REQUIRED-P* to force the login page to be available even when
   ;; logins are required for all pages.  A bit of a hack...
   (let ((*web-login-required-p* nil))
-    (with-periscope-page ("Login")
+    (with-periscope-page ("Login" :onload "loginFocus()")
       (cond
 	((string= denied "login")
 	 (warning-box (:p :class "denied" "You must be logged in to see this page.")))
@@ -157,7 +157,7 @@ currently set up (for configuration purposes)."
 	 :class "login"
 	 (:tr
 	  (:td "Username")
-	  (:td (input "username" "")))
+	  (:td (input "username" "" :id "login")))
 	 (:tr
 	  (:td "Password")
 	  (:td (password-input "password"))))

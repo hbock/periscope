@@ -74,7 +74,7 @@ Starts a separate thread to run the collector and handle its callbacks."
           "Utilities"
           (:ul
 	   (:li (:a :href "/service-names" "Service Names"))))
-     (when (or (not (login-available-p)) (and (valid-session-p :admin t)))
+     (when (configure-p)
        (htm
 	(:li :class "root"
 	     "Configuration"
@@ -86,7 +86,7 @@ Starts a separate thread to run the collector and handle its callbacks."
 	      (when *web-show-diag*
 		(htm (:li (:a :href "/uuddlrlrbastart" "Diagnostics Panel")))))))))))
 
-(defmacro with-periscope-page ((title &key login admin) &body body)
+(defmacro with-periscope-page ((title &key login admin onload) &body body)
   "Generate a Periscope-template page."
   `(progn
      ,(if (or admin login)
@@ -99,8 +99,10 @@ Starts a separate thread to run the collector and handle its callbacks."
 	 (:title (who:fmt "Periscope - ~a" ,title))
 	 (:link :href "/content/periscope.css"
 		:rel "stylesheet"
-		:type "text/css"))
+		:type "text/css")
+	 (:script :type "text/javascript" :src "/content/periscope.js"))
 	(:body
+	 ,@(when onload `(:onload ,onload))
 	 (:table
 	  (:tr
 	   (:td :colspan "2" :id "header"
@@ -168,11 +170,11 @@ solely of whitespace."
   (with-html-output (*standard-output*)
     (:input :type "submit" :value text)))
 
-(defun input (name default &key (size 20) label disabled index)
+(defun input (name default &key (size 20) label disabled index id)
   (with-html-output (*standard-output*)
     (when label
       (htm (:label :for name (str label))))
-    (:input :type "text" :name (input-name name index)
+    (:input :type "text" :id id :name (input-name name index)
 	    :value default :size size :disabled disabled)))
 
 (defun password-input (name &key default (size 20) index)

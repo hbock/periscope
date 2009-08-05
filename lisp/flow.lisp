@@ -27,7 +27,7 @@
    (protocol :initarg :protocol :reader protocol :initform (error "Must supply IP protocol!"))))
 
 (defclass flow-host ()
-  ((ip :initarg :ip :reader host-ip :initform (error "Must suppy IP addresss!"))
+  ((ip :initarg :ip :reader host-ip :initform (error "Must supply IP addresss!"))
    (port :initarg :port :reader host-port :type port-number)
    (packets :initarg :packets :reader host-packets)
    (bytes :initarg :bytes :reader host-bytes)

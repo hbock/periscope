@@ -164,6 +164,14 @@ order by VLAN ID."
    (loop :for vid :being :the :hash-keys :in *vlan-names* :using (:hash-value name)
       :collect (list vid name)) #'< :key #'first))
 
+(defun name-protocol (protocol)
+  "Returns a string representation of an internet or transport protocol."
+  (ecase protocol
+    (#.+ip-proto-icmp+ "ICMP")
+    (#.+ip-proto-igmp+ "IGMP")
+    (#.+ip-proto-tcp+  "TCP")
+    (#.+ip-proto-udp+  "UDP")))
+
 (defun byte-string (bytes &optional (precision 2))
   "Convert BYTES from an integer to a size string, optionally specifying the precision in
 digits following the decimal point."
@@ -190,6 +198,24 @@ digits following the decimal point."
   "Convert a LOCAL-TIME timestamp to an ISO8661 date string."
   (let ((format '((:year 4) #\- (:month 2) #\- (:day 2) #\T (:hour 2) #\: (:min 2) #\: (:sec 2))))
     (format-timestring nil time :format format)))
+
+(defmacro string-case (keyform &body clauses)
+  "Like CASE but for strings."
+  `(cond 
+     ,@(loop for clause in clauses collect
+	    (destructuring-bind (cases* &rest forms) clause
+	      (etypecase cases*
+		(string
+		 `((string= ,keyform ,cases*)
+		   ,@forms))
+		(list
+		 `((some (lambda (test-case) (string= ,keyform test-case))
+			 (list ,@cases*))
+		   ,@forms))
+		(symbol
+		 (if (or (eql cases* t) (eql cases* 'otherwise))
+		     `(t ,@forms)
+		     (error "~a is not one of (T OTHERWISE); cannot test symbols!" cases*))))))))
 
 (defmacro with-timeout ((expires) &body body)
   #+sbcl
