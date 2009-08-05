@@ -199,6 +199,24 @@ digits following the decimal point."
   (let ((format '((:year 4) #\- (:month 2) #\- (:day 2) #\T (:hour 2) #\: (:min 2) #\: (:sec 2))))
     (format-timestring nil time :format format)))
 
+(defmacro string-case (keyform &body clauses)
+  "Like CASE but for strings."
+  `(cond 
+     ,@(loop for clause in clauses collect
+	    (destructuring-bind (cases* &rest forms) clause
+	      (etypecase cases*
+		(string
+		 `((string= ,keyform ,cases*)
+		   ,@forms))
+		(list
+		 `((some (lambda (test-case) (string= ,keyform test-case))
+			 (list ,@cases*))
+		   ,@forms))
+		(symbol
+		 (if (or (eql cases* t) (eql cases* 'otherwise))
+		     `(t ,@forms)
+		     (error "~a is not one of (T OTHERWISE); cannot test symbols!" cases*))))))))
+
 (defmacro with-timeout ((expires) &body body)
   #+sbcl
   `(handler-case
