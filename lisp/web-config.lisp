@@ -41,9 +41,6 @@
        "Collector not initialized. This is a bug.")
       (return-from network-config))
 
-    (when (string= error "success")
-      (htm (:p :class "success" "Configuration values successfully applied!")))
-
     (with-config-form ("/set-config")
       (with-config-section ("Network Configuration" "network")
 	(:table
@@ -204,13 +201,14 @@ Invalid CIDR subnets will signal a PARSE-ERROR."
 	  (t
 	   (setf (vlan-name newvid) (escape-string newvname))))
 
-
     (save-config)
     (error-redirect "success")))
 
 (hunchentoot:define-easy-handler (periscope-config :uri "/periscope-config") (error host port)
   (with-periscope-page ("Periscope Configuration" :admin t)
-    (with-config-form ("/set-config")
+    (when (string= error "success")
+      (htm (:p :class "success" "Configuration values successfully applied!")))
+    (with-config-form ("/set-periscope-config")
       (with-config-section ("Web Interface Configuration" "web")
 	(:table
 	 (:tr
@@ -218,18 +216,14 @@ Invalid CIDR subnets will signal a PARSE-ERROR."
 	  (:td (input "web-port" *web-port*)))
 	 (:tr
 	  (:td "Perform DNS reverse lookup in reports")
-	  (:td (checkbox "dnslookup" :checked *dns-available-p*))))
-	(submit "Apply Configuration")))
+	  (:td (checkbox "dnslookup" :checked *dns-available-p*)))))
     
-    (with-config-form ("/manage-sources")
       (with-config-section ("Add Argus Server" "add")
 	(:table
 	 (cond
 	   ((string= error "invalidhost")
 	    (error-message
-	     (format nil "Error: Hostname \"~a:~a\" did not resolve or is a duplicate." host port)))
-	   ((string= error "emptyhost")
-	    (error-message "Error: Hostname cannot not be empty!")))
+	     (format nil "Error: Hostname \"~a:~a\" did not resolve or is a duplicate." host port))))
 	 (:tr
 	  (:td "Hostname")
 	  (:td (input "hostname" "")))
@@ -238,9 +232,8 @@ Invalid CIDR subnets will signal a PARSE-ERROR."
 	  (:td (input "port" 561)))
 	 (:tr
 	  (:td "SASL Authentication")
-	  (:td (checkbox "sasl"))))
-	(submit "Add")
-	(:br)))))
+	  (:td (checkbox "sasl")))))
+      (submit "Apply Configuration"))))
 
 (defun error-redirect (type &rest more-params)
   (let ((*print-case* :downcase))
@@ -248,42 +241,45 @@ Invalid CIDR subnets will signal a PARSE-ERROR."
      ;; This is an ABOMINATION, yet it is pretty awesome all the same.
      (format nil "~a?error=~a~:[~;&~:*~{~a=~a~^&~}~]" *redirect-page* type more-params))))
 
-(hunchentoot:define-easy-handler (manage-sources :uri "/manage-sources")
-    (action (web-port :parameter-type 'integer) dnslookup
-	    hostname (port :parameter-type 'integer) (remove :parameter-type 'array))
+(hunchentoot:define-easy-handler (set-periscope-config :uri "/set-periscope-config")
+    ((web-port :parameter-type 'integer) dnslookup
+     hostname (port :parameter-type 'integer) (remove :parameter-type 'array))
   (valid-session-or-lose :admin t)
-  (let ((*redirect-page* "/sources"))
+  
+  (let ((*redirect-page* "/periscope-config"))
+    ;; TODO: Restart server!   
+    (when web-port
+      (setf *web-port* web-port))
+    
+    ;; Start and stop DNS lookup thread according to the dnslookup value.
     (cond
-      ((string= action "run")
-       (when (not (running-p *collector*))
-	 (web-run-collector *collector*)))
-      
-      ((string= action "add")
-       ;; Empty hostnames are bad news.
-       (when (empty-string-p hostname)
-	 (error-redirect "emptyhost"))
+      ((and *dns-available-p* (null dnslookup))
+       (stop-dns))
+      ((and (not *dns-available-p*) (not (null dnslookup)))
+       (start-dns)))
+    
+    ;; Empty hostnames are bad news.
+    (unless (empty-string-p hostname)
+      (error-redirect "emptyhost")
        
-       ;; An error in this case usually means the host was invalid/not resolvable.
-       (handler-case
-	   (add-remote *collector* hostname port)
-	 (simple-error ()
-	   (error-redirect "invalidhost" :host hostname :port port))))
+      ;; An error in this case usually means the host was invalid/not resolvable.
+      (handler-case
+	  (add-remote *collector* hostname port)
+	(simple-error ()
+	  (error-redirect "invalidhost" :host hostname :port port))))
       
-      ((string= action "manage")
-       (setf remove
-	     (remove nil (map 'vector (lambda (s) (parse-integer s :junk-allowed t)) remove)))
-       
-       ;; Removing an invalid source will cause an error; ignore this and immediately redirect
-       ;; to /sources.  This is either a bug or a malicious attempt to access memory.
-       (handler-case
-	   (loop :for index :from 0 :below (length remove) :do
-	      (let ((source (find (aref remove index) (available-sources *collector*))))
-		(when source (remove-source source *collector*))))
-	 (simple-error ()
-	   (hunchentoot:redirect "/sources")))))
+    ;; ;; Removing an invalid source will cause an error; ignore this and immediately redirect
+    ;; ;; to /sources.  This is either a bug or a malicious attempt to access memory.
+     
+    ;; (handler-case
+    ;; 	(loop :for index :from 0 :below (length remove) :do
+    ;; 	   (let ((source (find (aref remove index) (available-sources *collector*))))
+    ;; 	     (when source (remove-source source *collector*))))
+    ;;   (simple-error ()
+    ;; 	(hunchentoot:redirect "/sources")))
 
     ;; TODO: need to implement saving sources.
-    ;;(save-config)
+    (save-config)
     (error-redirect "success")))
 
 (defun print-sources (list title)
