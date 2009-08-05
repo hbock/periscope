@@ -72,20 +72,20 @@
 	(:td (input "ports" ""))))
       (submit "Apply Configuration"))
 
-    (with-config-form ("/set-config" "Add VLAN Identifier" "addvlan")
+    (with-config-form ("/set-config" "Add VLAN Label" "addvlan")
       (when (string= error "missingvlan")
-	(error-message "Error setting VLAN identifier; both a valid VID and non-empty name
+	(error-message "Error setting VLAN label; both a valid VID and non-empty name
 must be specified!" :table nil))
       (:table	 
        (:tr
 	(:td "VLAN ID")
 	(:td (input "newvid" "")))
        (:tr
-	(:td "VLAN Name")
+	(:td "VLAN Label")
 	(:td (input "newvname" ""))))
       (submit "Add VLAN"))
 
-    (with-config-form ("/set-config" "Edit VLAN Identifiers" "editvlan")
+    (with-config-form ("/set-config" "Edit VLAN Labels" "editvlan")
       (cond
 	((string= error "badvid")
 	 (error-message "Bad VLAN ID; must be a positive integer between 0-4095." :table nil))
