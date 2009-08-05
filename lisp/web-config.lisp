@@ -44,66 +44,65 @@
     (when (string= error "success")
       (htm (:p "Configuration values successfully applied!")))
 
-    (with-config-form ("/set-config" "Network Configuration" "network")
-      (:table
-       (:tr
-	(:td "Traffic Filter")
-	(:td (input "filter" (if *collector* (filter *collector*) "") :size 30)))
-       (cond
-	 ((string= error "nocidrsuffix")
-	  (error-message "Error: Network subnet mask must be specified (e.g., 192.168.10.0/24)."))
-	 ((string= error "networkparse")
-	  (error-message "Error parsing CIDR network specification.")))
-       (:tr
-	(:td "Default Local Networks (CIDR)")
-	(:td (input "network" (format nil "~{~a~^, ~}" (network-strings *internal-networks*))
-		    :size 30)))
-       (:tr
-	(:td "Notable ports (select to remove)")
-	(:td
-	 (:select
-	  :name "remove" :multiple t 
-	  (dolist (port *notable-ports*)
-	    (htm (:option :value port (fmt "~d (~a)" port (service-name port))))))))
-       (when (string= error "ports")
-	 (error-message "Error: Port numbers must be separated by spaces or commas."))
-       (:tr
-	(:td "Add notable ports:")
-	(:td (input "ports" ""))))
-      (submit "Apply Configuration"))
+    (with-config-form ("/set-config")
+      (with-config-section ("Network Configuration" "network")
+	(:table
+	 (:tr
+	  (:td "Traffic Filter")
+	  (:td (input "filter" (if *collector* (filter *collector*) "") :size 30)))
+	 (cond
+	   ((string= error "nocidrsuffix")
+	    (error-message "Error: Network subnet mask must be specified (e.g., 192.168.10.0/24)."))
+	   ((string= error "networkparse")
+	    (error-message "Error parsing CIDR network specification.")))
+	 (:tr
+	  (:td "Default Local Networks (CIDR)")
+	  (:td (input "network" (format nil "~{~a~^, ~}" (network-strings *internal-networks*))
+		      :size 30)))
+	 (:tr
+	  (:td "Notable ports (select to remove)")
+	  (:td
+	   (:select
+	    :name "remove" :multiple t 
+	    (dolist (port *notable-ports*)
+	      (htm (:option :value port (fmt "~d (~a)" port (service-name port))))))))
+	 (when (string= error "ports")
+	   (error-message "Error: Port numbers must be separated by spaces or commas."))
+	 (:tr
+	  (:td "Add notable ports:")
+	  (:td (input "ports" "")))))
 
-    (with-config-form ("/set-config" "Add VLAN Label" "addvlan")
-      (when (string= error "missingvlan")
-	(error-message "Error setting VLAN label; both a valid VID and non-empty name
+      (with-config-section ("Add VLAN Label" "addvlan")
+	(when (string= error "missingvlan")
+	  (error-message "Error setting VLAN label; both a valid VID and non-empty name
 must be specified!" :table nil))
-      (:table	 
-       (:tr
-	(:td "VLAN ID")
-	(:td (input "newvid" "")))
-       (:tr
-	(:td "VLAN Label")
-	(:td (input "newvname" ""))))
-      (submit "Add VLAN"))
+	(:table	 
+	 (:tr
+	  (:td "VLAN ID")
+	  (:td (input "newvid" "")))
+	 (:tr
+	  (:td "VLAN Label")
+	  (:td (input "newvname" "")))))
 
-    (with-config-form ("/set-config" "Edit VLAN Labels" "editvlan")
-      (cond
-	((string= error "badvid")
-	 (error-message "Bad VLAN ID; must be a positive integer between 0-4095." :table nil))
-	((string= error "novname")
-	 (error-message "VLAN names must not be empty. To delete an ID, please use the
+      (with-config-section ("Edit VLAN Labels" "editvlan")
+	(cond
+	  ((string= error "badvid")
+	   (error-message "Bad VLAN ID; must be a positive integer between 0-4095." :table nil))
+	  ((string= error "novname")
+	   (error-message "VLAN names must not be empty. To delete an ID, please use the
 \"Remove\" checkbox." :table nil)))
-      (:table
-       :class "input"
-       (:tr (:th "VLAN ID") (:th "Name") (:th "Remove"))
-       (loop :with index = 0
-	  :for (vid name) :in (vlan-name-list) :do
-	  (htm (:tr
-		(:td (input (format nil "vid[~d]" index) vid :size 4))
-		(:td (input (format nil "vname[~d]" index) name))
-		(:td (checkbox (format nil "delete[~d]" index) :value vid))))
-	  (incf index)))
-      (:br)
-      (submit "Commit Changes"))))
+	(:table
+	 :class "input"
+	 (:tr (:th "VLAN ID") (:th "Name") (:th "Remove"))
+	 (loop :with index = 0
+	    :for (vid name) :in (vlan-name-list) :do
+	    (htm (:tr
+		  (:td (input (format nil "vid[~d]" index) vid :size 4))
+		  (:td (input (format nil "vname[~d]" index) name))
+		  (:td (checkbox (format nil "delete[~d]" index) :value vid))))
+	    (incf index)))
+	(:br)
+	(submit "Apply Network Configuration")))))
 
 (defun ports-from-string (port-string)
   "Take a string of port numbers and/or service names, separated by
@@ -221,54 +220,37 @@ Invalid CIDR subnets will signal a PARSE-ERROR."
 
 (hunchentoot:define-easy-handler (periscope-config :uri "/periscope-config") (error host port)
   (with-periscope-page ("Periscope Configuration" :admin t)
-
-    (with-config-form ("/set-config" "Web Interface Configuration" "web")
-      (:table
-       (:tr
-	(:td "Web interface port")
-	(:td (input "web-port" *web-port*)))
-       (:tr
-	(:td "Perform DNS reverse lookup in reports")
-	(:td (checkbox "dnslookup" :checked *dns-available-p*))))
-      (submit "Apply Configuration"))
-
-    ;; (when (not (running-p *collector*))
-    ;;   (if (null (remote-sources *collector*))
-    ;; 	  (warning-box
-    ;; 	   (:p "The collector is not running, and no sources have been defined.")
-    ;; 	   (:p "Please add one or more sources below before starting the collector."))
-    ;; 	  (warning-box
-    ;; 	   "The collector is not running." (:br)
-    ;; 	   (:b (:a :href "/manage-sources?action=run" "Click here to run the collector.")))))
-    (:br)
-    (unless (not (or (available-sources *collector*) (active-sources *collector*)))
-      (with-config-form ("/manage-sources" "Manage Sources" "manage")
+    (with-config-form ("/set-config")
+      (with-config-section ("Web Interface Configuration" "web")
 	(:table
-	 :class "input"
-	 (print-sources (available-sources *collector*) "Available")
-	 (print-sources (active-sources *collector*) "Active"))
-	(:br)
-	(submit "Apply Changes")))
-
-    (with-config-form ("/manage-sources" "Add Argus Server" "add")
-      (:table
-       (cond
-	 ((string= error "invalidhost")
-	  (error-message
-	   (format nil "Error: Hostname \"~a:~a\" did not resolve or is a duplicate." host port)))
-	 ((string= error "emptyhost")
-	  (error-message "Error: Hostname cannot not be empty!")))
-       (:tr
-	(:td "Hostname")
-	(:td (input "hostname" "")))
-       (:tr
-	(:td "Port")
-	(:td (input "port" 561)))
-       (:tr
-	(:td "SASL Authentication")
-	(:td (checkbox "sasl"))))
-      (submit "Add")
-      (:br))))
+	 (:tr
+	  (:td "Web interface port")
+	  (:td (input "web-port" *web-port*)))
+	 (:tr
+	  (:td "Perform DNS reverse lookup in reports")
+	  (:td (checkbox "dnslookup" :checked *dns-available-p*))))
+	(submit "Apply Configuration")))
+    
+    (with-config-form ("/manage-sources")
+	(with-config-section ("Add Argus Server" "add")
+	  (:table
+	   (cond
+	     ((string= error "invalidhost")
+	      (error-message
+	       (format nil "Error: Hostname \"~a:~a\" did not resolve or is a duplicate." host port)))
+	     ((string= error "emptyhost")
+	      (error-message "Error: Hostname cannot not be empty!")))
+	   (:tr
+	    (:td "Hostname")
+	    (:td (input "hostname" "")))
+	   (:tr
+	    (:td "Port")
+	    (:td (input "port" 561)))
+	   (:tr
+	    (:td "SASL Authentication")
+	    (:td (checkbox "sasl"))))
+	  (submit "Add")
+	  (:br)))))
 
 (defun error-redirect (type &rest more-params)
   (let ((*print-case* :downcase))

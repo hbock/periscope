@@ -152,107 +152,109 @@ currently set up (for configuration purposes)."
 	((string= denied "bad")
 	 (warning-box (:p :class "denied" "Invalid credentials. Please try again."))))
       (:br)
-      (with-config-form ("/do-login" "Log in to Periscope" "login")
-	(:table
-	 :class "login"
-	 (:tr
-	  (:td "Username")
-	  (:td (input "username" "" :id "login")))
-	 (:tr
-	  (:td "Password")
-	  (:td (password-input "password"))))
-	(when (and denied redirect)
-	  (htm (:input :type "hidden" :name "redirect" :value redirect)))
-	(:input :type "submit" :value "Login")))))
+      (with-config-form ("/do-login")
+	(with-config-section ("Log in to Periscope" "login")
+	  (:table
+	   :class "login"
+	   (:tr
+	    (:td "Username")
+	    (:td (input "username" "" :id "login")))
+	   (:tr
+	    (:td "Password")
+	    (:td (password-input "password"))))
+	  (when (and denied redirect)
+	    (htm (:input :type "hidden" :name "redirect" :value redirect)))
+	  (:input :type "submit" :value "Login"))))))
 
 
 (defun edit-user-form (title action &key user username error new)
-  (with-config-form ("/set-user-config" title action)
-    (when new
-      (htm (:p :class "success"
-	       (fmt "User ~a added successfully! You may add traffic filters for this user
+  (with-config-form ("/set-user-config")
+    (with-config-section (title action)
+      (when new
+	(htm (:p :class "success"
+		 (fmt "User ~a added successfully! You may add traffic filters for this user
 below." (username user)))))
-    (:table
-     (:tr (:th :colspan 2 "Login Information") (:th))
-     (cond
-       ((string= error "username")
-	(error-message "You must specify a username."))
-       ((string= error "userexists")
-	(error-message (format nil "User '~a' already exists." username))))
-     (if user
-	 (htm (:input :type "hidden" :name "username" :value (username user)))
-	 (htm
-	  (:tr
-	   (:td "Username")
-	   (:td (input "username" "")))))
-     (when (string= error "dispname")
-       (error-message "You must specify a display name (e.g., Don Schattle)."))
-     (:tr
-      (:td "Display Name")
-      (:td (input "displayname" (if user (display-name user) ""))))
-     (cond ((string= error "nopassword")
-	    (error-message "You must fill in BOTH password fields."))
-	   ((string= error "passmatch")
-	    (error-message "Passwords do not match!")))
-     (:tr
-      (:td "Password")
-      (:td (password-input "password1")))
-     (:tr
-      (:td "Password (re-type)")
-      (:td (password-input "password2")))
-     (when (string= error "unadminself")
-       (error-message "You can not remove administrator privileges from your own account!"))
-     (:tr
-      (:td "Administrator privileges")
-      (:td (checkbox "configp" :checked (when user (admin-p user)))))
-     (:tr (:th :colspan 2 (str (if user "Add new filter:" "Initial traffic filter:"))))
-     (:tr
-      (:td "Filter Title")
-      (:td (input "title[0]" "" :size 30)))
-     (:tr
-      (:td "Internal networks (CIDR notation)")
-      (:td (input "internal[0]" "" :size 30)))
-     (:tr
-      (:td "Included subnets (CIDR notation)")
-      (:td (input "subnet[0]" "" :size 30)))
-     (:tr
-      (:td "Included VLANs")
-      (:td (input "vlan[0]" "" :size 30)))
+      (:table
+       (:tr (:th :colspan 2 "Login Information") (:th))
+       (cond
+	 ((string= error "username")
+	  (error-message "You must specify a username."))
+	 ((string= error "userexists")
+	  (error-message (format nil "User '~a' already exists." username))))
+       (if user
+	   (htm (:input :type "hidden" :name "username" :value (username user)))
+	   (htm
+	    (:tr
+	     (:td "Username")
+	     (:td (input "username" "")))))
+       (when (string= error "dispname")
+	 (error-message "You must specify a display name (e.g., Don Schattle)."))
+       (:tr
+	(:td "Display Name")
+	(:td (input "displayname" (if user (display-name user) ""))))
+       (cond ((string= error "nopassword")
+	      (error-message "You must fill in BOTH password fields."))
+	     ((string= error "passmatch")
+	      (error-message "Passwords do not match!")))
+       (:tr
+	(:td "Password")
+	(:td (password-input "password1")))
+       (:tr
+	(:td "Password (re-type)")
+	(:td (password-input "password2")))
+       (when (string= error "unadminself")
+	 (error-message "You can not remove administrator privileges from your own account!"))
+       (:tr
+	(:td "Administrator privileges")
+	(:td (checkbox "configp" :checked (when user (admin-p user)))))
+       (:tr (:th :colspan 2 (str (if user "Add new filter:" "Initial traffic filter:"))))
+       (:tr
+	(:td "Filter Title")
+	(:td (input "title[0]" "" :size 30)))
+       (:tr
+	(:td "Internal networks (CIDR notation)")
+	(:td (input "internal[0]" "" :size 30)))
+       (:tr
+	(:td "Included subnets (CIDR notation)")
+	(:td (input "subnet[0]" "" :size 30)))
+       (:tr
+	(:td "Included VLANs")
+	(:td (input "vlan[0]" "" :size 30)))
      
-     (when (string= error "subnet")
-       (error-message "Invalid CIDR network specification!"))
-     (when (and user (filters user))
-       (flet ((print-vlans (filter)
-		(format nil "~{~a~^, ~}" (slot-value filter 'vlans)))
-	      (print-subnets (filter)
-		(format nil "~{~a~^, ~}" (network-strings (slot-value filter 'subnets))))
-	      (print-networks (filter)
-		(format nil "~{~a~^, ~}" (network-strings (slot-value filter 'internal-networks)))))
-	 (htm
-	  (:tr (:th :colspan 2 "Edit Filters"))
-	  (:tr
-	   (:td
-	    :colspan 3
-	    (:table
-	     :class "input"
-	     (:tr (:th "#")
-		  (:th "Title")
-		  (:th "Internal Networks")
-		  (:th "Subnets")
-		  (:th "VLANs")
-		  (:th "Delete"))
-	     (loop :for i = 1 :then (1+ i)
-		:for filter :in (filters user) :do
-		(htm
-		 (:tr
-		  (:td (str i))
-		  (:td (input "title" (filter-title filter) :index i :size 20))
-		  (:td (input "internal" (print-networks filter) :index i :size 20))
-		  (:td (input "subnet" (print-subnets filter) :index i :size 20))
-		  (:td (input "vlan" (print-vlans filter) :index i :size 20))
-		  (:td (checkbox "delete" :index i :value "true"))))))))))))
-    (:br)
-    (submit "Commit Changes")))
+       (when (string= error "subnet")
+	 (error-message "Invalid CIDR network specification!"))
+       (when (and user (filters user))
+	 (flet ((print-vlans (filter)
+		  (format nil "~{~a~^, ~}" (slot-value filter 'vlans)))
+		(print-subnets (filter)
+		  (format nil "~{~a~^, ~}" (network-strings (slot-value filter 'subnets))))
+		(print-networks (filter)
+		  (format nil "~{~a~^, ~}" (network-strings (slot-value filter 'internal-networks)))))
+	   (htm
+	    (:tr (:th :colspan 2 "Edit Filters"))
+	    (:tr
+	     (:td
+	      :colspan 3
+	      (:table
+	       :class "input"
+	       (:tr (:th "#")
+		    (:th "Title")
+		    (:th "Internal Networks")
+		    (:th "Subnets")
+		    (:th "VLANs")
+		    (:th "Delete"))
+	       (loop :for i = 1 :then (1+ i)
+		  :for filter :in (filters user) :do
+		  (htm
+		   (:tr
+		    (:td (str i))
+		    (:td (input "title" (filter-title filter) :index i :size 20))
+		    (:td (input "internal" (print-networks filter) :index i :size 20))
+		    (:td (input "subnet" (print-subnets filter) :index i :size 20))
+		    (:td (input "vlan" (print-vlans filter) :index i :size 20))
+		    (:td (checkbox "delete" :index i :value "true"))))))))))))
+      (:br)
+      (submit "Commit Changes"))))
 
 (hunchentoot:define-easy-handler (edit-user :uri "/edit-user") (error user new)
   (with-periscope-page ("Edit User" :admin t)
@@ -271,48 +273,47 @@ below." (username user)))))
 ;;;  - "unadminself": Tried to remove administrator from own account.
 (hunchentoot:define-easy-handler (user-config :uri "/users") (error username edit add)
   (with-periscope-page ("User Login Configuration" :admin t)
-    (with-config-form ("/set-user-config" "Login Configuration" "configure")
-      (:table
-       (:tr
-	(:td "Maximum login session time (seconds)")
-	(:td (input "sessiontime" hunchentoot:*session-max-time*)))
-       (:tr
-	(:td "Require login for all pages")
-	(:td (checkbox "required" :checked *web-login-required-p*))))
-      (:br)
-      (:input :type "submit" :value "Apply Configuration"))
-
-    (when (login-available-p)
-      (with-config-form ("/set-user-config" "User Logins" "manage")
-	(cond
-	  ((string= error "unadminself")
-	   (error-message "Error: You cannot remove administrator privileges from your own
-account." :table nil))
-	  ((and (string= error "success"))
-	   (cond
-	     ((not (empty-string-p edit))
-	      (htm (:p (:b (fmt "Edited user '~a' successfully!" edit)))))
-	     ((not (empty-string-p add))
-	      (htm (:p (:b (fmt "Added new user '~a' successfully!" add))))))))
+    (with-config-form ("/set-user-config")
+      (with-config-section ("Login Configuration" "configure")
 	(:table
-	 :class "input"
-	 (:tr (:th "Username ") (:th "Display Name") (:th "Administrator")
-	      (:th "Edit User") (:th "Remove User"))
-	 (loop
-	    :for i = 0 :then (1+ i)
-	    :for user :in (user-list) :do
-	    (let ((username (username user)))
-	      (htm
-	       (:tr
-		(:td
-		 (:b (str username))
-		 (hidden "user" username :index i))
-		(:td (str (display-name user)))
-		(:td (str (if (admin-p user) "Yes" "No")))
-		(:td (:a :href (format nil "/edit-user?user=~a" username) "Edit"))
-		(:td (checkbox "delete" :index i :value "true")))))))
-	(:br)
-	(:input :type "submit" :value "Apply Configuration")))
+	 (:tr
+	  (:td "Maximum login session time (seconds)")
+	  (:td (input "sessiontime" hunchentoot:*session-max-time*)))
+	 (:tr
+	  (:td "Require login for all pages")
+	  (:td (checkbox "required" :checked *web-login-required-p*)))))
+
+      (when (login-available-p)
+	(with-config-section ("User Logins" "manage")
+	  (cond
+	    ((string= error "unadminself")
+	     (error-message "Error: You cannot remove administrator privileges from your own
+account." :table nil))
+	    ((and (string= error "success"))
+	     (cond
+	       ((not (empty-string-p edit))
+		(htm (:p (:b (fmt "Edited user '~a' successfully!" edit)))))
+	       ((not (empty-string-p add))
+		(htm (:p (:b (fmt "Added new user '~a' successfully!" add))))))))
+	  (:table
+	   :class "input"
+	   (:tr (:th "Username ") (:th "Display Name") (:th "Administrator")
+		(:th "Edit User") (:th "Remove User"))
+	   (loop
+	      :for i = 0 :then (1+ i)
+	      :for user :in (user-list) :do
+	      (let ((username (username user)))
+		(htm
+		 (:tr
+		  (:td
+		   (:b (str username))
+		   (hidden "user" username :index i))
+		  (:td (str (display-name user)))
+		  (:td (str (if (admin-p user) "Yes" "No")))
+		  (:td (:a :href (format nil "/edit-user?user=~a" username) "Edit"))
+		  (:td (checkbox "delete" :index i :value "true")))))))
+	  (:br)
+	  (submit "Apply Configuration"))))
 
     (edit-user-form "Add New User" "newuser" :error error :username username)))
 

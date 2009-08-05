@@ -123,16 +123,19 @@ Starts a separate thread to run the collector and handle its callbacks."
 		      (:a :href "http://qosient.com/argus" :target "_blank"
 			  "Argus"))))))))))
 
-(defmacro with-config-form ((uri title action &key (method :post)) &body body)
+(defmacro with-config-section ((title &optional name) &body body)
   "Output a pretty Periscope configuration form."
   `(with-html-output (*standard-output*)
+     (when ,name
+       (htm (:a :name ,name)))
      (:div :class "config-header" (str ,title))
-     (:div
-      :class "config-section"
-      (:form
-       :action ,uri :method ,(ecase method (:post "post") (:get "get"))
-       (:input :type "hidden" :name "action" :value ,action)
-       ,@body))))
+     (:div :class "config-section" ,@body)))
+
+(defmacro with-config-form ((uri &key (method :post)) &body body)
+  `(with-html-output (*standard-output*)
+     (:form
+      :action ,uri :method ,(ecase method (:post "post") (:get "get"))
+      ,@body)))
 
 (defun empty-string-p (&rest strings)
   "Returns true if string has no useful string data; i.e., it is NIL, empty, or is composed

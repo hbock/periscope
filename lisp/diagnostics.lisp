@@ -19,50 +19,44 @@
 (in-package :periscope)
 
 (defun diag-settings-form ()
-  (with-html-output (*standard-output*)
-    (:form :name "options" :method "post" :action "set-diag"
-	   (:div :class "config-header" "Diagnostic Settings")
-	   (:div
-	    :class "config-section"
-	    (:table
-	     (:tr (:td "Enable Lisp backtraces in front-end")
-		  (:td (checkbox "showbt" :checked hunchentoot:*show-lisp-errors-p*)))
-	     (:tr (:td "Show diagnostics panel in sidebar")
-		  (:td (checkbox "showdiag" :checked *web-show-diag*)))
-	     (:tr (:td "Enable SWANK support for this image")
-		  (:td (checkbox "swank" :checked *enable-swank-p*)))
-	     (:tr (:td "SWANK connect port")
-		  (:td (input "swankport" *swank-port* :size 5)))))
-	   (:input :type "submit" :value "Apply Settings"))))
+  (with-config-form ("/set-diag")
+    (with-config-section ("Diagnostic Settings")
+      (:table
+       (:tr (:td "Enable Lisp backtraces in front-end")
+	    (:td (checkbox "showbt" :checked hunchentoot:*show-lisp-errors-p*)))
+       (:tr (:td "Show diagnostics panel in sidebar")
+	    (:td (checkbox "showdiag" :checked *web-show-diag*)))
+       (:tr (:td "Enable SWANK support for this image")
+	    (:td (checkbox "swank" :checked *enable-swank-p*)))
+       (:tr (:td "SWANK connect port")
+	    (:td (input "swankport" *swank-port* :size 5))))
+      (submit "Apply Settings"))))
 
 (defun diag-image-parameters ()
-  (with-html-output (*standard-output*)
-    (:div :class "config-header" "Image Parameters and Statistics")
-    (:div
-     :class "config-section"
-     (:table
-      (:tr (:td "Declared version") (:td (str *periscope-version*)))
-      (:tr (:td "Compilation time") (:td (str (iso8661-date-string *compilation-time*))))
-      (:tr (:td "Hunchentoot version") (:td (str hunchentoot-asd:*hunchentoot-version*)))
-      (:tr (:td "Machine hostname") (:td (str (machine-instance))))
-      (:tr (:td "Machine hardware") (:td (str (machine-version))))
-      (:tr (:td "Host Lisp")
-	   (:td (fmt "~a ~a (~a)" (lisp-implementation-type)
-		     (lisp-implementation-version) (machine-type))))
-      (:tr (:td "Collector foreign pointer")
-	   (:td (if *collector*
-		    (str (get-ptr *collector*))
-		    (str "Not initialized!"))))))
-    (collector-diag)
-    (dns-diag)
-    #+sbcl (sbcl-parameters)))
+  (with-config-section ("Image Parameters and Statistics")
+    (:table
+     (:tr (:td "Declared version") (:td (str *periscope-version*)))
+     (:tr (:td "Compilation time") (:td (str (iso8661-date-string *compilation-time*))))
+     (:tr (:td "Hunchentoot version") (:td (str hunchentoot-asd:*hunchentoot-version*)))
+     (:tr (:td "Machine hostname") (:td (str (machine-instance))))
+     (:tr (:td "Machine hardware") (:td (str (machine-version))))
+     (:tr (:td "Host Lisp")
+	  (:td (fmt "~a ~a (~a)" (lisp-implementation-type)
+		    (lisp-implementation-version) (machine-type))))
+     (:tr (:td "Collector foreign pointer")
+	  (:td (if *collector*
+		   (str (get-ptr *collector*))
+		   (str "Not initialized!"))))))
+  (collector-diag)
+  (dns-diag)
+  #+sbcl (sbcl-parameters))
 
 (defun y-or-n-td (generalized-boolean)
   (with-html-output (*standard-output*)
     (:td (fmt "~:[No~;Yes~]" generalized-boolean))))
 
 (defun dns-diag ()
-  (with-config-form ("/nothingtoseehere" "DNS Lookup Thread" "dns")
+  (with-config-section ("DNS Lookup Thread" "dns")
     (:table
      (:tr (:td "DNS cache size") (:td (fmt "~d entries" (hash-table-count *dns-cache*))))
      (:tr (:td "DNS requests pending lookup")
@@ -71,7 +65,7 @@
      (:tr (:td "DNS thread running?") (y-or-n-td (bt:thread-alive-p *dns-thread*))))))
 
 (defun collector-diag ()
-  (with-config-form ("/nothingtoseehere" "Collector Process Information" "collector")
+  (with-config-section ("Collector Process Information" "collector")
     (:table
      (:tr (:td "Collector process running?") (y-or-n-td (process-alive-p *collector-process*)))
      (:tr (:td "Collector PID") (:td (str (if *collector-process*
@@ -81,7 +75,7 @@
 (defun sbcl-parameters ()
   (let ((uid (sb-posix:getuid))
 	(gid (sb-posix:getgid)))
-    (with-config-form ("/nothingtoseehere" "SBCL Parameters" "sbcl")
+    (with-config-section ("SBCL Parameters" "sbcl")
       (:table
        (:tr (:td "Process ID") (:td (fmt "~d" (sb-posix:getpid))))
        (:tr (:td "Process UID")
