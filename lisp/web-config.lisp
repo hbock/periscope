@@ -99,7 +99,7 @@ must be specified!" :table nil))
 		  (:td (checkbox (format nil "delete[~d]" index) :value vid))))
 	    (incf index)))
 	(:br)
-	(submit "Apply Network Configuration")))))
+	(submit "Apply Configuration")))))
 
 (defun ports-from-string (port-string)
   "Take a string of port numbers and/or service names, separated by
