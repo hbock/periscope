@@ -34,25 +34,15 @@
 ;;;  - "editvlan": error editing VLAN IDs
 ;;;  - "badvid": no parseable VID when editing VLANs.
 ;;;  - "novname": no Name specified when editing VLANs.
-(hunchentoot:define-easy-handler (config :uri "/config") (error)
+(hunchentoot:define-easy-handler (network-config :uri "/network-config") (error)
   (with-periscope-page ("Control Panel" :admin t)
     (unless *collector*
       (warning-box
        "Collector not initialized. This is a bug.")
-      (return-from config))
+      (return-from network-config))
 
     (when (string= error "success")
       (htm (:p "Configuration values successfully applied!")))
-
-    (with-config-form ("/set-config" "Web Interface Configuration" "web")
-      (:table
-       (:tr
-	(:td "Web interface port")
-	(:td (input "web-port" *web-port*)))
-       (:tr
-	(:td "Perform DNS reverse lookup in reports")
-	(:td (checkbox "dnslookup" :checked *dns-available-p*))))
-      (submit "Apply Configuration"))
 
     (with-config-form ("/set-config" "Network Configuration" "network")
       (:table
@@ -229,22 +219,27 @@ Invalid CIDR subnets will signal a PARSE-ERROR."
     (save-config)
     (error-redirect "success")))
 
-(hunchentoot:define-easy-handler (sources :uri "/sources") (error host port)
-  (with-periscope-page ("Manage Argus Sources" :admin t)
-    (:div :class "config-header" "Collector Operation")
-    (unless *collector*
-      (warning-box
-       "Collector not initialized. This is a bug.")
-      (return-from sources))
-    
-    (when (not (running-p *collector*))
-      (if (null (remote-sources *collector*))
-	  (warning-box
-	   (:p "The collector is not running, and no sources have been defined.")
-	   (:p "Please add one or more sources below before starting the collector."))
-	  (warning-box
-	   "The collector is not running." (:br)
-	   (:b (:a :href "/manage-sources?action=run" "Click here to run the collector.")))))
+(hunchentoot:define-easy-handler (periscope-config :uri "/periscope-config") (error host port)
+  (with-periscope-page ("Periscope Configuration" :admin t)
+
+    (with-config-form ("/set-config" "Web Interface Configuration" "web")
+      (:table
+       (:tr
+	(:td "Web interface port")
+	(:td (input "web-port" *web-port*)))
+       (:tr
+	(:td "Perform DNS reverse lookup in reports")
+	(:td (checkbox "dnslookup" :checked *dns-available-p*))))
+      (submit "Apply Configuration"))
+
+    ;; (when (not (running-p *collector*))
+    ;;   (if (null (remote-sources *collector*))
+    ;; 	  (warning-box
+    ;; 	   (:p "The collector is not running, and no sources have been defined.")
+    ;; 	   (:p "Please add one or more sources below before starting the collector."))
+    ;; 	  (warning-box
+    ;; 	   "The collector is not running." (:br)
+    ;; 	   (:b (:a :href "/manage-sources?action=run" "Click here to run the collector.")))))
     (:br)
     (unless (not (or (available-sources *collector*) (active-sources *collector*)))
       (with-config-form ("/manage-sources" "Manage Sources" "manage")
