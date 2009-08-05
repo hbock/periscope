@@ -60,13 +60,15 @@
   (process-alive-p *collector-process*))
 
 (defun collector-thread ()
+  (format t "OK.~%")
   (loop :until *shutdown-p* :do
      (run-collector "tinderbox" :hour)
-     (format t "Collector stopped, restarting...")))
+     (unless *shutdown-p*
+       (format t "Collector stopped unexpectedly. Restarting!"))))
 
 (defun shutdown ()
   (setf *shutdown-p* t)
-  (stop-collector)
+  (stop-collector *collector-process*)
   (bt:condition-notify *shutdown-cond*))
 
 (defun repl-main ()
@@ -92,10 +94,11 @@
     (when *dns-available-p*
       (start-dns))
     (format t "OK.~%")
-   
+ 
+    (format t "Starting racollector. ")
     (when with-collector
       (bt:join-thread
-       (bt:make-thread #'worker-thread :name "Periscope Data Worker")))
+       (bt:make-thread #'collector-thread :name "racollector: external process watchdog")))
 
     (format t "Received shutdown command.  Terminating web interface.~%")
     (format t "You may have to navigate to the web interface before it will shut down.~%")
