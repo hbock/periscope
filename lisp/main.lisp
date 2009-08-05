@@ -54,27 +54,28 @@
     (process-wait *collector-process*)))
 
 (defun stop-collector (collector-process)
-  (process-wait (process-signal collector-process)))
+  (when (process-alive-p collector-process)
+    (process-wait (process-signal collector-process))))
 
 (defun collector-running-p ()
   (process-alive-p *collector-process*))
 
 (defun collector-thread ()
   (format t "OK.~%")
-  (loop :until *shutdown-p* :do
+  (loop :named watchdog-loop :do
      (run-collector "tinderbox" :hour)
-     (unless *shutdown-p*
-       (format t "Collector stopped unexpectedly. Restarting!"))))
+     (bt:with-lock-held (*shutdown-lock*)
+       (if *shutdown-p*
+	   (return-from watchdog-loop)
+	   (format t "Collector stopped unexpectedly. Restarting!"))))
+  (format t "Collector thread completed.~%"))
 
 (defun shutdown ()
   (setf *shutdown-p* t)
   (stop-collector *collector-process*)
   (bt:condition-notify *shutdown-cond*))
 
-(defun repl-main ()
-  (main :with-collector nil))
-
-(defun main (&key (with-collector t))
+(defun main ()
   (let ((*package* (in-package :periscope)))
     (handler-bind ((periscope-config-error
 		    (lambda (c)
@@ -94,12 +95,12 @@
     (when *dns-available-p*
       (start-dns))
     (format t "OK.~%")
- 
-    (format t "Starting racollector. ")
-    (when with-collector
-      (bt:join-thread
-       (bt:make-thread #'collector-thread :name "racollector: external process watchdog")))
 
+    (loop :named main-wait :do
+       (bt:with-lock-held (*shutdown-lock*)
+	 (bt:condition-wait *shutdown-cond* *shutdown-lock*)
+	 (when *shutdown-p* (return-from main-wait))))
+    
     (format t "Received shutdown command.  Terminating web interface.~%")
     (format t "You may have to navigate to the web interface before it will shut down.~%")
     (stop-web)
