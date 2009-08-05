@@ -38,17 +38,19 @@
 (defun run-collector (server time-period)
   (let ((time-period-string
 	 (ecase time-period
+	   (:test "10s")
 	   (:hour "1h")
 	   (:half-hour "30m")))
-	(output-prefix
-	 (format nil "~a~a" (namestring *report-directory*)
-		 (ecase time-period
-		   (:hour "hourly.%Y%m%d-%H")
-		   (:half-hour "halfhour.%Y%m%d-%H.%M")))))
+	(output-spec
+	 (ensure-directories-exist
+	  (in-report-directory (ecase time-period
+				 (:test "test/%Y%m%d-%H:%M:%S")
+				 (:hour "hourly.%Y%m%d-%H")
+				 (:half-hour "halfhour.%Y%m%d-%H.%M"))))))
     (setf *collector-process*
 	  (process-create (probe-file *collector-script*) nil
 			  ;; Arguments
-			  server time-period-string output-prefix))
+			  server time-period-string (namestring output-spec)))
     (process-wait *collector-process*)))
 
 (defun stop-collector (collector-process)
@@ -82,13 +84,15 @@
     (start-web)
     (format t "Web front-end started.~%")
 
-    (format t "Initializing collector... ")
+    (format t "Initializing internal Argus parser. ")
     (setf *collector* (init-basic-collector))
     (format t "OK.~%")
 
+    (format t "Starting DNS reverse lookup thread. ")
     (when *dns-available-p*
       (start-dns))
-
+    (format t "OK.~%")
+   
     (when with-collector
       (bt:join-thread
        (bt:make-thread #'worker-thread :name "Periscope Data Worker")))
