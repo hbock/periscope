@@ -42,7 +42,7 @@
       (return-from network-config))
 
     (when (string= error "success")
-      (htm (:p "Configuration values successfully applied!")))
+      (htm (:p :class "success" "Configuration values successfully applied!")))
 
     (with-config-form ("/set-config")
       (with-config-section ("Network Configuration" "network")
@@ -131,90 +131,80 @@ Invalid CIDR subnets will signal a PARSE-ERROR."
        (cons network netmask))))
 
 (hunchentoot:define-easy-handler (set-config :uri "/set-config")
-    (action (web-port :parameter-type 'integer) dnslookup
-	    network ports filter
-	    (newvid :parameter-type 'integer) newvname
-	    (vid :parameter-type 'array)
-	    (vname :parameter-type 'array)
-	    (delete :parameter-type 'array))
-
+    (network ports filter
+	     (newvid :parameter-type 'integer) newvname
+	     (vid :parameter-type 'array)
+	     (vname :parameter-type 'array)
+	     (delete :parameter-type 'array))
   (valid-session-or-lose :admin t)
 
-  (let ((*redirect-page* "/config"))
+  (let ((*redirect-page* "/network-config"))
     (unless *collector*
       (error-redirect "null-collector"))
-  
-    (cond
-      ;; Generic monitor configuration - Argus filters, etc.
-      ((string= action "monitor")
-       (when filter
-	 (setf (filter *collector*) filter)))
 
-      ((string= action "web")
-       ;; TODO: Restart server!   
-       (when web-port
-	 (setf *web-port* web-port))
+    (when filter
+      (setf (filter *collector*) filter))
+    
+    ;; Network management options: notable ports, internal network, etc.
+    (let ((remove-list
+	   (mapcar (lambda (port)
+		     (parse-integer (cdr port) :junk-allowed t))
+		   (remove-if-not (lambda (param) (string= param "remove"))
+				  (hunchentoot:post-parameters*) :key #'car))))
+      (setf *notable-ports*
+	    (delete-if (lambda (port)
+			 (find port remove-list)) *notable-ports*)))
 
-       ;; Start and stop DNS lookup thread according to the dnslookup value.
-       (cond
-	 ((and *dns-available-p* (null dnslookup))
-	  (stop-dns))
-	 ((and (not *dns-available-p*) (not (null dnslookup)))
-	  (start-dns))))
-	  
-      ;; Network management options: notable ports, internal network, etc.
-      ((string= action "network")
-       (let ((remove-list
-	      (mapcar (lambda (port)
-			(parse-integer (cdr port) :junk-allowed t))
-		      (remove-if-not (lambda (param) (string= param "remove"))
-				     (hunchentoot:post-parameters*) :key #'car))))
-	 (setf *notable-ports*
-	       (delete-if (lambda (port)
-			    (find port remove-list)) *notable-ports*)))
-
-       (when (not (empty-string-p ports))
-	 (multiple-value-bind (good bad)
-	     (ports-from-string ports)
-	   (unless (null bad)
-	     (error-redirect "ports"
-			     :badports (format nil "~{~A~^,~}" (mapcar #'escape-string bad))))
-	   (setf *notable-ports* (sort (union *notable-ports* good) #'<))))
+    (when (not (empty-string-p ports))
+      (multiple-value-bind (good bad)
+	  (ports-from-string ports)
+	(unless (null bad)
+	  (error-redirect "ports"
+			  :badports (format nil "~{~A~^,~}" (mapcar #'escape-string bad))))
+	(setf *notable-ports* (sort (union *notable-ports* good) #'<))))
 	   
-       (when network
-	 (handler-case
-	     (setf *internal-networks* (subnets-from-string network))
-	   (parse-error ()
-	     (error-redirect "networkparse")))))
+    (unless (empty-string-p network)
+      (handler-case
+	  (setf *internal-networks* (subnets-from-string network))
+	(parse-error ()
+	  (error-redirect "networkparse"))))
 
-      ;; Add new VLAN identifier
-      ((string= action "addvlan")
-       (if (and newvid newvname)
-	   (setf (vlan-name newvid) (escape-string newvname))
-	   (error-redirect "missingvlan")))
+    ;; Edit existing VLAN identifiers.
+    (when (/= (length vid) (length vname))
+      ;; User is trying to be malicious - these lengths are always equal.
+      (hunchentoot:redirect "/config"))
 
-      ;; Edit existing VLAN identifiers
-      ((string= action "editvlan")
-       ;; User is trying to be malicious - these lengths are always equal.
-       (when (/= (length vid) (length vname))
-	 (hunchentoot:redirect "/config"))
-
-       (let ((vids (map 'vector (lambda (s) (parse-integer s :junk-allowed t)) vid)))
-	 (cond
-	   ;; VLAN ID not parseable.
-	   ((some #'null vids) (error-redirect "badvid"))
-	   ;; VLAN number is set, but name is blank
-	   ((some #'empty-string-p vname) (error-redirect "novname")))
+    (let ((vids (map 'vector (lambda (s) (parse-integer s :junk-allowed t)) vid)))
+      (cond
+	;; VLAN ID not parseable.
+	((some #'null vids)  (error-redirect "badvid"))
+	;; VLAN number is set, but name is blank
+	((some #'empty-string-p vname) (error-redirect "novname")))
 	   
-	 ;; NOTE: We should only get here if there are NO errors!
-	 ;; Otherwise we blow away the VLAN list...
-	 (clrhash *vlan-names*)
-	 (loop :with ndelete = (length delete)
-	    :for i :from 0 :below (length vids) :do
-	    (if (and (> ndelete i) (aref delete i))
-		nil
-		(setf (vlan-name (aref vids i)) (escape-string (aref vname i))))))))
-  
+      ;; NOTE: We should only get here if there are NO errors!
+      ;; Otherwise we blow away the VLAN list...
+      (clrhash *vlan-names*)
+      (loop :with ndelete = (length delete)
+	 :for i :from 0 :below (length vids) :do
+	 (if (and (> ndelete i) (aref delete i))
+	     nil
+	     (setf (vlan-name (aref vids i)) (escape-string (aref vname i))))))
+    
+    ;; Add new VLAN identifier
+    (cond ((and (null newvid) (empty-string-p newvname))
+	   ;; do nossing
+	   )
+
+	  ((or (null newvid) (not (vlan-p newvid)))
+	   (error-redirect "badvid"))
+
+	  ((empty-string-p newvname)
+	   (error-redirect "novname"))
+
+	  (t
+	   (setf (vlan-name newvid) (escape-string newvname))))
+
+
     (save-config)
     (error-redirect "success")))
 
@@ -232,25 +222,25 @@ Invalid CIDR subnets will signal a PARSE-ERROR."
 	(submit "Apply Configuration")))
     
     (with-config-form ("/manage-sources")
-	(with-config-section ("Add Argus Server" "add")
-	  (:table
-	   (cond
-	     ((string= error "invalidhost")
-	      (error-message
-	       (format nil "Error: Hostname \"~a:~a\" did not resolve or is a duplicate." host port)))
-	     ((string= error "emptyhost")
-	      (error-message "Error: Hostname cannot not be empty!")))
-	   (:tr
-	    (:td "Hostname")
-	    (:td (input "hostname" "")))
-	   (:tr
-	    (:td "Port")
-	    (:td (input "port" 561)))
-	   (:tr
-	    (:td "SASL Authentication")
-	    (:td (checkbox "sasl"))))
-	  (submit "Add")
-	  (:br)))))
+      (with-config-section ("Add Argus Server" "add")
+	(:table
+	 (cond
+	   ((string= error "invalidhost")
+	    (error-message
+	     (format nil "Error: Hostname \"~a:~a\" did not resolve or is a duplicate." host port)))
+	   ((string= error "emptyhost")
+	    (error-message "Error: Hostname cannot not be empty!")))
+	 (:tr
+	  (:td "Hostname")
+	  (:td (input "hostname" "")))
+	 (:tr
+	  (:td "Port")
+	  (:td (input "port" 561)))
+	 (:tr
+	  (:td "SASL Authentication")
+	  (:td (checkbox "sasl"))))
+	(submit "Add")
+	(:br)))))
 
 (defun error-redirect (type &rest more-params)
   (let ((*print-case* :downcase))
@@ -259,7 +249,8 @@ Invalid CIDR subnets will signal a PARSE-ERROR."
      (format nil "~a?error=~a~:[~;&~:*~{~a=~a~^&~}~]" *redirect-page* type more-params))))
 
 (hunchentoot:define-easy-handler (manage-sources :uri "/manage-sources")
-    (action hostname (port :parameter-type 'integer) (remove :parameter-type 'array))
+    (action (web-port :parameter-type 'integer) dnslookup
+	    hostname (port :parameter-type 'integer) (remove :parameter-type 'array))
   (valid-session-or-lose :admin t)
   (let ((*redirect-page* "/sources"))
     (cond
