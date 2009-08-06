@@ -98,7 +98,7 @@
 (defmethod (setf filter) ((filter string) (object collector))
   (when (minusp
 	 (%argus-set-filter (get-ptr object) filter))
-    (error "Syntax error in filter: '~a'" filter)))
+    (periscope-error "Syntax error in filter: '~a'" filter)))
 
 (defun process-local-file (file &optional filter)
   (setf *flow-list* nil)
