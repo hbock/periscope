@@ -112,15 +112,15 @@ spaces and/or commas, and return a sorted list of integers
 corresponding to these numbers.  Duplicate port numbers
 are removed, and service names that could not be converted into numbers are
 returned in a list as the second return value."
-  (let* ((tokens (tokenize port-string '(#\Space #\, #\Tab #\Newline)))
-	(ports (mapcar #'service-port tokens)))
-    (loop :for port :in ports
-       :if (null port) :collect (nth (position nil ports) tokens) :into bad
-       :else :collect port :into good
-       :finally
-       (return (values (sort (remove-duplicates good) #'<)
-		       (remove-duplicates bad :test #'equal))))))
-
+  (let (good bad)
+    (dolist (token (tokenize port-string '(#\Space #\, #\Tab #\Newline)))
+      (let ((port (service-port token)))
+	(if (null port)
+	    (push token bad)
+	    (push port good))))
+    (values (sort (remove-duplicates good) #'<)
+	    (remove-duplicates (nreverse bad) :test #'equal))))
+  
 (defun subnets-from-string (subnet-string)
   "Take a string of CIDR subnet specifications, separated by spaces and/or commas, and return 
 a list of networks and netmasks corresponding to these specifications.  Each network and netmask
