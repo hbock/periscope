@@ -86,6 +86,15 @@
        (:tr (:td "Total GC run time")
 	    (:td (fmt "~$ seconds" (/ sb-ext:*gc-run-time* internal-time-units-per-second))))))))
 
+(defun diag-thread-list ()
+  (with-config-section ("Thread List" "threads")
+    (:table
+     (dolist (thread (bt:all-threads))
+       (htm
+	(:tr (:td
+	      (let ((name (bt:thread-name thread)))
+		(str (if name name "[No Name]"))))))))))
+
 (hunchentoot:define-easy-handler (shutdown :uri "/shutdown") ()
   (shutdown))
 
@@ -105,7 +114,8 @@ and your child.  Unfortunately, we cannot reboot your child.")
        (:p (:a :href "/stop" "Stop") "the running collector.")))
 
     (diag-settings-form)    
-    (diag-image-parameters)))
+    (diag-image-parameters)
+    (diag-thread-list)))
 
 (hunchentoot:define-easy-handler (set-diag :uri "/set-diag")
     (showbt showdiag swank (swankport :parameter-type 'integer))
