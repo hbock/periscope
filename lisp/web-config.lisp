@@ -24,7 +24,7 @@
   (with-html-output (*standard-output*)
     (if table
 	(htm (:tr (:td :class "error" :colspan 3 (:b (str message)))))
-	(htm (:b :class "error" (str message))))))
+	(htm (:p (:b :class "error" (str message)))))))
 
 ;;; Possible errors:
 ;;;  - "badfilter": error parsing argus filter.
@@ -70,15 +70,15 @@
 	      (htm (:option :value port (fmt "~d (~a)" port (service-name port))))))))
 	 (when (string= error "ports")
 	   (error-message
-	    (format nil "Could not parse the following ports: ~a" badports)))
+	    (format nil "Invalid services or port numbers: ~a" badports)))
 	 (:tr
 	  (:td "Add notable ports:")
 	  (:td (input "ports" "")))))
 
       (with-config-section ("Add VLAN Label" "addvlan")
 	(when (string= error "missingvlan")
-	  (error-message "Error setting VLAN label; both a valid VID and non-empty name
-must be specified!" :table nil))
+	  (error-message "VLAN IDs must be integers from 0 - 4095, and labels may not be empty."
+			 :table nil))
 	(:table	 
 	 (:tr
 	  (:td "VLAN ID")
@@ -92,7 +92,7 @@ must be specified!" :table nil))
 	  ((string= error "badvid")
 	   (error-message "Bad VLAN ID; must be a positive integer between 0-4095." :table nil))
 	  ((string= error "novname")
-	   (error-message "VLAN names must not be empty. To delete an ID, please use the
+	   (error-message "VLAN labels cannot be empty. To delete an ID, please use the
 \"Remove\" checkbox." :table nil)))
 	(:table
 	 :class "input"
@@ -134,8 +134,7 @@ Invalid CIDR subnets will signal a PARSE-ERROR."
        (cons network netmask))))
 
 (hunchentoot:define-easy-handler (set-config :uri "/set-config")
-    (network ports filter
-	     (newvid :parameter-type 'integer) newvname
+    (network ports filter newvid newvname
 	     (vid :parameter-type 'array)
 	     (vname :parameter-type 'array)
 	     (delete :parameter-type 'array))
@@ -197,18 +196,20 @@ Invalid CIDR subnets will signal a PARSE-ERROR."
 	     (setf (vlan-name (aref vids i)) (escape-string (aref vname i))))))
     
     ;; Add new VLAN identifier
-    (cond ((and (null newvid) (empty-string-p newvname))
+    (cond ((empty-string-p newvid newvname)
 	   ;; do nossing
 	   )
 
-	  ((or (null newvid) (not (vlan-p newvid)))
-	   (error-redirect "badvid"))
-
 	  ((empty-string-p newvname)
-	   (error-redirect "novname"))
+	   (error-redirect "missingvlan"))
 
 	  (t
-	   (setf (vlan-name newvid) (escape-string newvname))))
+	   (let ((vid (handler-case (parse-integer newvid)
+			(parse-error () nil))))
+	     (when (or (null vid) (not (vlan-p vid)))
+	       (error-redirect "missingvlan"))
+	     
+	     (setf (vlan-name vid) (escape-string newvname)))))
 
     (save-config)
     (error-redirect "success")))
