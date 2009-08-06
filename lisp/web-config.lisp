@@ -36,7 +36,7 @@
 ;;;  - "badvid": no parseable VID when editing VLANs.
 ;;;  - "novname": no Name specified when editing VLANs.
 (hunchentoot:define-easy-handler (network-config :uri "/network-config")
-    (error filter badports)
+    (error filter badports vid)
   (with-periscope-page ("Control Panel" :admin t)
     (unless *collector*
       (warning-box
@@ -90,9 +90,11 @@
       (with-config-section ("Edit VLAN Labels" "editvlan")
 	(cond
 	  ((string= error "badvid")
-	   (error-message "Bad VLAN ID; must be a positive integer between 0-4095." :table nil))
+	   (error-message
+	    (format nil "'~a' is not a valid VLAN ID; must be a positive integer between 0 - 4095."
+		    vid) :table nil))
 	  ((string= error "novname")
-	   (error-message "VLAN labels cannot be empty. To delete an ID, please use the
+	   (error-message "VLAN IDs and labels cannot be empty. To delete an ID, please use the
 \"Remove\" checkbox." :table nil)))
 	(:table
 	 :class "input"
@@ -179,13 +181,18 @@ Invalid CIDR subnets will signal a PARSE-ERROR."
       ;; User is trying to be malicious - these lengths are always equal.
       (hunchentoot:redirect "/config"))
 
-    (let ((vids (map 'vector (lambda (s) (parse-integer s :junk-allowed t)) vid)))
-      (cond
-	;; VLAN ID not parseable.
-	((some #'null vids)  (error-redirect "badvid"))
-	;; VLAN number is set, but name is blank
-	((some #'empty-string-p vname) (error-redirect "novname")))
-	   
+    ;; VLAN ID or label are blank.
+    (when (or (some #'empty-string-p vid)
+	      (some #'empty-string-p vname))
+      (error-redirect "novname"))
+    
+    (let* ((vids (map 'vector (lambda (s) (parse-integer s :junk-allowed t)) vid))
+	   (pos (position-if
+		 (lambda (vid)
+		   (not (and vid (vlan-p vid)))) vids)))
+      (when pos
+	(error-redirect "badvid" :vid (aref vid pos)))
+      
       ;; NOTE: We should only get here if there are NO errors!
       ;; Otherwise we blow away the VLAN list...
       (clrhash *vlan-names*)
