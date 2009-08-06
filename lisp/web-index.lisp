@@ -41,8 +41,7 @@
 		      (str (date-string (universal-to-timestamp (car last)) :minutes t)))
 		  "]"))))
 	(:li "Daily traffic reports")
-	(:li "Weekly traffic reports")
-	(:li (:a :href "/service" "Service-type reports"))))
+	(:li "Weekly traffic reports")))
       (when (login-available-p)
 	(htm
 	 (:td
