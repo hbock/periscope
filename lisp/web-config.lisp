@@ -148,7 +148,7 @@ Invalid CIDR subnets will signal a PARSE-ERROR."
       (handler-case
 	  (setf (filter *collector*) filter)
 	(periscope-error ()
-	  (error-redirect "badfilter" :filter (escape-string filter)))))
+	  (error-redirect "badfilter" :filter filter))))
     
     ;; Network management options: notable ports, internal network, etc.
     (let ((remove-list
@@ -165,7 +165,7 @@ Invalid CIDR subnets will signal a PARSE-ERROR."
 	  (ports-from-string ports)
 	(unless (null bad)
 	  (error-redirect "ports"
-			  :badports (format nil "~{~A~^,~}" (mapcar #'escape-string bad))))
+			  :badports (format nil "~{~A~^, ~}" bad)))
 	(setf *notable-ports* (sort (union *notable-ports* good) #'<))))
 	   
     (unless (empty-string-p network)
@@ -247,7 +247,9 @@ Invalid CIDR subnets will signal a PARSE-ERROR."
   (let ((*print-case* :downcase))
     (hunchentoot:redirect
      ;; This is an ABOMINATION, yet it is pretty awesome all the same.
-     (format nil "~a?error=~a~:[~;&~:*~{~a=~a~^&~}~]" *redirect-page* type more-params))))
+     (format nil "~a?error=~a~:[~;&~:*~{~a=~a~^&~}~]" *redirect-page* type
+	     (mapcar (lambda (param)
+		       (when (stringp param) (url-encode param))) more-params)))))
 
 (hunchentoot:define-easy-handler (set-periscope-config :uri "/set-periscope-config")
     ((web-port :parameter-type 'integer) dnslookup
