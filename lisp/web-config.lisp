@@ -249,7 +249,7 @@ Invalid CIDR subnets will signal a PARSE-ERROR."
      ;; This is an ABOMINATION, yet it is pretty awesome all the same.
      (format nil "~a?error=~a~:[~;&~:*~{~a=~a~^&~}~]" *redirect-page* type
 	     (mapcar (lambda (param)
-		       (when (stringp param) (url-encode param))) more-params)))))
+		       (if (stringp param) (url-encode param) param)) more-params)))))
 
 (hunchentoot:define-easy-handler (set-periscope-config :uri "/set-periscope-config")
     ((web-port :parameter-type 'integer) dnslookup
