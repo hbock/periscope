@@ -36,7 +36,7 @@
 ;;;  - "badvid": no parseable VID when editing VLANs.
 ;;;  - "novname": no Name specified when editing VLANs.
 (hunchentoot:define-easy-handler (network-config :uri "/network-config")
-    (error filter)
+    (error filter badports)
   (with-periscope-page ("Control Panel" :admin t)
     (unless *collector*
       (warning-box
@@ -69,7 +69,8 @@
 	    (dolist (port *notable-ports*)
 	      (htm (:option :value port (fmt "~d (~a)" port (service-name port))))))))
 	 (when (string= error "ports")
-	   (error-message "Error: Port numbers must be separated by spaces or commas."))
+	   (error-message
+	    (format nil "Could not parse the following ports: ~a" badports)))
 	 (:tr
 	  (:td "Add notable ports:")
 	  (:td (input "ports" "")))))
