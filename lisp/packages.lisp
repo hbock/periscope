@@ -19,7 +19,9 @@
 (in-package :cl-user)
 
 (defpackage :periscope
-  (:use :common-lisp :cffi :cl-who :local-time))
+  (:use #:common-lisp #:cffi #:cl-who #:local-time)
+  (:import-from #:hunchentoot #:url-encode)
+  (:import-from #:hunchentoot #:define-easy-handler))
 
 (in-package :periscope)
 
