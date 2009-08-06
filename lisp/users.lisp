@@ -368,35 +368,28 @@ of integers corresponding to these numbers.  Duplicate VLAN IDs are removed, and
 IDs will signal a PARSE-ERROR."
   (parse-integer-list vlan-string "^(\\d{1,4}( *|(, *)))+$" (complement #'vlan-p)))
 
-(defun parse-generic-filters (title-array internal-array subnet-array vlan-array delete-array)
-  (declare (type array internal-array title-array subnet-array vlan-array delete-array))
+(defun parse-filter (title internal subnet vlan delete &key (index 0))
+  (declare (type array internal title subnet vlan delete))
+  (let ((title (aref title index))
+	(internals (aref internal index))
+	(vlans   (aref vlan index))
+	(subnets (aref subnet index))
+	(delete-p (and (plusp index) (< index (length delete))
+		       (string= "true" (aref delete index)))))
+    (unless (or delete-p (empty-string-p title vlans subnets))
+      (let ((internals (unless (empty-string-p internals)
+			 (subnets-from-string internals)))
+	    (vlans (unless (empty-string-p vlans)
+		     (vlans-from-string vlans)))
+	    (subnets (unless (empty-string-p subnets)
+		       (subnets-from-string subnets))))
+	(make-generic-filter (escape-string title)
+			     :vlans vlans :subnets subnets
+			     :internal-networks internals)))))
 
-  (let (filters)
-    (loop :for i :from 0 :below (length title-array)
-       :for title = (aref title-array i)
-       :for internal-string = (aref internal-array i)
-       :for vlan-string = (aref vlan-array i)
-       :for subnet-string = (aref subnet-array i)
-       :for delete-p = (and (plusp i)
-			    (< i (length delete-array))
-			    (string= "true" (aref delete-array i)))
-       :unless (or delete-p (empty-string-p title vlan-string subnet-string)) :do
-       (handler-case
-	   (let ((internals (unless (empty-string-p internal-string)
-			      (subnets-from-string internal-string)))
-		 (vlans (unless (empty-string-p vlan-string)
-			  (vlans-from-string vlan-string)))
-		 (subnets (unless (empty-string-p subnet-string)
-			    (subnets-from-string subnet-string))))
-	     (push (make-generic-filter (escape-string title) :vlans vlans :subnets subnets
-					:internal-networks internals)
-		   filters))
-	 ;; The redirect for now must be done here so as to return which filter actually
-	 ;; caused the error.
-	 (parse-error (e)
-	   (declare (ignore e))
-	   (error-redirect "badfilter" :filter i))))
-    (nreverse filters)))
+(defun parse-generic-filters (title internal subnet vlan delete)
+  (declare (ignore title internal subnet vlan delete))
+  (not-implemented 'old-filters))
 
 (hunchentoot:define-easy-handler (set-user-config :uri "/set-user-config")
     (username required
@@ -461,8 +454,15 @@ IDs will signal a PARSE-ERROR."
 	 (handler-case
 	     (let ((user
 		    (create-login username password1 (escape-string displayname)
-				  :admin (or (not (login-available-p)) (not (null configp))))))
-	       (setf (filters user) (parse-generic-filters title internal subnet vlan delete))
+				  :admin (or (not (login-available-p))
+					     (not (null configp))))))
+	       
+	       (setf (filters user)
+		     (handler-case
+			 (list (parse-filter title internal subnet vlan delete))
+		       (parse-error ()
+			 (error-redirect "badfilter"))))
+	       
 	       ;; If this is the first user created - automatically log them in for convenience.
 	       (when (= 1 (user-count))
 		 (process-login user password1)))
@@ -495,7 +495,13 @@ IDs will signal a PARSE-ERROR."
 	 (setf (password-hash user) (hash-sequence password1)))
       
        (setf (display-name user) (escape-string displayname))
-       (setf (filters user) (parse-generic-filters title internal subnet vlan delete))))
+       (setf (filters user)
+	     (remove nil
+		     (loop :for i :from 0 :below (length title) :collect
+			(handler-case
+			    (parse-filter title internal subnet vlan delete :index i)
+			  (parse-error ()
+			    (error-redirect "badfilter" :user username :filter i))))))))
       
     (save-config)
     (let ((*redirect-page* "/edit-user"))
