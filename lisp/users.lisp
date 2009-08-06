@@ -175,10 +175,14 @@ below." (username user)))
     (:table
      (:tr (:th :colspan 2 "Login Information") (:th))
      (string-case error
-       ("username" (error-message "You must specify a username."))
+       ("blankuser" (error-message "Username cannot be left blank."))
+       ("username" (error-message "Usernames must consist only of 
+alphanumeric characters and underscores."))
        ("userexists" (error-message (format nil "User '~a' already exists." username))))
      (if user
+	 ;; Hidden parameter since we are editing an existing user.
 	 (hidden "username" (username user))
+	 ;; Otherwise we prompt for the username.
 	 (htm
 	  (:tr
 	   (:td "Username")
@@ -202,7 +206,7 @@ below." (username user)))
      (:tr
       (:td "Administrator privileges")
       (:td (checkbox "configp" :checked (if user (admin-p user) (string= configp "configp")))))
-     (:tr (:th :colspan 2 (str (if user "Add new filter:" "Initial traffic filter:"))))
+     (:tr (:th :colspan 2 (str (if user "Add new filter" "Initial traffic filter"))))
      (:tr
       (:td "Filter Title")
       (:td (input "title[0]" "" :size 30)))
@@ -440,7 +444,12 @@ IDs will signal a PARSE-ERROR."
 				:displayname (escape-string displayname)
 				:configp configp)))
 	 (cond
-	   ((empty-string-p username) (error-redirect "username"))
+	   ((empty-string-p username)
+	    (error-redirect "blankuser"))
+	   
+	   ((not (ppcre:scan "[A-Za-z0-9_]+" username))
+	    (error-redirect "username"))
+
 	   ((empty-string-p displayname) (error-redirect "dispname"))
 
 	   ((not (and password1 password2 (plusp (length password1)) (plusp (length password2))))
