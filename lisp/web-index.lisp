@@ -28,45 +28,54 @@
     (:br)
     (:table
      (:tr
-      (:td (:b "View Traffic Reports")
-	   (:ul
-	    (:li (:a :href "/hourly" "Hourly traffic reports")
-		 (let ((last (last-hourly-log)))
-		   (when last
-		     (htm
-		      "(Last at "
-		      (:a :href (format nil "/hourly?time=~d" (car last))
-			  (fmt "~a)" (long-date-string (universal-to-timestamp (car last)))))))))
-	    (:li "Daily traffic reports")
-	    (:li "Weekly traffic reports")
-	    (:li (:a :href "/service" "Service-type reports"))))
-      
-      (:td (:b "Configure Periscope")
-	   (:ul
-	    (:li (:a :href "/periscope-config" "Manage Periscope settings"))
-	    (:li (:a :href "/network-config" "Default network settings"))
-	    (:li (:a :href "/users" "Manage user logins and filters"))
-	    (when *web-show-diag*
-	      (htm (:li (:a :href "/uuddlrlrbastart" "Diagnose problems with 
-Periscope internals")))))))
-     (:tr
+      (:td
+       :valign "top"
+       (:b "View Traffic Reports")
+       (:ul
+	(:li (:a :href "/hourly" "Hourly traffic reports")
+	     (let ((last (last-hourly-log)))
+	       (when last
+		 (htm
+		  "[Last: "
+		  (:a :href (format nil "/hourly?time=~d" (car last))
+		      (str (date-string (universal-to-timestamp (car last)) :minutes t)))
+		  "]"))))
+	(:li "Daily traffic reports")
+	(:li "Weekly traffic reports")
+	(:li (:a :href "/service" "Service-type reports"))))
       (when (login-available-p)
 	(htm
-	 (:td (:b (if (valid-session-p)
-		      (fmt "User Session (Logged in as ~a)" (display-name (user)))
-		      (str "User Session")))
-	      (if (valid-session-p)
-		  (let ((user (user)))
-		    (htm
-		     (:ul (:li
-			   (:a :href "/do-login?action=logout" "Log out of Periscope"))
-			  (when (admin-p user)
-			    (htm (:li (:a :href (format nil "/edit-user?user=~a" (username user))
-					  (fmt "Modify your account"))))))))
+	 (:td
+	  :valign "top"
+	  (:b (if (valid-session-p)
+		  (fmt "User Session (Logged in as ~a)" (display-name (user)))
+		  (str "User Session")))
+	  (if (valid-session-p)
+	      (let ((user (user)))
+		(htm
+		 (:ul (:li
+		       (:a :href "/do-login?action=logout" "Log out of Periscope"))
+		      (when (admin-p user)
+			(htm (:li (:a :href (format nil "/edit-user?user=~a" (username user))
+				      (fmt "Modify your account"))))))))
 		   
-		  (htm
-		   (:ul
-		    (:li (:a :href "/login" "Login to Periscope"))))))))))))
+	      (htm
+	       (:ul
+		(:li (:a :href "/login" "Login to Periscope")))))))))
+     (:tr
+      (when (configure-p)
+	(htm
+	 (:td
+	  :valign "top"
+	  (:b "Configure Periscope")
+	  (:ul
+	   (:li (:a :href "/periscope-config" "Manage Periscope settings"))
+	   (:li (:a :href "/network-config" "Default network settings"))
+	   (:li (:a :href "/users" "Manage user logins and filters"))
+	   (when *web-show-diag*
+	     (htm (:li (:a :href "/uuddlrlrbastart" "Diagnose problems with 
+Periscope internals"))))))))
+      ))))
 
 (hunchentoot:define-easy-handler (about :uri "/about") ()
   (with-periscope-page ("About Periscope")
