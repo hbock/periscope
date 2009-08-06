@@ -281,7 +281,7 @@ below." (username user)))
 (hunchentoot:define-easy-handler (user-config :uri "/users") (error edit add)
   (with-periscope-page ("User Login Configuration" :admin t)
     (with-config-form ("/set-user-config")
-      (with-config-section ("Login Configuration" "configure")
+      (with-config-section ("User Login Settings" "configure")
 	(:table
 	 (:tr
 	  (:td "Maximum login session time (seconds)")

@@ -42,7 +42,7 @@
       (return-from network-config))
 
     (with-config-form ("/set-config")
-      (with-config-section ("Network Configuration" "network")
+      (with-config-section ("Default Network Settings" "network")
 	(:table
 	 (:tr
 	  (:td "Traffic Filter")
@@ -209,7 +209,7 @@ Invalid CIDR subnets will signal a PARSE-ERROR."
     (when (string= error "success")
       (htm (:p :class "success" "Configuration values successfully applied!")))
     (with-config-form ("/set-periscope-config")
-      (with-config-section ("Web Interface Configuration" "web")
+      (with-config-section ("Web Interface Settings" "web")
 	(:table
 	 (:tr
 	  (:td "Web interface port")
