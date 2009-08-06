@@ -73,6 +73,7 @@
 
 (defconstant +lowest-multicast-address+ #xe0000000)
 (defconstant +highest-multicast-address+ #xefffffff)
+(defconstant +highest-port-number+ #xffff)
 (defconstant +broadcast-ip+ #xffffffff)
 (defconstant +ip-proto-icmp+ 1)
 (defconstant +ip-proto-igmp+ 2)
