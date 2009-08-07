@@ -64,7 +64,17 @@ logged-in user.  If no user is logged in, returns NIL."
   (if username
       (gethash username *web-user-db*)
       (when (boundp 'hunchentoot:*session*)
-	(gethash (hunchentoot:session-value 'username) *web-user-db*))))
+	(let ((user (gethash (hunchentoot:session-value 'username) *web-user-db*)))
+	  ;; If a session is bound to a particular user, but their session slot is NULL,
+	  ;; we've got a problem - the user's session slot was nuked without the
+	  ;; Hunchentoot SESSION being removed.  In this case, we SHOULD be able to
+	  ;; silently remove this bound session and make things right again...
+	  (if (and user (null (session user)))
+	      (progn
+		(hunchentoot:remove-session hunchentoot:*session*)
+		;; Return NIL so we don't assert that user is ACTUALLY logged in.
+		nil)
+	      user)))))
 
 (defun login-available-p ()
   "Return true if logins are available (i.e., at least one user login)."
@@ -88,8 +98,9 @@ logged-in user.  If no user is logged in, returns NIL."
   (when (login-available-p)
     (cond
       ((not (valid-session-p))
-       (hunchentoot:redirect (format nil "/login?denied=login&redirect=~a"
-				     (hunchentoot:script-name hunchentoot:*request*))))
+       (unless (string= (hunchentoot:script-name hunchentoot:*request*) "/login")
+	 (hunchentoot:redirect (format nil "/login?denied=login&redirect=~a"
+				       (hunchentoot:script-name hunchentoot:*request*)))))
     
       ((and admin (not (admin-p (user))))
        (hunchentoot:redirect "/nowhere"))))
@@ -144,25 +155,24 @@ currently set up (for configuration purposes)."
   
   ;; Shadow *WEB-LOGIN-REQUIRED-P* to force the login page to be available even when
   ;; logins are required for all pages.  A bit of a hack...
-  (let ((*web-login-required-p* nil))
-    (with-periscope-page ("Login" :onload "loginFocus()")
-      (string-case denied
-	("login" (warning-box (:p :class "denied" "You must be logged in to see this page.")))
-	("bad" (warning-box (:p :class "denied" "Invalid credentials. Please try again."))))
-      (:br)
-      (with-config-form ("/do-login")
-	(with-config-section ("Log in to Periscope" "login")
-	  (:table
-	   :class "login"
-	   (:tr
-	    (:td "Username")
-	    (:td (input "username" "" :id "login")))
-	   (:tr
-	    (:td "Password")
-	    (:td (password-input "password"))))
-	  (when (and denied redirect)
-	    (hidden "redirect" redirect))
-	  (:input :type "submit" :value "Login"))))))
+  (with-periscope-page ("Login" :onload "loginFocus()")
+    (string-case denied
+      ("login" (warning-box (:p :class "denied" "You must be logged in to see this page.")))
+      ("bad" (warning-box (:p :class "denied" "Invalid credentials. Please try again."))))
+    (:br)
+    (with-config-form ("/do-login")
+      (with-config-section ("Log in to Periscope" "login")
+	(:table
+	 :class "login"
+	 (:tr
+	  (:td "Username")
+	  (:td (input "username" "" :id "login")))
+	 (:tr
+	  (:td "Password")
+	  (:td (password-input "password"))))
+	(when (and denied redirect)
+	  (hidden "redirect" redirect))
+	(:input :type "submit" :value "Login")))))
 
 (defun bad-filter-message ()
   (let ((reason (session-value 'conf-filter-bad-reason))
@@ -397,7 +407,7 @@ account." :table nil))
 
     (if (and redirect (valid-session-p))
 	(hunchentoot:redirect redirect)
-	(hunchentoot:redirect "/"))))
+	(hunchentoot:redirect (if (login-required-p) "/login" "/")))))
 
 (defun vlans-from-string (vlan-string)
   "Take a string of VLAN identifiers, separated by spaces and/or commas, and return a sorted list
