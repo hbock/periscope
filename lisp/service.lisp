@@ -93,7 +93,7 @@ of the service with label-fun."
     (:b "Tracked services: ")
     (fmt "~{~a~^, ~} " (mapcar #'service-name *notable-ports*))
     (when (configure-p)
-      (htm (:a :href "/config" "(edit)")))
+      (htm (:a :href "/network-config" "(edit)")))
     (print-matched-service-stats object (lambda (val)
 					  (typep val '(unsigned-byte 16)))
 				 #'service-name)

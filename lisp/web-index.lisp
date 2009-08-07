@@ -24,7 +24,7 @@
     (warning-box
      "This is pre-release software.  Use at your own risk! "
      "Keep up-to-date with the latest releases "
-     (:a :href "http://nautilus.oshean.org/wiki/Periscope" "here."))
+     (:a :href "http://nautilus.oshean.org/wiki/Periscope" :target "_blank" "here."))
     (:br)
     (:table
      (:tr
