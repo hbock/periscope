@@ -67,6 +67,7 @@
 (defun collector-diag ()
   (with-config-section ("Collector Process Information" "collector")
     (:table
+     (:tr (:td "Connect string") (:td (str (collector-connect-string))))
      (:tr (:td "Collector process running?") (y-or-n-td (process-alive-p *collector-process*)))
      (:tr (:td "Collector PID") (:td (str (if (process-alive-p *collector-process*)
 					      (process-pid *collector-process*)
