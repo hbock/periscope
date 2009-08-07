@@ -51,6 +51,19 @@
 (defun periscope-file-error (control &rest args)
   (error 'periscope-file-error :format-control control :format-arguments args))
 
+(define-condition filter-parse-error (periscope-simple-error parse-error)
+  ((error-type :initarg :error-type :reader filter-parse-error-type)
+   (bad-data :initarg :bad-data :reader filter-parse-error-data))
+  (:documentation "Specific error information about bad filter specifications.")
+  (:report
+   (lambda (condition stream)
+     (format stream "Error parsing filter with bad ~a data: '~a' is not valid."
+	     (filter-parse-error-type condition)
+	     (filter-parse-error-data condition)))))
+
+(defun filter-parse-error (type data)
+  (error 'filter-parse-error :error-type type :bad-data data))
+
 (define-condition operation-not-implemented (periscope-error)
   ((operation :initarg :operation
 	      :reader operation-not-implemented-operation
