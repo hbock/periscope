@@ -52,39 +52,39 @@ Starts a separate thread to run the collector and handle its callbacks."
 (defun generate-navigation ()
   "Generate Periscope's navigation sidebar."
   (with-html ()
-    (cond
-      ((valid-session-p)
-       (htm (:ul (:li (:a :href "/do-login?action=logout"
-			  (fmt "Log out (~A)" (display-name (user))))))))
+    (when (or (not (login-required-p)) (valid-session-p))
+      (cond
+	((valid-session-p)
+	 (htm (:ul (:li (:a :href "/do-login?action=logout"
+			    (fmt "Log out (~A)" (display-name (user))))))))
       
-      ((login-available-p)
-       (htm (:ul (:li (:a :href "/login" "Login"))))))
-    
-    (:ul
-     (:li (:a :href "/" "Periscope Home"))
-     
-					;(:li (:a :href "/traffic" "Traffic Overview"))
-     (:li :class "root"
-          "Reports"
-          (:ul
-	   (loop :for (type uri description) :in
-	      (sort (copy-seq *report-handler-list*) #'string< :key #'third) :do
-	      (htm (:li (:a :href uri (str description)))))))
-     (:li :class "root"
-          "Utilities"
-          (:ul
-	   (:li (:a :href "/service-names" "Service Names"))))
-     (when (configure-p)
-       (htm
-	(:li :class "root"
-	     "Configuration"
-	     (:ul
-	      (:li (:a :href "/periscope-config" "Periscope Settings"))
-	      (:li (:a :href "/network-config" "Network Settings"))
-	      (:li (:a :href "/users" "Manage User Logins"))
+	((login-available-p)
+	 (htm (:ul (:li (:a :href "/login" "Login"))))))
 
-	      (when *web-show-diag*
-		(htm (:li (:a :href "/uuddlrlrbastart" "Diagnostics Panel")))))))))))
+      (htm
+       (:ul
+	(:li (:a :href "/" "Periscope Home"))
+	(:li :class "root"
+	     "Reports"
+	     (:ul
+	      (loop :for (type uri description) :in
+		 (sort (copy-seq *report-handler-list*) #'string< :key #'third) :do
+		 (htm (:li (:a :href uri (str description)))))))
+	(:li :class "root"
+	     "Utilities"
+	     (:ul
+	      (:li (:a :href "/service-names" "Service Names"))))
+	(when (configure-p)
+	  (htm
+	   (:li :class "root"
+		"Configuration"
+		(:ul
+		 (:li (:a :href "/periscope-config" "Periscope Settings"))
+		 (:li (:a :href "/network-config" "Network Settings"))
+		 (:li (:a :href "/users" "Manage User Logins"))
+
+		 (when *web-show-diag*
+		   (htm (:li (:a :href "/uuddlrlrbastart" "Diagnostics Panel")))))))))))))
 
 (defmacro with-periscope-page ((title &key login admin onload) &body body)
   "Generate a Periscope-template page."
