@@ -217,7 +217,15 @@ alphanumeric characters and underscores."))
 	 (:td (checkbox "configp" :checked (if user (admin-p user) configp))))
 	(:tr (:th :colspan 2 (str (if user "Add new filter" "Initial traffic filter"))))
 	(when (and (string= error "badfilter") (zerop filter))
-	  (error-message "Bad filter specification!"))
+	  (let ((reason (session-value 'conf-filter-bad-reason))
+		(baddata (session-value 'conf-filter-bad-data)))
+	    (error-message
+	     (string-case reason
+	       ("INTERNAL" (format nil "'~a' is not a valid internal subnet list." baddata)) 
+	       ("SUBNET" (format nil "'~a' is not a valid subnet filter list." baddata))
+	       ("VLAN" (format nil "'~a' is not a valid VLAN ID list." baddata))
+	       (t (format nil "Unknown error '~a', bad data '~a'. Report this as a bug."
+			  reason baddata))))))
 	(:tr
 	 (:td "Filter Title")
 	 (:td (input "title[0]" title :size 30)))
@@ -228,7 +236,7 @@ alphanumeric characters and underscores."))
 	 (:td "Included subnets (CIDR notation)")
 	 (:td (input "subnet[0]" subnet :size 30)))
 	(:tr
-	 (:td "Included VLANs")
+	 (:td "Included VLAN IDs")
 	 (:td (input "vlan[0]" vlan :size 30)))
      
 	(when (string= error "subnet")
@@ -293,7 +301,9 @@ alphanumeric characters and underscores."))
       (delete-session-value 'conf-title)
       (delete-session-value 'conf-internal)
       (delete-session-value 'conf-subnet)
-      (delete-session-value 'conf-vlan))))
+      (delete-session-value 'conf-vlan)
+      (delete-session-value 'conf-filter-bad-reason)
+      (delete-session-value 'conf-filter-bad-data))))
 
 ;;; Errors:
 ;;;  - "username": Empty username.
@@ -398,11 +408,17 @@ IDs will signal a PARSE-ERROR."
 		       (string= "true" (aref delete index)))))
     (unless (or delete-p (empty-string-p title vlans subnets))
       (let ((internals (unless (empty-string-p internals)
-			 (subnets-from-string internals)))
+			 (handler-case (subnets-from-string internals)
+			   (parse-error () (filter-parse-error :internal internals)))))
+	    
 	    (vlans (unless (empty-string-p vlans)
-		     (vlans-from-string vlans)))
+		     (handler-case (vlans-from-string vlans)
+		       (parse-error () (filter-parse-error :vlan vlans)))))
+	    
 	    (subnets (unless (empty-string-p subnets)
-		       (subnets-from-string subnets))))
+		       (handler-case (subnets-from-string subnets)
+			 (parse-error () (filter-parse-error :subnet subnets))))))
+	
 	(make-generic-filter (escape-string title)
 			     :vlans vlans :subnets subnets
 			     :internal-networks internals)))))
@@ -412,10 +428,10 @@ IDs will signal a PARSE-ERROR."
   (not-implemented 'old-filters))
 
 (define-easy-handler (set-user-config :uri "/set-user-config")
-    (username required
-	      (sessiontime :parameter-type 'integer)
-	      (user     :parameter-type 'array)
-	      (delete   :parameter-type 'array))
+    (required
+     (sessiontime :parameter-type 'integer)
+     (user     :parameter-type 'array)
+     (delete   :parameter-type 'array))
   (valid-session-or-lose :admin t)
 
   (let ((*redirect-page* "/users"))
@@ -482,16 +498,25 @@ IDs will signal a PARSE-ERROR."
 	    (error-redirect "passmatch")))
 
 	 (handler-case
-	     (let ((user
+	     (let ((filters
+		    (handler-case
+			(list (parse-filter title internal subnet vlan delete))
+		      (filter-parse-error (pe)
+			(setf (session-value 'conf-filter-bad-reason)
+			      (filter-parse-error-type pe)
+
+			      (session-value 'conf-filter-bad-data)
+			      (filter-parse-error-data pe))
+			 
+			(error-redirect "badfilter" :filter 0))
+		      (parse-error ()
+			(error-redirect "badfilter" :filter 0))))
+		   (user
 		    (create-login username password1 (escape-string displayname)
 				  :admin (or (not (login-available-p))
 					     (not (null configp))))))
 
-	       (setf (filters user)
-		     (handler-case
-			 (list (parse-filter title internal subnet vlan delete))
-		       (parse-error ()
-			 (error-redirect "badfilter" :filter 0))))
+	       (setf (filters user) filters)
 	       
 	       ;; If this is the first user created - automatically log them in for convenience.
 	       (when (= 1 (user-count))
