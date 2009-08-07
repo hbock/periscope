@@ -152,6 +152,7 @@ and the time period for which it will bin/split its output logs."
 
 (defun collector-aborted-p ()
   (and *collector-process*
+       (not (process-alive-p *collector-process*))
        (= 4 (process-wait *collector-process*))))
 
 (defun collector-thread ()
