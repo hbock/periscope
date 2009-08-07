@@ -84,7 +84,7 @@
        (sb-bsd-sockets:get-host-by-address (ip-to-vector ip)))
     (sb-bsd-sockets:name-service-error (e)
       (declare (ignore e)) nil))
-  #-sbcl nil)
+  #-sbcl (not-implemented 'reverse-lookup))
 
 (defun lookup (hostname)
   #+sbcl
@@ -93,7 +93,7 @@
        (sb-bsd-sockets:get-host-by-name hostname))
     (sb-bsd-sockets:name-service-error (e)
       (declare (ignore e)) nil))
-  #-sbcl nil)
+  #-sbcl (not-implemented 'reverse-lookup))
 
 (defun hostname (ip)
   "Given an IP address, lookup the hostname of the corresponding machine, if available.
