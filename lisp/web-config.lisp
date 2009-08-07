@@ -320,25 +320,22 @@ Invalid CIDR subnets will signal a PARSE-ERROR."
     ;; Empty hostnames are bad news.
     (unless (empty-string-p hostname)
       (unless (lookup hostname)
-	(error-redirect "badhost" :host hostname))
+    	(error-redirect "badhost" :host hostname))
       (let ((port (handler-case (parse-integer port)
-		    (parse-error () port))))
-	(unless (typep port '(unsigned-byte 16))
-	  (error-redirect "badport" :port port))
+    		    (parse-error () port))))
+    	(unless (typep port '(unsigned-byte 16))
+    	  (error-redirect "badport" :port port))
+	
+	
+    	;; If the collector is currently running and we change the hostname,
+    	;; we must stop the currently running collector.
+    	(when (collector-running-p)
+    	  (when (or (/= (lookup hostname) (lookup *collector-argus-server*))
+		    (/= port *collector-argus-port*))
+	    (stop-collector *collector-process*)))
 
-	;; If the collector is currently running and we change the hostname,
-	;; we must stop the currently running collector.
-	(unless (or (not (collector-running-p))
-		    (and (= (lookup hostname) (lookup *collector-argus-server*))
-			 (= port *collector-argus-port*)))
-	  (error "~a ~a ~a ~a ~a"
-		 (collector-running-p)
-		 (lookup hostname) (lookup *collector-argus-server*)
-		 port *collector-argus-port*)
-	  (stop-collector *collector-process*))
-
-	(when (collector-aborted-p)
-	  (setf *collector-process* nil))
+    	(when (collector-aborted-p)
+    	  (setf *collector-process* nil))
 
 	(setf *collector-argus-server* hostname)
 	(setf *collector-argus-port* port)))
