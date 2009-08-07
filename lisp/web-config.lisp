@@ -261,11 +261,13 @@ Invalid CIDR subnets will signal a PARSE-ERROR."
 		(:b (str (collector-connect-string)))
 		"." (:br)
 		(:a :href "/collector?action=stop" "Stop the collector.")))
-	      (t (if (and *collector-process* (= 4 (process-wait *collector-process*)))
+	      (t (if (collector-aborted-p)
 		     (htm
 		      (:b :class "error" "Collector process failed to start.")
-		      (:p (fmt "Ensure Argus is running on ~a and is accessible from this machine."
-			       (collector-connect-string))))
+		      (:p
+		       "Ensure Argus is running on " (:b (str (collector-connect-string)))
+		       " and is accessible from this machine."
+		       (collector-connect-string)))
 		     (htm
 		      "Data collection from " (:b (str (collector-connect-string))) " is stopped."
 		      (:br)
@@ -329,9 +331,15 @@ Invalid CIDR subnets will signal a PARSE-ERROR."
 	(unless (or (not (collector-running-p))
 		    (and (= (lookup hostname) (lookup *collector-argus-server*))
 			 (= port *collector-argus-port*)))
+	  (error "~a ~a ~a ~a ~a"
+		 (collector-running-p)
+		 (lookup hostname) (lookup *collector-argus-server*)
+		 port *collector-argus-port*)
 	  (stop-collector *collector-process*))
 
-	(setf *collector-process* nil)
+	(when (collector-aborted-p)
+	  (setf *collector-process* nil))
+
 	(setf *collector-argus-server* hostname)
 	(setf *collector-argus-port* port)))
       
