@@ -89,8 +89,9 @@
 (defun lookup (hostname)
   #+sbcl
   (handler-case
-      (sb-bsd-sockets:host-ent-address
-       (sb-bsd-sockets:get-host-by-name hostname))
+      (vector-to-ip
+       (sb-bsd-sockets:host-ent-address
+	(sb-bsd-sockets:get-host-by-name hostname)))
     (sb-bsd-sockets:name-service-error (e)
       (declare (ignore e)) nil))
   #-sbcl (not-implemented 'reverse-lookup))
