@@ -28,48 +28,6 @@
      (let ((ip (get-ip (get-flow dsrs))))
        (push (build-flow dsrs ip) *flow-list*)))))
 
-(defun init-basic-collector ()
-  (let ((collector (make-instance 'collector)))
-    (with-collector-callbacks (process_flow) collector
-	(setf process_flow (callback receive-flow)))
-    (setf (filter collector) "tcp or icmp or udp")
-    collector))
-
-(defun run-collector (server time-period)
-  (let ((time-period-string
-	 (ecase time-period
-	   (:test "10s")
-	   (:hour "1h")
-	   (:half-hour "30m")))
-	(output-spec
-	 (ensure-directories-exist
-	  (in-report-directory (ecase time-period
-				 (:test "test/%Y%m%d-%H:%M:%S")
-				 (:hour "hourly.%Y%m%d-%H")
-				 (:half-hour "halfhour.%Y%m%d-%H.%M"))))))
-    (setf *collector-process*
-	  (process-create (probe-file *collector-script*) nil
-			  ;; Arguments
-			  server time-period-string (namestring output-spec)))
-    (process-wait *collector-process*)))
-
-(defun stop-collector (collector-process)
-  (when (process-alive-p collector-process)
-    (process-wait (process-signal collector-process))))
-
-(defun collector-running-p ()
-  (process-alive-p *collector-process*))
-
-(defun collector-thread ()
-  (format t "OK.~%")
-  (loop :named watchdog-loop :do
-     (run-collector "tinderbox" :hour)
-     (bt:with-lock-held (*shutdown-lock*)
-       (if *shutdown-p*
-	   (return-from watchdog-loop)
-	   (format t "Collector stopped unexpectedly. Restarting!"))))
-  (format t "Collector thread completed.~%"))
-
 (defun shutdown ()
   (setf *shutdown-p* t)
   (stop-collector *collector-process*)

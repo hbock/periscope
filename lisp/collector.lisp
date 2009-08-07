@@ -27,7 +27,6 @@
    (path :initarg :path :initform nil :accessor source-path)
    (major-version :initarg :major-version :reader major-version)
    (minor-version :initarg :minor-version :reader minor-version)
-   (hostname :initarg :hostname :reader hostname)
    (port :initarg :port :reader port)))
 
 (defmethod initialize-instance :after ((object collector) &key)
@@ -100,6 +99,13 @@
 	 (%argus-set-filter (get-ptr object) filter))
     (periscope-error "Syntax error in filter: '~a'" filter)))
 
+(defun init-basic-collector ()
+  (let ((collector (make-instance 'collector)))
+    (with-collector-callbacks (process_flow) collector
+	(setf process_flow (callback receive-flow)))
+    (setf (filter collector) *collector-default-filter*)
+    collector))
+
 (defun process-local-file (file &optional filter)
   (setf *flow-list* nil)
   (let ((collector (init-basic-collector)))
@@ -109,6 +115,57 @@
     (run collector))
   (setf *flow-list* (nreverse *flow-list*)))
 
+;;; Collector stuff for racollector script.
+(defun collector-connect-string (&optional (hostname *collector-argus-server*)
+				 (port *collector-argus-port*))
+  (declare (type (unsigned-byte 16) port))
+  (format nil "~a:~d" hostname port))
+
+(defun run-collector (server time-period)
+  "Run the racollector script as a child process, specifying the remote Argus server
+and the time period for which it will bin/split its output logs."
+  (let ((time-period-string
+	 (ecase time-period
+	   (:test "10s")
+	   (:hour "1h")
+	   (:half-hour "30m")))
+	(output-spec
+	 (ensure-directories-exist
+	  (in-report-directory (ecase time-period
+				 (:test "test/%Y%m%d-%H:%M:%S")
+				 (:hour "hourly.%Y%m%d-%H")
+				 (:half-hour "halfhour.%Y%m%d-%H.%M"))))))
+    (setf *collector-process*
+	  (process-create (probe-file *collector-script*) nil
+			  ;; Arguments
+			  server time-period-string (namestring output-spec)))
+    (process-wait *collector-process*)))
+
+(defun stop-collector (collector-process)
+  "Terminate the collector-process by sending it SIGTERM, and wait for it to exit."
+  (when (process-alive-p collector-process)
+    (process-wait (process-signal collector-process))))
+
+(defun collector-running-p ()
+  "Is the collector child process running?"
+  (process-alive-p *collector-process*))
+
+(defun collector-thread ()
+  "Thread that runs and monitors the collector until *SHUTDOWN-P* is T."
+  (loop :named watchdog-loop :do
+     (run-collector (collector-connect-string) :hour)
+     (bt:with-lock-held (*shutdown-lock*)
+       (if *shutdown-p*
+	   (return-from watchdog-loop)
+	   (multiple-value-bind (exit-code pid)
+	       (process-wait *collector-process*)
+	     (when (= 4 exit-code)
+	       (format t "Collector aborted (PID ~d). Terminating thread.~%" pid)
+	       (return-from watchdog-loop))
+	     (format t "Collector stopped unexpectedly. Restarting!~%"))))))
+
+;;; This code is defunct for now - we are no longer handling remote Argus
+;;; sources directly.
 (defmethod remote-port ((object source))
   (%argus-remote-port (get-ptr object)))
 

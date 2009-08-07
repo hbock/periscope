@@ -49,6 +49,8 @@
 (defvar *collector-script* #P"../racollector")
 (defvar *collector-process* nil)
 (defvar *collector-default-filter* "tcp or icmp or udp")
+(defvar *collector-argus-server* nil)
+(defvar *collector-argus-port* 561)
 
 (defvar *shutdown-cond* (bt:make-condition-variable))
 (defvar *shutdown-lock* (bt:make-lock))
