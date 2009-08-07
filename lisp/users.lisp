@@ -134,7 +134,7 @@ currently set up (for configuration purposes)."
 	    ,@(loop :for filter :in (filters user) :collect
 		 (print-config-forms filter))))))
 
-(hunchentoot:define-easy-handler (login :uri "/login")
+(define-easy-handler (login :uri "/login")
     (denied redirect)
   
   ;; Don't allow access to the login page if there are no users, or if a user is already
@@ -165,106 +165,116 @@ currently set up (for configuration purposes)."
 	  (:input :type "submit" :value "Login"))))))
 
 
-(defun edit-user-form (title action &key user username displayname error new configp)
+(defun edit-user-form (title action &key user error new filter)
   (with-config-section (title action)
     (when new
       (htm (:span :class "success"
 		  (fmt "User ~a added successfully! You may add traffic filters for this user
 below." (username user)))
 	   (:br) (:br)))
-    (:table
-     (:tr (:th :colspan 2 "Login Information") (:th))
-     (string-case error
-       ("blankuser" (error-message "Username cannot be left blank."))
-       ("username" (error-message "Usernames must consist only of 
+    ;; Recover saved information, if available.
+    (let ((username    (session-value 'conf-username))
+	  (displayname (session-value 'conf-dispname))
+	  (configp     (session-value 'conf-configp))
+	  (title    (session-value 'conf-title))
+	  (internal (session-value 'conf-internal))
+	  (subnet   (session-value 'conf-subnet))
+	  (vlan     (session-value 'conf-vlan)))
+      (htm
+       (:table
+	(:tr (:th :colspan 2 "Login Information") (:th))
+	(string-case error
+	  ("blankuser" (error-message "Username cannot be left blank."))
+	  ("username" (error-message "Usernames must consist only of 
 alphanumeric characters and underscores."))
-       ("userexists" (error-message (format nil "User '~a' already exists." username))))
-     (if user
-	 ;; Hidden parameter since we are editing an existing user.
-	 (hidden "username" (username user))
-	 ;; Otherwise we prompt for the username.
-	 (htm
-	  (:tr
-	   (:td "Username")
-	   (:td (input "username" username)))))
-     (when (string= error "dispname")
-       (error-message "You must specify a display name (e.g., Don Schattle)."))
-     (:tr
-      (:td "Display Name")
-      (:td (input "displayname" (if user (display-name user) displayname))))
-     (string-case error
-       ("nopassword" (error-message "You must fill in BOTH password fields."))
-       ("passmatch" (error-message "Passwords do not match!")))
-     (:tr
-      (:td "Password")
-      (:td (password-input "password1")))
-     (:tr
-      (:td "Password (re-type)")
-      (:td (password-input "password2")))
-     (when (string= error "unadminself")
-       (error-message "You can not remove administrator privileges from your own account!"))
-     (:tr
-      (:td "Administrator privileges")
-      (:td (checkbox "configp" :checked (if user (admin-p user) (string= configp "configp")))))
-     (:tr (:th :colspan 2 (str (if user "Add new filter" "Initial traffic filter"))))
-     (:tr
-      (:td "Filter Title")
-      (:td (input "title[0]" "" :size 30)))
-     (:tr
-      (:td "Internal networks (CIDR notation)")
-      (:td (input "internal[0]" "" :size 30)))
-     (:tr
-      (:td "Included subnets (CIDR notation)")
-      (:td (input "subnet[0]" "" :size 30)))
-     (:tr
-      (:td "Included VLANs")
-      (:td (input "vlan[0]" "" :size 30)))
+	  ("userexists" (error-message (format nil "User '~a' already exists." username))))
+	(if user
+	    ;; Hidden parameter since we are editing an existing user.
+	    (hidden "username" (username user))
+	    ;; Otherwise we prompt for the username.
+	    (htm
+	     (:tr
+	      (:td "Username")
+	      (:td (input "username" username)))))
+	(when (string= error "dispname")
+	  (error-message "You must specify a display name (e.g., Don Schattle)."))
+	(:tr
+	 (:td "Display Name")
+	 (:td (input "displayname" (if user (display-name user) displayname))))
+	(string-case error
+	  ("nopassword" (error-message "You must fill in BOTH password fields."))
+	  ("passmatch" (error-message "Passwords do not match!")))
+	(:tr
+	 (:td "Password")
+	 (:td (password-input "password1")))
+	(:tr
+	 (:td "Password (re-type)")
+	 (:td (password-input "password2")))
+	(when (string= error "unadminself")
+	  (error-message "You can not remove administrator privileges from your own account!"))
+	(:tr
+	 (:td "Administrator privileges")
+	 (:td (checkbox "configp" :checked (if user (admin-p user) configp))))
+	(:tr (:th :colspan 2 (str (if user "Add new filter" "Initial traffic filter"))))
+	(when (and (string= error "badfilter") (zerop filter))
+	  (error-message "Bad filter specification!"))
+	(:tr
+	 (:td "Filter Title")
+	 (:td (input "title[0]" title :size 30)))
+	(:tr
+	 (:td "Internal networks (CIDR notation)")
+	 (:td (input "internal[0]" internal :size 30)))
+	(:tr
+	 (:td "Included subnets (CIDR notation)")
+	 (:td (input "subnet[0]" subnet :size 30)))
+	(:tr
+	 (:td "Included VLANs")
+	 (:td (input "vlan[0]" vlan :size 30)))
      
-     (when (string= error "subnet")
-       (error-message "Invalid CIDR network specification!"))
-     (when (and user (filters user))
-       (flet ((print-vlans (filter)
-		(format nil "~{~a~^, ~}" (slot-value filter 'vlans)))
-	      (print-subnets (filter)
-		(format nil "~{~a~^, ~}" (network-strings (slot-value filter 'subnets))))
-	      (print-networks (filter)
-		(format nil "~{~a~^, ~}" (network-strings (slot-value filter 'internal-networks)))))
-	 (htm
-	  (:tr (:th :colspan 2 "Edit Filters"))
-	  (:tr
-	   (:td
-	    :colspan 3
-	    (:table
-	     :class "input"
-	     (:tr (:th "#")
-		  (:th "Title")
-		  (:th "Internal Networks")
-		  (:th "Subnets")
-		  (:th "VLANs")
-		  (:th "Delete"))
-	     (loop :for i = 1 :then (1+ i)
-		:for filter :in (filters user) :do
-		(htm
-		 (:tr
-		  (:td (str i))
-		  (:td (input "title" (filter-title filter) :index i :size 20))
-		  (:td (input "internal" (print-networks filter) :index i :size 20))
-		  (:td (input "subnet" (print-subnets filter) :index i :size 20))
-		  (:td (input "vlan" (print-vlans filter) :index i :size 20))
-		  (:td (checkbox "delete" :index i :value "true"))))))))))))
+	(when (string= error "subnet")
+	  (error-message "Invalid CIDR network specification!"))
+	(when (and user (filters user))
+	  (flet ((print-vlans (filter)
+		   (format nil "~{~a~^, ~}" (slot-value filter 'vlans)))
+		 (print-subnets (filter)
+		   (format nil "~{~a~^, ~}" (network-strings (slot-value filter 'subnets))))
+		 (print-networks (filter)
+		   (format nil "~{~a~^, ~}" (network-strings (slot-value filter 'internal-networks)))))
+	    (htm
+	     (:tr (:th :colspan 2 "Edit Filters"))
+	     (:tr
+	      (:td
+	       :colspan 3
+	       (:table
+		:class "input"
+		(:tr (:th "#")
+		     (:th "Title")
+		     (:th "Internal Networks")
+		     (:th "Subnets")
+		     (:th "VLANs")
+		     (:th "Delete"))
+		(loop :for i = 1 :then (1+ i)
+		   :for filter :in (filters user) :do
+		   (htm
+		    (:tr
+		     (:td (str i))
+		     (:td (input "title" (filter-title filter) :index i :size 20))
+		     (:td (input "internal" (print-networks filter) :index i :size 20))
+		     (:td (input "subnet" (print-subnets filter) :index i :size 20))
+		     (:td (input "vlan" (print-vlans filter) :index i :size 20))
+		     (:td (checkbox "delete" :index i :value "true"))))))))))))))
     (:br)
     (submit "Apply Configuration")))
 
-(hunchentoot:define-easy-handler (edit-user :uri "/edit-user")
-    (error user new add displayname configp)
+(define-easy-handler (edit-user :uri "/edit-user")
+    (error user new add (filter :parameter-type 'integer))
   (with-periscope-page ("Edit User" :admin t)
     (:p (:b (:a :href "/users" "Return to user login configuration")))
     (with-config-form ("/do-edit-user")
       (cond
 	((and add (string= add "true"))
 	 (hidden "action" "new")
-	 (edit-user-form "Add New User" "newuser" :error error :username user
-			 :displayname displayname :configp configp))
+	 (edit-user-form "Add New User" "newuser" :error error :filter filter))
 
 	(t
 	 (hidden "action" "edit")
@@ -272,8 +282,18 @@ alphanumeric characters and underscores."))
 	   (if user
 	       (edit-user-form (format nil "Edit User (~a)" (username user)) "edituser"
 			       :user user  :error error
-			       :new (string= new "true"))
-	       (hunchentoot:redirect "/users"))))))))
+			       :new (string= new "true")
+			       :filter filter)
+	       (hunchentoot:redirect "/users")))))
+      
+      ;; Delete no-longer-needed session values.
+      (delete-session-value 'conf-username)
+      (delete-session-value 'conf-dispname)
+      (delete-session-value 'conf-configp)
+      (delete-session-value 'conf-title)
+      (delete-session-value 'conf-internal)
+      (delete-session-value 'conf-subnet)
+      (delete-session-value 'conf-vlan))))
 
 ;;; Errors:
 ;;;  - "username": Empty username.
@@ -282,7 +302,7 @@ alphanumeric characters and underscores."))
 ;;;  - "passmatch": Passwords don't match.
 ;;;  - "subnet": Invalid subnet specifier.
 ;;;  - "unadminself": Tried to remove administrator from own account.
-(hunchentoot:define-easy-handler (user-config :uri "/users") (error edit add)
+(define-easy-handler (user-config :uri "/users") (error edit add)
   (with-periscope-page ("User Login Configuration" :admin t)
     (with-config-form ("/set-user-config")
       (with-config-section ("User Login Settings" "configure")
@@ -342,7 +362,7 @@ account." :table nil))
       (setf (hunchentoot:session-value 'userhash) (hash-sequence username)
 	    (hunchentoot:session-value 'username) username))))
 
-(hunchentoot:define-easy-handler (do-login :uri "/do-login")
+(define-easy-handler (do-login :uri "/do-login")
     (username password redirect action)
   (flet ((bad-login () (hunchentoot:redirect "/login?denied=bad")))    
     (cond
@@ -391,7 +411,7 @@ IDs will signal a PARSE-ERROR."
   (declare (ignore title internal subnet vlan delete))
   (not-implemented 'old-filters))
 
-(hunchentoot:define-easy-handler (set-user-config :uri "/set-user-config")
+(define-easy-handler (set-user-config :uri "/set-user-config")
     (username required
 	      (sessiontime :parameter-type 'integer)
 	      (user     :parameter-type 'array)
@@ -416,9 +436,9 @@ IDs will signal a PARSE-ERROR."
   (save-config)
   (hunchentoot:redirect "/users?error=success"))
 
-(hunchentoot:define-easy-handler (do-edit-user :uri "/do-edit-user")
+(define-easy-handler (do-edit-user :uri "/do-edit-user")
     (action username displayname password1 password2 configp
-	    (delete    :parameter-type 'array)
+	    (delete   :parameter-type 'array)
 	    (title    :parameter-type 'array)
 	    (internal :parameter-type 'array)
 	    (subnet   :parameter-type 'array)
@@ -430,12 +450,22 @@ IDs will signal a PARSE-ERROR."
     (string-case action
       ;; Create a new login.
       ("new"
-       (flet ((error-redirect (type)
-		(error-redirect type
-				:add "true"
-				:user username
-				:displayname (escape-string displayname)
-				:configp configp)))
+       (flet ((error-redirect (type &rest more-params)
+		(apply #'error-redirect type :add "true" more-params)))
+
+	 ;; retain add-user information in session, in the case of failure.
+	 (setf (session-value 'conf-username) username
+	       (session-value 'conf-dispname) (escape-string displayname)
+	       (session-value 'conf-configp) (string= configp "configp"))
+	 ;; add-user filters information.
+	 (setf (session-value 'conf-title) (aref title 0)
+	       (session-value 'conf-internal) (aref internal 0)
+	       (session-value 'conf-subnet) (aref subnet 0)
+	       (session-value 'conf-vlan) (aref vlan 0))
+
+	 (when (user username)
+	   (error-redirect "userexists"))
+	 
 	 (cond
 	   ((empty-string-p username)
 	    (error-redirect "blankuser"))
@@ -456,12 +486,12 @@ IDs will signal a PARSE-ERROR."
 		    (create-login username password1 (escape-string displayname)
 				  :admin (or (not (login-available-p))
 					     (not (null configp))))))
-	       
+
 	       (setf (filters user)
 		     (handler-case
 			 (list (parse-filter title internal subnet vlan delete))
 		       (parse-error ()
-			 (error-redirect "badfilter"))))
+			 (error-redirect "badfilter" :filter 0))))
 	       
 	       ;; If this is the first user created - automatically log them in for convenience.
 	       (when (= 1 (user-count))
