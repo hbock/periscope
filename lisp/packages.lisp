@@ -20,8 +20,11 @@
 
 (defpackage :periscope
   (:use #:common-lisp #:cffi #:cl-who #:local-time)
-  (:import-from #:hunchentoot #:url-encode)
-  (:import-from #:hunchentoot #:define-easy-handler))
+  (:import-from #:hunchentoot
+		#:url-encode
+		#:define-easy-handler
+		#:session-value
+		#:delete-session-value))
 
 (in-package :periscope)
 
