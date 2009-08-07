@@ -150,6 +150,10 @@ and the time period for which it will bin/split its output logs."
   "Is the collector child process running?"
   (process-alive-p *collector-process*))
 
+(defun collector-aborted-p ()
+  (and *collector-process*
+       (= 4 (process-wait *collector-process*))))
+
 (defun collector-thread ()
   "Thread that runs and monitors the collector until *SHUTDOWN-P* is T."
   (loop :named watchdog-loop :do
@@ -157,10 +161,9 @@ and the time period for which it will bin/split its output logs."
      (bt:with-lock-held (*shutdown-lock*)
        (if *shutdown-p*
 	   (return-from watchdog-loop)
-	   (multiple-value-bind (exit-code pid)
-	       (process-wait *collector-process*)
-	     (when (= 4 exit-code)
-	       (format t "Collector aborted (PID ~d). Terminating thread.~%" pid)
+	   (progn
+	     (when (collector-aborted-p)
+	       (format t "Collector aborted. Terminating thread.~%")
 	       (return-from watchdog-loop))
 	     (format t "Collector stopped unexpectedly. Restarting!~%"))))))
 
