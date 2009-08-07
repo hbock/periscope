@@ -23,7 +23,7 @@
 (defun error-message (message &key (table t))
   (with-html-output (*standard-output*)
     (if table
-	(htm (:tr (:td :class "error" :colspan 3 (:b (str message)))))
+	(htm (:tr (:td :class "error" :colspan 6 (:b (str message)))))
 	(htm (:p (:b :class "error" (str message)))))))
 
 ;;; Possible errors:

@@ -164,8 +164,20 @@ currently set up (for configuration purposes)."
 	    (hidden "redirect" redirect))
 	  (:input :type "submit" :value "Login"))))))
 
+(defun bad-filter-message ()
+  (let ((reason (session-value 'conf-filter-bad-reason))
+	(baddata (session-value 'conf-filter-bad-data)))
+    (unless (or (null reason) (null baddata))
+      (error-message
+       (string-case reason
+	 ("INTERNAL" (format nil "'~a' is not a valid internal subnet list." baddata)) 
+	 ("SUBNET" (format nil "'~a' is not a valid subnet filter list." baddata))
+	 ("VLAN" (format nil "'~a' is not a valid VLAN ID list." baddata))
+	 (t
+	  (format nil "Unknown error '~a', bad data '~a'. Report this as a bug."
+		  reason baddata)))))))
 
-(defun edit-user-form (title action &key user error new filter)
+(defun edit-user-form (title action &key user error new bad-filter)
   (with-config-section (title action)
     (when new
       (htm (:span :class "success"
@@ -215,17 +227,12 @@ alphanumeric characters and underscores."))
 	(:tr
 	 (:td "Administrator privileges")
 	 (:td (checkbox "configp" :checked (if user (admin-p user) configp))))
+
+	;; Filter configuration
 	(:tr (:th :colspan 2 (str (if user "Add new filter" "Initial traffic filter"))))
-	(when (and (string= error "badfilter") (zerop filter))
-	  (let ((reason (session-value 'conf-filter-bad-reason))
-		(baddata (session-value 'conf-filter-bad-data)))
-	    (error-message
-	     (string-case reason
-	       ("INTERNAL" (format nil "'~a' is not a valid internal subnet list." baddata)) 
-	       ("SUBNET" (format nil "'~a' is not a valid subnet filter list." baddata))
-	       ("VLAN" (format nil "'~a' is not a valid VLAN ID list." baddata))
-	       (t (format nil "Unknown error '~a', bad data '~a'. Report this as a bug."
-			  reason baddata))))))
+	;; Bad filter message specifically for new filter.
+	(when (and (string= error "badfilter") (zerop bad-filter))
+	  (bad-filter-message))
 	(:tr
 	 (:td "Filter Title")
 	 (:td (input "title[0]" title :size 30)))
@@ -239,8 +246,6 @@ alphanumeric characters and underscores."))
 	 (:td "Included VLAN IDs")
 	 (:td (input "vlan[0]" vlan :size 30)))
      
-	(when (string= error "subnet")
-	  (error-message "Invalid CIDR network specification!"))
 	(when (and user (filters user))
 	  (flet ((print-vlans (filter)
 		   (format nil "~{~a~^, ~}" (slot-value filter 'vlans)))
@@ -263,6 +268,8 @@ alphanumeric characters and underscores."))
 		     (:th "Delete"))
 		(loop :for i = 1 :then (1+ i)
 		   :for filter :in (filters user) :do
+		   (when (and (string= error "badfilter") (= bad-filter i))
+		     (bad-filter-message))
 		   (htm
 		    (:tr
 		     (:td (str i))
@@ -282,7 +289,7 @@ alphanumeric characters and underscores."))
       (cond
 	((and add (string= add "true"))
 	 (hidden "action" "new")
-	 (edit-user-form "Add New User" "newuser" :error error :filter filter))
+	 (edit-user-form "Add New User" "newuser" :error error :bad-filter filter))
 
 	(t
 	 (hidden "action" "edit")
@@ -291,7 +298,7 @@ alphanumeric characters and underscores."))
 	       (edit-user-form (format nil "Edit User (~a)" (username user)) "edituser"
 			       :user user  :error error
 			       :new (string= new "true")
-			       :filter filter)
+			       :bad-filter filter)
 	       (hunchentoot:redirect "/users")))))
       
       ;; Delete no-longer-needed session values.
@@ -463,6 +470,13 @@ IDs will signal a PARSE-ERROR."
   
   (let ((*redirect-page* "/edit-user")
 	(user (user username)))
+
+    ;; save initial/new filter information.
+    (setf (session-value 'conf-title) (aref title 0)
+	  (session-value 'conf-internal) (aref internal 0)
+	  (session-value 'conf-subnet) (aref subnet 0)
+	  (session-value 'conf-vlan) (aref vlan 0))
+    
     (string-case action
       ;; Create a new login.
       ("new"
@@ -473,11 +487,6 @@ IDs will signal a PARSE-ERROR."
 	 (setf (session-value 'conf-username) username
 	       (session-value 'conf-dispname) (escape-string displayname)
 	       (session-value 'conf-configp) (string= configp "configp"))
-	 ;; add-user filters information.
-	 (setf (session-value 'conf-title) (aref title 0)
-	       (session-value 'conf-internal) (aref internal 0)
-	       (session-value 'conf-subnet) (aref subnet 0)
-	       (session-value 'conf-vlan) (aref vlan 0))
 
 	 (when (user username)
 	   (error-redirect "userexists"))
@@ -508,8 +517,6 @@ IDs will signal a PARSE-ERROR."
 			      (session-value 'conf-filter-bad-data)
 			      (filter-parse-error-data pe))
 			 
-			(error-redirect "badfilter" :filter 0))
-		      (parse-error ()
 			(error-redirect "badfilter" :filter 0))))
 		   (user
 		    (create-login username password1 (escape-string displayname)
@@ -555,7 +562,13 @@ IDs will signal a PARSE-ERROR."
 		     (loop :for i :from 0 :below (length title) :collect
 			(handler-case
 			    (parse-filter title internal subnet vlan delete :index i)
-			  (parse-error ()
+			  (filter-parse-error (pe)
+			    (setf (session-value 'conf-filter-bad-reason)
+				  (filter-parse-error-type pe)
+
+				  (session-value 'conf-filter-bad-data)
+				  (filter-parse-error-data pe))
+			 
 			    (error-redirect "badfilter" :user username :filter i))))))))
       
     (save-config)
