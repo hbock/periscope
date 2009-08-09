@@ -60,6 +60,9 @@
 	  (symbol-value-setf-forms
 	   '(*web-port* *web-show-diag*
 	     *web-login-required-p*
+	     *collector-argus-port*
+	     *collector-argus-server*
+	     *collector-default-filter*
 	     hunchentoot:*show-lisp-errors-p*
 	     hunchentoot:*session-max-time*
 	     *swank-port* *enable-swank-p*
