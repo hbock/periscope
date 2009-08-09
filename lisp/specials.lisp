@@ -85,3 +85,6 @@
 
 (defconstant +vlan-none+ 0)
 (defconstant +vlan-vid-mask+ #x0FFF)
+
+(deftype vlan-id ()     '(unsigned-byte 12))
+(deftype port-number () '(unsigned-byte 16))
