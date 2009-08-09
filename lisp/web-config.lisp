@@ -315,7 +315,7 @@ Invalid CIDR subnets will signal a PARSE-ERROR."
     	(error-redirect "badhost" :host hostname))
       (let ((port (handler-case (parse-integer port)
     		    (parse-error () port))))
-    	(unless (typep port '(unsigned-byte 16))
+    	(unless (port-number-p port)
     	  (error-redirect "badport" :port port))
 	
 	
