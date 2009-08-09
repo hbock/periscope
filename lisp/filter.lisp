@@ -27,9 +27,6 @@
 	      :initform (lambda (flow)
 			  (declare (ignore flow)) t))))
 
-(defun vlan-p (vlan)
-  (typep vlan 'vlan-id))
-
 (defun vlan-list-filter (vlans)
   (unless (every #'vlan-p vlans)
     (error "~a is not a valid VLAN ID!" (find-if-not #'vlan-p vlans)))
