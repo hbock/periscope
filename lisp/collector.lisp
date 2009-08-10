@@ -106,13 +106,13 @@
     (setf (filter collector) *collector-default-filter*)
     collector))
 
-(defun process-local-file (file &optional filter)
+(defun process-local-file (file &key (collector (init-basic-collector))
+			   (filter *collector-default-filter*))
   (setf *flow-list* nil)
-  (let ((collector (init-basic-collector)))
-    (when filter
-      (setf (filter collector) filter))
-    (add-file collector file)
-    (run collector))
+  (when filter
+    (setf (filter collector) filter))
+  (add-file collector file)
+  (run collector)
   (setf *flow-list* (nreverse *flow-list*)))
 
 ;;; Collector stuff for racollector script.
