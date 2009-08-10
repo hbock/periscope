@@ -35,11 +35,9 @@
 
 (defun main ()
   (let ((*package* (in-package :periscope)))
-    (handler-bind ((periscope-config-error
-		    (lambda (c)
-		      (declare (ignore c))
-		      (invoke-restart 'create-new-config-file))))
-      (load-config))
+    ;; Ignore no-config-file at load time.
+    (handler-case (load-config)
+      (file-error () nil))
 
     (format t "Starting Periscope ~a...~%" *periscope-version*)
     (start-web)
