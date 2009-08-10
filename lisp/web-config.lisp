@@ -37,6 +37,7 @@
 ;;;  - "novname": no Name specified when editing VLANs.
 (hunchentoot:define-easy-handler (network-config :uri "/network-config")
     (error filter badports vid)
+  (declare (ignore filter))
   (with-periscope-page ("Control Panel" :admin t)
     (unless *collector*
       (warning-box
@@ -46,12 +47,12 @@
     (with-config-form ("/set-config")
       (with-config-section ("Default Network Settings" "network")
 	(:table
-	 (when (string= error "badfilter")
-	   (error-message (format nil "Syntax error found in Argus filter '~a'." filter))
-	   (error-message "Please refer to the ra(1) manual page for Argus filter syntax."))
-	 (:tr
-	  (:td "Traffic Filter")
-	  (:td (input "filter" (if *collector* (filter *collector*) "") :size 30)))
+	 ;; (when (string= error "badfilter")
+	 ;;   (error-message (format nil "Syntax error found in Argus filter '~a'." filter))
+	 ;;   (error-message "Please refer to the ra(1) manual page for Argus filter syntax."))
+	 ;; (:tr
+	 ;;  (:td "Traffic Filter")
+	 ;;  (:td (input "filter" (if *collector* (filter *collector*) "") :size 30)))
 	 (cond
 	   ((string= error "nocidrsuffix")
 	    (error-message "Error: Network subnet mask must be specified (e.g., 192.168.10.0/24)."))
@@ -140,17 +141,18 @@ Invalid CIDR subnets will signal a PARSE-ERROR."
 	     (vid :parameter-type 'array)
 	     (vname :parameter-type 'array)
 	     (delete :parameter-type 'array))
+  (declare (ignore filter))
   (valid-session-or-lose :admin t)
 
   (let ((*redirect-page* "/network-config"))
     (unless *collector*
       (error-redirect "null-collector"))
 
-    (when filter
-      (handler-case
-	  (setf (filter *collector*) filter)
-	(periscope-error ()
-	  (error-redirect "badfilter" :filter filter))))
+    ;; (when filter
+    ;;   (handler-case
+    ;; 	  (setf (filter *collector*) filter)
+    ;; 	(periscope-error ()
+    ;; 	  (error-redirect "badfilter" :filter filter))))
     
     ;; Network management options: notable ports, internal network, etc.
     (let ((remove-list
