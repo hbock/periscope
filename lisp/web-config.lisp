@@ -241,6 +241,27 @@ Invalid CIDR subnets will signal a PARSE-ERROR."
 	  (:td "Perform DNS reverse lookup in reports")
 	  (:td (checkbox "dnslookup" :checked *dns-available-p*)))))
 
+      (if *collector-argus-server*
+	  (with-config-section ("Data Collection Settings")
+	    (cond
+	      ((collector-running-p)
+	       (htm
+		"Currently connected to remote Argus server "
+		(:b (str (collector-connect-string)))
+		"." (:br)
+		(:b (:a :href "/collector?action=stop" "Stop the collector."))))
+	      (t (if (collector-aborted-p)
+		     (htm
+		      (:b :class "error" "Collector process failed to start.")
+		      (:p
+		       "Ensure Argus is running on " (:b (str (collector-connect-string)))
+		       " and is accessible from this machine."
+		       (collector-connect-string)))
+		     (htm
+		      "Data collection from " (:b (str (collector-connect-string))) " is stopped."
+		      (:br)
+		      (:a :href "/collector?action=start" "Start the collector.")))))))
+      
       (with-config-section ("Argus Server Settings" "argus")
 	(:table
 	 (string-case error
@@ -257,26 +278,6 @@ Invalid CIDR subnets will signal a PARSE-ERROR."
 	 (:tr
 	  (:td "SASL Authentication")
 	  (:td (checkbox "sasl")))))
-      (if *collector-argus-server*
-	  (with-config-section ("Data Collection Settings")
-	    (cond
-	      ((collector-running-p)
-	       (htm
-		"Currently connected to remote Argus server "
-		(:b (str (collector-connect-string)))
-		"." (:br)
-		(:a :href "/collector?action=stop" "Stop the collector.")))
-	      (t (if (collector-aborted-p)
-		     (htm
-		      (:b :class "error" "Collector process failed to start.")
-		      (:p
-		       "Ensure Argus is running on " (:b (str (collector-connect-string)))
-		       " and is accessible from this machine."
-		       (collector-connect-string)))
-		     (htm
-		      "Data collection from " (:b (str (collector-connect-string))) " is stopped."
-		      (:br)
-		      (:a :href "/collector?action=start" "Start the collector.")))))))
       (submit "Apply Configuration"))))
 
 (define-easy-handler (collector :uri "/collector")
@@ -286,7 +287,7 @@ Invalid CIDR subnets will signal a PARSE-ERROR."
       ("start"
        (unless (or (null *collector-argus-server*) (collector-running-p))
 	 (unless (lookup *collector-argus-server*)
-	   (error-redirect "badhost" :host ))
+	   (error-redirect "badhost" :host *collector-argus-server*))
 	 (setf *shutdown-p* nil)
 	 (bt:make-thread #'collector-thread :name "Collector external process")
 	 (sleep 1)))
