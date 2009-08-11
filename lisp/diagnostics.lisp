@@ -96,9 +96,6 @@
 	      (let ((name (bt:thread-name thread)))
 		(str (if name name "[No Name]"))))))))))
 
-(hunchentoot:define-easy-handler (shutdown :uri "/shutdown") ()
-  (shutdown))
-
 ;;; Periscope Diagnostics Test Suite
 (hunchentoot:define-easy-handler (diagnostic-handler :uri "/uuddlrlrbastart") (begin)
   (declare (ignore begin))
