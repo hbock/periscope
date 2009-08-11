@@ -54,8 +54,14 @@
 
 (defun shutdown ()
   (setf *shutdown-p* t)
-  (stop-collector *collector-process*)
   (bt:condition-notify *shutdown-cond*))
+
+(defmacro with-debug-step ((message &rest args) &body body)
+  `(prog2
+       (format t " * ~50A" (format nil ,message ,@args))
+       (progn
+	 ,@body)
+     (format t "  [OK]~%")))
 
 (defun main ()
   (let ((*package* (in-package :periscope)))
@@ -65,35 +71,41 @@
 
     (enable-interrupts)
     (format t "Starting Periscope ~a...~%" *periscope-version*)
-    (handler-case
-	(start-web)
-      (usocket:address-in-use-error ()
-	(format t "Web address in use - cannot start web interface.~%")
-	(return-from main 1)))
+
+    (with-debug-step ("Bringing up web interface.")
+      (handler-case
+	  (start-web)
+	(usocket:address-in-use-error ()
+	  (format t "Web address in use - cannot start web interface.~%")
+	  (return-from main 1))))
     
-    (format t "Web front-end started.~%")
+    (with-debug-step ("Initializing internal Argus parser.")
+      (setf *collector* (init-basic-collector)))
 
-    (format t "Initializing internal Argus parser. ")
-    (setf *collector* (init-basic-collector))
-    (format t "OK.~%")
-
-    (format t "Starting DNS reverse lookup thread. ")
     (when *dns-available-p*
-      (start-dns))
-    (format t "OK.~%")
+      (with-debug-step ("Starting DNS reverse lookup thread.")
+	(start-dns)))
+
+    (format t "Periscope is now running.~%")
 
     (loop :named main-wait :do
        (bt:with-lock-held (*shutdown-lock*)
 	 (bt:condition-wait *shutdown-cond* *shutdown-lock*)
 	 (when *shutdown-p* (return-from main-wait))))
 
-    (format t "Received shutdown command.  Terminating web interface.~%")
-    (format t "You may have to navigate to the web interface before it will shut down.~%")
-    (stop-dns)
+    (format t "Received shutdown command.~%")
+    (with-debug-step ("Terminating DNS reverse lookup thread.")
+      (stop-dns))
+
+    (when (collector-running-p)
+      (with-debug-step ("Terminating racollector script.")
+	(stop-collector *collector-process*)))
+    
     ;; HUNCHENTOOT:STOP seems to wait for the acceptor process/thread to complete, but
     ;; it never does until you hit the web server at least once. Force STOP-WEB to timeout
     ;; within 1 second to let us actually exit, which SHOULD be harmless. [famous last words]
-    (with-timeout (1)
-      (stop-web))
+    (with-debug-step ("Terminating web interface.")
+      (with-timeout (1)
+	(stop-web)))
 
     (return-from main 0)))
