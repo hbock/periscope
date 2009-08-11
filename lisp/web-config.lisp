@@ -290,13 +290,13 @@ Invalid CIDR subnets will signal a PARSE-ERROR."
        (unless (or (null *collector-argus-server*) (collector-running-p))
 	 (unless (lookup *collector-argus-server*)
 	   (error-redirect "badhost" :host *collector-argus-server*))
-	 (setf *shutdown-p* nil)
 	 (bt:make-thread #'collector-thread :name "Collector external process")
 	 (sleep 1)))
 
       ("stop"
        (unless (not (collector-running-p))
-	 (setf *shutdown-p* t)
+	 (bt:with-lock-held (*collector-shutdown-lock*)
+	   (setf *collector-shutdown-p* t))
 	 (stop-collector *collector-process*)))))
 
   (hunchentoot:redirect "/periscope-config?error=success"))

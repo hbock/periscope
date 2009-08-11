@@ -51,10 +51,8 @@
 (defvar *collector-default-filter* "tcp or icmp or udp")
 (defvar *collector-argus-server* nil)
 (defvar *collector-argus-port* 561)
-
-(defvar *shutdown-cond* (bt:make-condition-variable))
-(defvar *shutdown-lock* (bt:make-lock))
-(defvar *shutdown-p* nil)
+(defvar *collector-shutdown-lock* (bt:make-lock))
+(defvar *collector-shutdown-p* nil)
 
 (defvar *dns-available-p* t)
 

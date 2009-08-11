@@ -167,10 +167,12 @@ and the time period for which it will bin/split its output logs."
 
 (defun collector-thread ()
   "Thread that runs and monitors the collector until *SHUTDOWN-P* is T."
+  (bt:with-lock-held (*collector-shutdown-lock*)
+    (setf *collector-shutdown-p* nil))
   (loop :named watchdog-loop :do
      (run-collector (collector-connect-string) :hour)
-     (bt:with-lock-held (*shutdown-lock*)
-       (if *shutdown-p*
+     (bt:with-lock-held (*collector-shutdown-lock*)
+       (if *collector-shutdown-p*
 	   (return-from watchdog-loop)
 	   (progn
 	     (when (collector-aborted-p)

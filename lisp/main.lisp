@@ -18,6 +18,10 @@
 ;;;; Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 (in-package :periscope)
 
+(defvar *shutdown-cond* (bt:make-condition-variable))
+(defvar *shutdown-lock* (bt:make-lock))
+(defvar *shutdown-p* nil)
+
 (defun enable-interrupts ()
   #+sbcl
   (dolist (interrupt (list sb-unix:sigterm sb-unix:sigint sb-unix:sighup))
