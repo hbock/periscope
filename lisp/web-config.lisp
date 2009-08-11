@@ -87,27 +87,29 @@
 	  (:td "VLAN Label")
 	  (:td (input "newvname" "")))))
 
-      (with-config-section ("Edit VLAN Labels" "editvlan")
-	(cond
-	  ((string= error "badvid")
-	   (error-message
-	    (format nil "'~a' is not a valid VLAN ID; must be a positive integer between 0 - 4095."
-		    vid) :table nil))
-	  ((string= error "novname")
-	   (error-message "VLAN IDs and labels cannot be empty. To delete an ID, please use the
+      (let ((vlan-list (vlan-name-list)))
+	(when vlan-list
+	  (with-config-section ("Edit VLAN Labels" "editvlan")
+	    (cond
+	      ((string= error "badvid")
+	       (error-message
+		(format nil "'~a' is not a valid VLAN ID; must be a positive integer between 0 - 4095."
+			vid) :table nil))
+	      ((string= error "novname")
+	       (error-message "VLAN IDs and labels cannot be empty. To delete an ID, please use the
 \"Remove\" checkbox." :table nil)))
-	(:table
-	 :class "input"
-	 (:tr (:th "VLAN ID") (:th "Name") (:th "Remove"))
-	 (loop :with index = 0
-	    :for (vid name) :in (vlan-name-list) :do
-	    (htm (:tr
-		  (:td (input (format nil "vid[~d]" index) vid :size 4))
-		  (:td (input (format nil "vname[~d]" index) name))
-		  (:td (checkbox (format nil "delete[~d]" index) :value vid))))
-	    (incf index)))
-	(:br)
-	(submit "Apply Configuration")))))
+	    (:table
+	     :class "input"
+	     (:tr (:th "VLAN ID") (:th "Name") (:th "Remove"))
+	     (loop :with index = 0
+		:for (vid name) :in vlan-list :do
+		(htm (:tr
+		      (:td (input "vid" vid :index index :size 4))
+		      (:td (input "vname" name :index index))
+		      (:td (checkbox "delete" :index index :value vid))))
+		(incf index)))
+	    (:br))))
+      (submit "Apply Configuration"))))
 
 (defun ports-from-string (port-string)
   "Take a string of port numbers and/or service names, separated by
