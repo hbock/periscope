@@ -99,15 +99,15 @@
 	 (%argus-set-filter (get-ptr object) filter))
     (periscope-error "Syntax error in filter: '~a'" filter)))
 
-(defun init-basic-collector ()
+(defun init-basic-collector (&key (default-filter *collector-default-filter*))
   (let ((collector (make-instance 'collector)))
     (with-collector-callbacks (process_flow) collector
 	(setf process_flow (callback receive-flow)))
-    (setf (filter collector) *collector-default-filter*)
+    (when default-filter
+      (setf (filter collector) default-filter))
     collector))
 
-(defun process-local-file (file &key (collector (init-basic-collector))
-			   (filter *collector-default-filter*))
+(defun process-local-file (file &key (collector (init-basic-collector)) filter)
   (setf *flow-list* nil)
   (when filter
     (setf (filter collector) filter))
