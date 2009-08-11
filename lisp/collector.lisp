@@ -29,6 +29,16 @@
    (minor-version :initarg :minor-version :reader minor-version)
    (port :initarg :port :reader port)))
 
+(defcallback receive-flow :void ((collector periscope-collector)
+				 (type :uchar)
+				 (record :pointer)
+				 (dsrs periscope-dsrs))
+  (declare (ignore collector record))
+  (case (foreign-enum-keyword 'argus-flow-types type :errorp nil)
+    (:ipv4
+     (let ((ip (get-ip (get-flow dsrs))))
+       (push (build-flow dsrs ip) *flow-list*)))))
+
 (defmethod initialize-instance :after ((object collector) &key)
   (let ((ptr (foreign-alloc 'periscope-collector)))
     (setf (get-ptr object) ptr)

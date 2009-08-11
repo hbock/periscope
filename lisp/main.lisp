@@ -18,16 +18,6 @@
 ;;;; Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 (in-package :periscope)
 
-(defcallback receive-flow :void ((collector periscope-collector)
-				 (type :uchar)
-				 (record :pointer)
-				 (dsrs periscope-dsrs))
-  (declare (ignore collector record))
-  (case (foreign-enum-keyword 'argus-flow-types type :errorp nil)
-    (:ipv4
-     (let ((ip (get-ip (get-flow dsrs))))
-       (push (build-flow dsrs ip) *flow-list*)))))
-
 (defun enable-interrupts ()
   #+sbcl
   (dolist (interrupt (list sb-unix:sigterm sb-unix:sigint sb-unix:sighup))
