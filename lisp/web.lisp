@@ -107,7 +107,8 @@ Starts a separate thread to run the collector and handle its callbacks."
 	  (:tr
 	   (:td :colspan "2" :id "header"
 		(:h1 "Periscope")
-		(who:fmt "Version ~a" *periscope-version*)))
+		(:abbr :title (format nil "Build ~a" *build-string*)
+		       (fmt "Version ~a" *periscope-version*))))
 	  (:tr :id "body"
 	       (:td :id "sidebar" (who:str (generate-navigation)))
 	       (:td :id "wrapper"
