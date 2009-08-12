@@ -334,6 +334,9 @@ alphanumeric characters and underscores."))
     (with-config-form ("/set-user-config")
       (with-config-section ("User Login Settings" "configure")
 	(:table
+	 (when (string= error "badsessiontime")
+	   (error-message
+	    (format nil "Invalid max session time.  Must be an integer greater than ~d seconds." +min-session-time+)))
 	 (:tr
 	  (:td "Maximum login session time (seconds)")
 	  (:td (input "sessiontime" hunchentoot:*session-max-time*)))
@@ -452,6 +455,10 @@ IDs will signal a PARSE-ERROR."
   (valid-session-or-lose :admin t)
 
   (let ((*redirect-page* "/users"))
+    (when (or (null sessiontime)
+	      (< sessiontime +min-session-time+))
+      (error-redirect "badsessiontime"))
+    
     (setf *web-login-required-p* (not (null required)))
     (when sessiontime
       (setf hunchentoot:*session-max-time* sessiontime))

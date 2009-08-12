@@ -72,6 +72,9 @@
 (defparameter *notable-ports* (list 22 53 80 443 51413))
 (defparameter *internal-networks* (list (cons #x0a000000 #xffffff00)))
 
+(defconstant +min-session-time+ 300
+  "Minimum time (in seconds) a user can set HUNCHENTOOT:*MAX-SESSION-TIME*")
+
 (defconstant +lowest-multicast-address+ #xe0000000)
 (defconstant +highest-multicast-address+ #xefffffff)
 (defconstant +highest-port-number+ #xffff)
