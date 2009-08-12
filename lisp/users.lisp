@@ -505,7 +505,7 @@ IDs will signal a PARSE-ERROR."
 	   ((empty-string-p username)
 	    (error-redirect "blankuser"))
 	   
-	   ((not (ppcre:scan "[A-Za-z0-9_]+" username))
+	   ((not (ppcre:scan "^[A-Za-z0-9_]+$" username))
 	    (error-redirect "username"))
 
 	   ((empty-string-p displayname) (error-redirect "dispname"))
