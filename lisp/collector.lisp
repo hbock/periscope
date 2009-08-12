@@ -36,8 +36,9 @@
   (declare (ignore collector record))
   (case (foreign-enum-keyword 'argus-flow-types type :errorp nil)
     (:ipv4
-     (let ((ip (get-ip (get-flow dsrs))))
-       (push (build-flow dsrs ip) *flow-list*)))))
+     (unless (null-pointer-p (get-metrics dsrs))
+       (let ((ip (get-ip (get-flow dsrs))))
+	 (push (build-flow dsrs ip) *flow-list*))))))
 
 (defmethod initialize-instance :after ((object collector) &key)
   (let ((ptr (foreign-alloc 'periscope-collector)))
