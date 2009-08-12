@@ -107,6 +107,8 @@ void periscope_collector_stop(struct PeriscopeCollector *collector);
 void periscope_collector_free(struct PeriscopeCollector *collector);
 int periscope_collector_is_running(struct PeriscopeCollector *collector);
 
+void periscope_argus_debug_dsrs(struct PeriscopeDSRs *dsrs);
+
 /* Argus interface utility functions */
 int periscope_argus_record_dsrs(struct ArgusRecordStruct *record,
 				struct PeriscopeDSRs *dsrs);

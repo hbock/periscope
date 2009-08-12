@@ -73,6 +73,17 @@ void ArgusWindowClose(void)
    /* Periscope doesn't handle this. */
 }
 
+void
+periscope_argus_debug_dsrs(struct PeriscopeDSRs *dsrs)
+{
+   if(dsrs) {
+      printf("DSRs: Flow %p -- VLAN %p -- Metric %p -- Time %p -- Net %p\n",
+             dsrs->flow, dsrs->vlan, dsrs->metric, dsrs->time, dsrs->net);
+   } else {
+      printf("NULL DSRs!\n");
+   }
+}
+
 int
 periscope_argus_client_init(struct PeriscopeCollector *collector)
 {

@@ -62,6 +62,10 @@ process_flow(struct PeriscopeCollector *collector,
       switch(ip->ip_p) {
       case IPPROTO_TCP:
          printf("tcp: cause %02x ", (record->hdr.cause & 0xF0));
+         if(dsrs->net == NULL) {
+            printf("NULL net DSR!\n");
+            break;
+         }
          switch(net_subtype(dsrs->net)) {
          case ARGUS_TCP_PERF: {
             struct ArgusTCPObject *tcp = net_tcp(dsrs->net);
@@ -135,6 +139,8 @@ process_flow(struct PeriscopeCollector *collector,
    }
    if(dsrs->metric) {
       struct ArgusMetricStruct *metric = dsrs->metric;
+   } else {
+      printf("NULL metric DSR!\n");
    }
    collector->metrics.flows++;
 }
@@ -262,7 +268,7 @@ main (int argc, char **argv)
 {
    int i, sources = (argc - 1);
    struct sigaction signals;
-   char *filter = "tcp and fin and finack";
+   char *filter = "tcp or udp or icmp";
 
    /* Set up signal handling for SIGINT. */
    signals.sa_handler = sighandler;
