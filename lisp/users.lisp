@@ -171,7 +171,7 @@ currently set up (for configuration purposes)."
 	  (:td "Password")
 	  (:td (password-input "password"))))
 	(when (and denied redirect)
-	  (hidden "redirect" redirect))
+	  (hidden "redirect" (escape-string redirect)))
 	(:input :type "submit" :value "Login")))))
 
 (defun bad-filter-message ()
