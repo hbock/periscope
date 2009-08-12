@@ -18,24 +18,20 @@
 ;;;; Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 (in-package :periscope)
 
+(defun touch (pathname)
+  (with-open-file (ignoreme (ensure-directories-exist pathname)
+			    :direction :output
+			    :if-does-not-exist :create
+			    :if-exists :error))
+  (probe-file pathname))
+
 (defun find-config-file (&optional (pathnames *configuration-file-pathnames*))
   "Find a suitable configuration file in PATHNAMES."
   (declare (type sequence pathnames))
-  (or
-   (find-if #'probe-file
-	    (mapcar (lambda (pathname)
-		      (merge-pathnames "periscope-rc.lisp" pathname)) pathnames))
-   (restart-case
-       (periscope-config-error
-	"Could not find periscope-rc.lisp in any of:~%~{  ~a~^~%~}." pathnames)
-     (create-new-config-file ()
-       :report "Create a blank configuration file in your home directory."
-       ;; Hack implementation of "touch"
-       (let ((pathname (merge-pathnames "periscope-rc.lisp" (first (last pathnames)))))
-	 #+sbcl (ensure-directories-exist pathname :mode #o700)
-	 #-sbcl (ensure-directories-exist pathname)
-	 (with-open-file (ignoreme pathname :if-does-not-exist :create))
-	 pathname)))))
+  (flet ((config-file (pathname) (merge-pathnames "periscope-rc.lisp" pathname)))
+    (or
+     (find-if #'probe-file (mapcar #'config-file pathnames))
+     (config-file (first (last pathnames))))))
 
 (defun load-config (&optional (pathname *configuration-file-pathnames*))
   "Load the configuration Lisp file directly."
@@ -44,8 +40,10 @@
 
 (defun save-config (&optional (pathname *configuration-file-pathnames*))
   "Save configuration data to a suitable file as found by FIND-CONFIG-FILE."
-  (with-open-file (config-stream (find-config-file pathname) :direction :output
-				 :if-does-not-exist :create :if-exists :supersede)
+  (with-open-file (config-stream (ensure-directories-exist (find-config-file pathname))
+				 :direction :output
+				 :if-does-not-exist :create
+				 :if-exists :supersede)
     (write-config config-stream)))
 
 (defun network-list-forms (list)
@@ -60,6 +58,9 @@
 	  (symbol-value-setf-forms
 	   '(*web-port* *web-show-diag*
 	     *web-login-required-p*
+	     *collector-argus-port*
+	     *collector-argus-server*
+	     *collector-default-filter*
 	     hunchentoot:*show-lisp-errors-p*
 	     hunchentoot:*session-max-time*
 	     *swank-port* *enable-swank-p*

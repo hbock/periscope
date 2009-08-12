@@ -137,6 +137,14 @@ Starts a separate thread to run the collector and handle its callbacks."
       :action ,uri :method ,(ecase method (:post "post") (:get "get"))
       ,@body)))
 
+(defun error-redirect (type &rest more-params)
+  (let ((*print-case* :downcase))
+    (hunchentoot:redirect
+     ;; This is an ABOMINATION, yet it is pretty awesome all the same.
+     (format nil "~a?error=~a~:[~;&~:*~{~a=~a~^&~}~]" *redirect-page* type
+	     (mapcar (lambda (param)
+		       (if (stringp param) (url-encode param) param)) more-params)))))
+
 (defun empty-string-p (&rest strings)
   "Returns true if string has no useful string data; i.e., it is NIL, empty, or is composed
 solely of whitespace."

@@ -18,6 +18,12 @@
 ;;;; Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 (in-package :periscope)
 
+(defun port-number-p (port)
+  (typep port 'port-number))
+
+(defun vlan-p (vlan)
+  (typep vlan 'vlan-id))
+
 (defun ip-string (ip &optional subnet)
   "Convert an IPv4 address from an integer to a string in dotted quad notation.
 If subnet is specified, a CIDR suffix will be appended to the end of the string."
@@ -143,14 +149,14 @@ Alternatively, if name is a digit string, parse that as the port
 number.  If a service name cannot be identified, return NIL."
   (let ((attempted-parse (handler-case (parse-integer name)
 			   (parse-error () nil))))
-    (if (and attempted-parse (<= attempted-parse +highest-port-number+))
+    (if (and attempted-parse (port-number-p attempted-parse))
 	attempted-parse
 	(nth-value 0 (gethash name *service-reverse-cache*)))))
 
 (defun vlan-name (vlan)
   "Returns the VLAN name associated with identifier vlan (an integer).
 Entries can be added using SETF."
-  (declare (type (integer 0 4095) vlan))
+  (declare (type vlan-id vlan))
   (gethash vlan *vlan-names* vlan))
 
 (defun (setf vlan-name) (name vlan)

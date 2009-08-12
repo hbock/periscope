@@ -18,9 +18,6 @@
 ;;;; Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 (in-package :periscope)
 
-(deftype vlan-id ()     '(unsigned-byte 12))
-(deftype port-number () '(unsigned-byte 16))
-
 (defclass flow ()
   ((source :initarg :source :reader source)
    (dest :initarg :dest :reader dest)

@@ -72,6 +72,10 @@ $rabins -S $1 -M time $2 -B 20s -w - | $rasplit -M time $2 -w "$3" &
 # handling any pending signals.  Which is why this hack is needed in the first place!
 while [ 1 ]; do
     sleep 0.5
+    # Check to see if the child processes exited; if so, abort with error code 4.
+    if ! ps -p ${!} &> /dev/null; then
+	exit 4;
+    fi
 done
 
 exit 0

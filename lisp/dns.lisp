@@ -34,6 +34,15 @@
    (ldb (byte 8  8) ip)
    (ldb (byte 8  0) ip)))
 
+(defun vector-to-ip (vector)
+  "Convert an IPv4 address in vector form to a 32-bit integer."
+  (the (unsigned-byte 32)
+    (logior
+     (ash (aref vector 0) 24)
+     (ash (aref vector 1) 16)
+     (ash (aref vector 2)  8)
+     (ash (aref vector 3)  0))))
+
 (defun start-dns ()
   "Start the DNS resolver thread."
   (unless (and (boundp '*dns-thread*) (bt:thread-alive-p *dns-thread*))
@@ -75,7 +84,17 @@
        (sb-bsd-sockets:get-host-by-address (ip-to-vector ip)))
     (sb-bsd-sockets:name-service-error (e)
       (declare (ignore e)) nil))
-  #-sbcl nil)
+  #-sbcl (not-implemented 'reverse-lookup))
+
+(defun lookup (hostname)
+  #+sbcl
+  (handler-case
+      (vector-to-ip
+       (sb-bsd-sockets:host-ent-address
+	(sb-bsd-sockets:get-host-by-name hostname)))
+    (sb-bsd-sockets:name-service-error (e)
+      (declare (ignore e)) nil))
+  #-sbcl (not-implemented 'reverse-lookup))
 
 (defun hostname (ip)
   "Given an IP address, lookup the hostname of the corresponding machine, if available.

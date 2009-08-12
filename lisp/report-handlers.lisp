@@ -47,8 +47,13 @@ filters are defined, a list with the form (time nil &rest reports) is returned."
   (multiple-value-bind (sec min hour date month year)
       (decode-universal-time time)
     (declare (ignore sec min))
-    (merge-pathnames (format nil "hourly.~d~2,'0d~2,'0d-~2,'0d" year month date hour)
-		     directory)))
+    (let ((log
+	   (probe-file
+	    (merge-pathnames (format nil "hourly.~d~2,'0d~2,'0d-~2,'0d" year month date hour)
+			     directory))))
+      (if log
+	  log
+	  (periscope-file-error "Log file for time ~d does not exist in ~a!" time directory)))))
 
 (defun hourly-logs (&optional (pathspec *report-directory*))
   "Find all files in pathspec matching the following filename format: hourly.YYYYMMDD-HH, where
@@ -111,7 +116,7 @@ the pathname of the log itself."
   (with-periscope-page ("Hourly Traffic Reports")
     (if time
 	(handler-case
-	    (let* ((flows (process-local-file (probe-file (hourly-log time))))
+	    (let* ((flows (process-local-file (hourly-log time)))
 		   (report-lists (make-filtered-reports flows time (user)))
 		   (logs (mapcar #'car (hourly-logs)))
 		   (position (position time logs))
@@ -140,7 +145,8 @@ the pathname of the log itself."
 			 (dolist (report reports)
 			   (print-html report)))
 		       (htm (:hr))))))
-	  ;; PROCESS-LOCAL-FILE can throw PERISCOPE-FILE-ERROR to indicate file-not-found
+	  ;; PROCESS-LOCAL-FILE and HOURLY-LOG can throw PERISCOPE-FILE-ERROR
+	  ;; to indicate file-not-found
 	  (file-error () (hunchentoot:redirect "/nothingtoseehere")))
 	;; When 'time' GET parameter is not specified, print the list of all available
 	;; reports.

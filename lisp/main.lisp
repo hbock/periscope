@@ -17,93 +17,89 @@
 ;;;; along with periscope; if not, write to the Free Software
 ;;;; Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 (in-package :periscope)
-  
-(defcallback receive-flow :void ((collector periscope-collector)
-				 (type :uchar)
-				 (record :pointer)
-				 (dsrs periscope-dsrs))
-  (declare (ignore collector record))
-  (case (foreign-enum-keyword 'argus-flow-types type :errorp nil)
-    (:ipv4
-     (let ((ip (get-ip (get-flow dsrs))))
-       (push (build-flow dsrs ip) *flow-list*)))))
 
-(defun init-basic-collector ()
-  (let ((collector (make-instance 'collector)))
-    (with-collector-callbacks (process_flow) collector
-	(setf process_flow (callback receive-flow)))
-    (setf (filter collector) "tcp or icmp or udp")
-    collector))
+(defvar *shutdown-cond* (bt:make-condition-variable))
+(defvar *shutdown-lock* (bt:make-lock))
+(defvar *shutdown-p* nil)
 
-(defun run-collector (server time-period)
-  (let ((time-period-string
-	 (ecase time-period
-	   (:test "10s")
-	   (:hour "1h")
-	   (:half-hour "30m")))
-	(output-spec
-	 (ensure-directories-exist
-	  (in-report-directory (ecase time-period
-				 (:test "test/%Y%m%d-%H:%M:%S")
-				 (:hour "hourly.%Y%m%d-%H")
-				 (:half-hour "halfhour.%Y%m%d-%H.%M"))))))
-    (setf *collector-process*
-	  (process-create (probe-file *collector-script*) nil
-			  ;; Arguments
-			  server time-period-string (namestring output-spec)))
-    (process-wait *collector-process*)))
+(defun enable-interrupts ()
+  #+sbcl
+  (dolist (interrupt (list sb-unix:sigterm sb-unix:sigint sb-unix:sighup))
+    (sb-sys:enable-interrupt interrupt #'signal-handler))
+  #-sbcl (not-implemented 'enable-interrupts))
 
-(defun stop-collector (collector-process)
-  (when (process-alive-p collector-process)
-    (process-wait (process-signal collector-process))))
+#+sbcl
+(defun signal-handler (signal code scp)
+  (declare (ignore code scp))
+  (flet ((shutdown ()
+	   ;; We call SHUTDOWN in a separate thread because
+	   ;; BT:CONDITION-NOTIFY does not seem to work in an interrupt
+	   ;; handler (at least on SBCL).
+	   (bt:make-thread #'shutdown)))
+    (ecase signal
+      ((#.sb-unix:sigint #.sb-unix:sigterm)
+       (format t "Shutting down on signal.~%")
+       (shutdown))
 
-(defun collector-running-p ()
-  (process-alive-p *collector-process*))
-
-(defun collector-thread ()
-  (format t "OK.~%")
-  (loop :named watchdog-loop :do
-     (run-collector "tinderbox" :hour)
-     (bt:with-lock-held (*shutdown-lock*)
-       (if *shutdown-p*
-	   (return-from watchdog-loop)
-	   (format t "Collector stopped unexpectedly. Restarting!"))))
-  (format t "Collector thread completed.~%"))
+      ;; SIGHUP reloads the configuration file.
+      (#.sb-unix:sighup
+       (format t "Reloading configuration file.")
+       (load-config)))))
 
 (defun shutdown ()
   (setf *shutdown-p* t)
-  (stop-collector *collector-process*)
   (bt:condition-notify *shutdown-cond*))
+
+(defmacro with-debug-step ((message &rest args) &body body)
+  `(prog2
+       (format t " * ~50A" (format nil ,message ,@args))
+       (progn
+	 ,@body)
+     (format t "  [OK]~%")))
 
 (defun main ()
   (let ((*package* (in-package :periscope)))
-    (handler-bind ((periscope-config-error
-		    (lambda (c)
-		      (declare (ignore c))
-		      (invoke-restart 'create-new-config-file))))
-      (load-config))
+    ;; Ignore no-config-file at load time.
+    (handler-case (load-config)
+      (file-error () nil))
 
+    (enable-interrupts)
     (format t "Starting Periscope ~a...~%" *periscope-version*)
-    (start-web)
-    (format t "Web front-end started.~%")
 
-    (format t "Initializing internal Argus parser. ")
-    (setf *collector* (init-basic-collector))
-    (format t "OK.~%")
+    (with-debug-step ("Bringing up web interface.")
+      (handler-case
+	  (start-web)
+	(usocket:address-in-use-error ()
+	  (format t "Web address in use - cannot start web interface.~%")
+	  (return-from main 1))))
+    
+    (with-debug-step ("Initializing internal Argus parser.")
+      (setf *collector* (init-basic-collector)))
 
-    (format t "Starting DNS reverse lookup thread. ")
     (when *dns-available-p*
-      (start-dns))
-    (format t "OK.~%")
+      (with-debug-step ("Starting DNS reverse lookup thread.")
+	(start-dns)))
+
+    (format t "Periscope is now running.~%")
 
     (loop :named main-wait :do
        (bt:with-lock-held (*shutdown-lock*)
 	 (bt:condition-wait *shutdown-cond* *shutdown-lock*)
 	 (when *shutdown-p* (return-from main-wait))))
-    
-    (format t "Received shutdown command.  Terminating web interface.~%")
-    (format t "You may have to navigate to the web interface before it will shut down.~%")
-    (stop-web)
 
-    (format t "Completed.")
+    (format t "Received shutdown command.~%")
+    (with-debug-step ("Terminating DNS reverse lookup thread.")
+      (stop-dns))
+
+    (when (collector-running-p)
+      (with-debug-step ("Terminating racollector script.")
+	(stop-collector *collector-process*)))
+    
+    ;; HUNCHENTOOT:STOP seems to wait for the acceptor process/thread to complete, but
+    ;; it never does until you hit the web server at least once. Force STOP-WEB to timeout
+    ;; within 1 second to let us actually exit, which SHOULD be harmless. [famous last words]
+    (with-debug-step ("Terminating web interface.")
+      (with-timeout (1)
+	(stop-web)))
+
     (return-from main 0)))

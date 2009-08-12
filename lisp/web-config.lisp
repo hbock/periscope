@@ -51,7 +51,7 @@
 	   (error-message "Please refer to the ra(1) manual page for Argus filter syntax."))
 	 (:tr
 	  (:td "Traffic Filter")
-	  (:td (input "filter" (if *collector* (filter *collector*) "") :size 30)))
+	  (:td (input "filter" *collector-default-filter* :size 30)))
 	 (cond
 	   ((string= error "nocidrsuffix")
 	    (error-message "Error: Network subnet mask must be specified (e.g., 192.168.10.0/24)."))
@@ -87,27 +87,29 @@
 	  (:td "VLAN Label")
 	  (:td (input "newvname" "")))))
 
-      (with-config-section ("Edit VLAN Labels" "editvlan")
-	(cond
-	  ((string= error "badvid")
-	   (error-message
-	    (format nil "'~a' is not a valid VLAN ID; must be a positive integer between 0 - 4095."
-		    vid) :table nil))
-	  ((string= error "novname")
-	   (error-message "VLAN IDs and labels cannot be empty. To delete an ID, please use the
+      (let ((vlan-list (vlan-name-list)))
+	(when vlan-list
+	  (with-config-section ("Edit VLAN Labels" "editvlan")
+	    (cond
+	      ((string= error "badvid")
+	       (error-message
+		(format nil "'~a' is not a valid VLAN ID; must be a positive integer between 0 - 4095."
+			vid) :table nil))
+	      ((string= error "novname")
+	       (error-message "VLAN IDs and labels cannot be empty. To delete an ID, please use the
 \"Remove\" checkbox." :table nil)))
-	(:table
-	 :class "input"
-	 (:tr (:th "VLAN ID") (:th "Name") (:th "Remove"))
-	 (loop :with index = 0
-	    :for (vid name) :in (vlan-name-list) :do
-	    (htm (:tr
-		  (:td (input (format nil "vid[~d]" index) vid :size 4))
-		  (:td (input (format nil "vname[~d]" index) name))
-		  (:td (checkbox (format nil "delete[~d]" index) :value vid))))
-	    (incf index)))
-	(:br)
-	(submit "Apply Configuration")))))
+	    (:table
+	     :class "input"
+	     (:tr (:th "VLAN ID") (:th "Name") (:th "Remove"))
+	     (loop :with index = 0
+		:for (vid name) :in vlan-list :do
+		(htm (:tr
+		      (:td (input "vid" vid :index index :size 4))
+		      (:td (input "vname" name :index index))
+		      (:td (checkbox "delete" :index index :value vid))))
+		(incf index)))
+	    (:br))))
+      (submit "Apply Configuration"))))
 
 (defun ports-from-string (port-string)
   "Take a string of port numbers and/or service names, separated by
@@ -147,10 +149,15 @@ Invalid CIDR subnets will signal a PARSE-ERROR."
       (error-redirect "null-collector"))
 
     (when filter
+      ;; Create a 'scratch' collector, try to compile the filter, and
+      ;; redirect if it is invalid.
       (handler-case
-	  (setf (filter *collector*) filter)
-	(periscope-error ()
-	  (error-redirect "badfilter" :filter filter))))
+	  (let ((collector (init-basic-collector)))
+	    (setf (filter collector) filter))
+    	(periscope-error ()
+    	  (error-redirect "badfilter" :filter filter)))
+      ;; Filter is good - set the default filter.
+      (setf *collector-default-filter* filter))
     
     ;; Network management options: notable ports, internal network, etc.
     (let ((remove-list
@@ -221,7 +228,8 @@ Invalid CIDR subnets will signal a PARSE-ERROR."
     (save-config)
     (error-redirect "success")))
 
-(hunchentoot:define-easy-handler (periscope-config :uri "/periscope-config") (error host port)
+(hunchentoot:define-easy-handler (periscope-config :uri "/periscope-config")
+    (error host port)
   (with-periscope-page ("Periscope Configuration" :admin t)
     (when (string= error "success")
       (htm (:p :class "success" "Configuration values successfully applied!")))
@@ -234,35 +242,67 @@ Invalid CIDR subnets will signal a PARSE-ERROR."
 	 (:tr
 	  (:td "Perform DNS reverse lookup in reports")
 	  (:td (checkbox "dnslookup" :checked *dns-available-p*)))))
-    
-      (with-config-section ("Add Argus Server" "add")
+
+      (if *collector-argus-server*
+	  (with-config-section ("Data Collection Settings")
+	    (cond
+	      ((collector-running-p)
+	       (htm
+		"Currently connected to remote Argus server "
+		(:b (str (collector-connect-string)))
+		"." (:br)
+		(:b (:a :href "/collector?action=stop" "Stop the collector."))))
+	      (t (if (collector-aborted-p)
+		     (htm
+		      (:b :class "error" "Collector process failed to start.")
+		      (:p
+		       "Ensure Argus is running on " (:b (str (collector-connect-string)))
+		       " and is accessible from this machine."
+		       (collector-connect-string)))
+		     (htm
+		      "Data collection from " (:b (str (collector-connect-string))) " is stopped."
+		      (:br)
+		      (:a :href "/collector?action=start" "Start the collector.")))))))
+      
+      (with-config-section ("Argus Server Settings" "argus")
 	(:table
-	 (cond
-	   ((string= error "invalidhost")
-	    (error-message
-	     (format nil "Error: Hostname \"~a:~a\" did not resolve or is a duplicate." host port))))
+	 (string-case error
+	   ("badhost"
+	    (error-message (format nil "Error: could not resolve host '~a'." host)))
+	   ("badport"
+	    (error-message (format nil "Error: ~a is not a valid IP port." port))))
 	 (:tr
 	  (:td "Hostname")
-	  (:td (input "hostname" "")))
+	  (:td (input "hostname" *collector-argus-server*)))
 	 (:tr
 	  (:td "Port")
-	  (:td (input "port" 561)))
+	  (:td (input "port" *collector-argus-port*)))
 	 (:tr
 	  (:td "SASL Authentication")
 	  (:td (checkbox "sasl")))))
       (submit "Apply Configuration"))))
 
-(defun error-redirect (type &rest more-params)
-  (let ((*print-case* :downcase))
-    (hunchentoot:redirect
-     ;; This is an ABOMINATION, yet it is pretty awesome all the same.
-     (format nil "~a?error=~a~:[~;&~:*~{~a=~a~^&~}~]" *redirect-page* type
-	     (mapcar (lambda (param)
-		       (if (stringp param) (url-encode param) param)) more-params)))))
+(define-easy-handler (collector :uri "/collector")
+    (action)
+  (let ((*redirect-page* "/periscope-config"))
+    (string-case action
+      ("start"
+       (unless (or (null *collector-argus-server*) (collector-running-p))
+	 (unless (lookup *collector-argus-server*)
+	   (error-redirect "badhost" :host *collector-argus-server*))
+	 (bt:make-thread #'collector-thread :name "Collector external process")
+	 (sleep 1)))
+
+      ("stop"
+       (unless (not (collector-running-p))
+	 (bt:with-lock-held (*collector-shutdown-lock*)
+	   (setf *collector-shutdown-p* t))
+	 (stop-collector *collector-process*)))))
+
+  (hunchentoot:redirect "/periscope-config?error=success"))
 
 (hunchentoot:define-easy-handler (set-periscope-config :uri "/set-periscope-config")
-    ((web-port :parameter-type 'integer) dnslookup
-     hostname (port :parameter-type 'integer) (remove :parameter-type 'array))
+    ((web-port :parameter-type 'integer) dnslookup hostname port)
   (valid-session-or-lose :admin t)
   
   (let ((*redirect-page* "/periscope-config"))
@@ -279,24 +319,27 @@ Invalid CIDR subnets will signal a PARSE-ERROR."
     
     ;; Empty hostnames are bad news.
     (unless (empty-string-p hostname)
-      (error-redirect "emptyhost")
-       
-      ;; An error in this case usually means the host was invalid/not resolvable.
-      (handler-case
-	  (add-remote *collector* hostname port)
-	(simple-error ()
-	  (error-redirect "invalidhost" :host hostname :port port))))
-      
-    ;; ;; Removing an invalid source will cause an error; ignore this and immediately redirect
-    ;; ;; to /sources.  This is either a bug or a malicious attempt to access memory.
-     
-    ;; (handler-case
-    ;; 	(loop :for index :from 0 :below (length remove) :do
-    ;; 	   (let ((source (find (aref remove index) (available-sources *collector*))))
-    ;; 	     (when source (remove-source source *collector*))))
-    ;;   (simple-error ()
-    ;; 	(hunchentoot:redirect "/sources")))
+      (unless (lookup hostname)
+    	(error-redirect "badhost" :host hostname))
+      (let ((port (handler-case (parse-integer port)
+    		    (parse-error () port))))
+    	(unless (port-number-p port)
+    	  (error-redirect "badport" :port port))
+	
+	
+    	;; If the collector is currently running and we change the hostname,
+    	;; we must stop the currently running collector.
+    	(when (collector-running-p)
+    	  (when (or (/= (lookup hostname) (lookup *collector-argus-server*))
+		    (/= port *collector-argus-port*))
+	    (stop-collector *collector-process*)))
 
+    	(when (collector-aborted-p)
+    	  (setf *collector-process* nil))
+
+	(setf *collector-argus-server* hostname)
+	(setf *collector-argus-port* port)))
+      
     ;; TODO: need to implement saving sources.
     (save-config)
     (error-redirect "success")))

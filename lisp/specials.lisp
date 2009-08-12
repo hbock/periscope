@@ -28,7 +28,7 @@
 ;;;        we
 ;;;          GO!
 (defparameter *periscope-version*
-  (format nil "0.9.93 (pre-alpha, build ~a)"
+  (format nil "0.9.94 (alpha1, build ~a)"
 	  (format-timestring nil *compilation-time*
 			     :format '((:year 4) #\- (:month 2) #\- (:day 2)))))
 
@@ -48,10 +48,11 @@
 (defvar *collector* nil)
 (defvar *collector-script* #P"../racollector")
 (defvar *collector-process* nil)
-
-(defvar *shutdown-cond* (bt:make-condition-variable))
-(defvar *shutdown-lock* (bt:make-lock))
-(defvar *shutdown-p* nil)
+(defvar *collector-default-filter* "tcp or icmp or udp")
+(defvar *collector-argus-server* nil)
+(defvar *collector-argus-port* 561)
+(defvar *collector-shutdown-lock* (bt:make-lock))
+(defvar *collector-shutdown-p* nil)
 
 (defvar *dns-available-p* t)
 
@@ -82,3 +83,6 @@
 
 (defconstant +vlan-none+ 0)
 (defconstant +vlan-vid-mask+ #x0FFF)
+
+(deftype vlan-id ()     '(unsigned-byte 12))
+(deftype port-number () '(unsigned-byte 16))

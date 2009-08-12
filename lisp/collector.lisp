@@ -27,8 +27,17 @@
    (path :initarg :path :initform nil :accessor source-path)
    (major-version :initarg :major-version :reader major-version)
    (minor-version :initarg :minor-version :reader minor-version)
-   (hostname :initarg :hostname :reader hostname)
    (port :initarg :port :reader port)))
+
+(defcallback receive-flow :void ((collector periscope-collector)
+				 (type :uchar)
+				 (record :pointer)
+				 (dsrs periscope-dsrs))
+  (declare (ignore collector record))
+  (case (foreign-enum-keyword 'argus-flow-types type :errorp nil)
+    (:ipv4
+     (let ((ip (get-ip (get-flow dsrs))))
+       (push (build-flow dsrs ip) *flow-list*)))))
 
 (defmethod initialize-instance :after ((object collector) &key)
   (let ((ptr (foreign-alloc 'periscope-collector)))
@@ -100,15 +109,79 @@
 	 (%argus-set-filter (get-ptr object) filter))
     (periscope-error "Syntax error in filter: '~a'" filter)))
 
-(defun process-local-file (file &optional filter)
+(defun init-basic-collector (&key (default-filter *collector-default-filter*))
+  (let ((collector (make-instance 'collector)))
+    (with-collector-callbacks (process_flow) collector
+	(setf process_flow (callback receive-flow)))
+    (when default-filter
+      (setf (filter collector) default-filter))
+    collector))
+
+(defun process-local-file (file &key (collector (init-basic-collector)) filter)
   (setf *flow-list* nil)
-  (let ((collector (init-basic-collector)))
-    (when filter
-      (setf (filter collector) filter))
-    (add-file collector file)
-    (run collector))
+  (when filter
+    (setf (filter collector) filter))
+  (add-file collector file)
+  (run collector)
   (setf *flow-list* (nreverse *flow-list*)))
 
+;;; Collector stuff for racollector script.
+(defun collector-connect-string (&optional (hostname *collector-argus-server*)
+				 (port *collector-argus-port*))
+  (declare (type (unsigned-byte 16) port))
+  (format nil "~a:~d" hostname port))
+
+(defun run-collector (server time-period)
+  "Run the racollector script as a child process, specifying the remote Argus server
+and the time period for which it will bin/split its output logs."
+  (let ((time-period-string
+	 (ecase time-period
+	   (:test "10s")
+	   (:hour "1h")
+	   (:half-hour "30m")))
+	(output-spec
+	 (ensure-directories-exist
+	  (in-report-directory (ecase time-period
+				 (:test "test/%Y%m%d-%H:%M:%S")
+				 (:hour "hourly.%Y%m%d-%H")
+				 (:half-hour "halfhour.%Y%m%d-%H.%M"))))))
+    (setf *collector-process*
+	  (process-create (probe-file *collector-script*) nil
+			  ;; Arguments
+			  server time-period-string (namestring output-spec)))
+    (process-wait *collector-process*)))
+
+(defun stop-collector (collector-process)
+  "Terminate the collector-process by sending it SIGTERM, and wait for it to exit."
+  (when (process-alive-p collector-process)
+    (process-wait (process-signal collector-process))))
+
+(defun collector-running-p ()
+  "Is the collector child process running?"
+  (process-alive-p *collector-process*))
+
+(defun collector-aborted-p ()
+  (and *collector-process*
+       (not (process-alive-p *collector-process*))
+       (= 4 (process-wait *collector-process*))))
+
+(defun collector-thread ()
+  "Thread that runs and monitors the collector until *SHUTDOWN-P* is T."
+  (bt:with-lock-held (*collector-shutdown-lock*)
+    (setf *collector-shutdown-p* nil))
+  (loop :named watchdog-loop :do
+     (run-collector (collector-connect-string) :hour)
+     (bt:with-lock-held (*collector-shutdown-lock*)
+       (if *collector-shutdown-p*
+	   (return-from watchdog-loop)
+	   (progn
+	     (when (collector-aborted-p)
+	       (format t "Collector aborted. Terminating thread.~%")
+	       (return-from watchdog-loop))
+	     (format t "Collector stopped unexpectedly. Restarting!~%"))))))
+
+;;; This code is defunct for now - we are no longer handling remote Argus
+;;; sources directly.
 (defmethod remote-port ((object source))
   (%argus-remote-port (get-ptr object)))
 
