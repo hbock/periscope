@@ -124,6 +124,9 @@
 (defcfun ("periscope_argus_get_filter" %argus-get-filter) :string
   (collector periscope-collector))
 
+(defcfun ("periscope_argus_debug_dsrs" %argus-debug-dsrs) :void
+  (dsrs periscope-dsrs))
+
 (defmacro with-collector-callbacks (callbacks collector &body body)
   `(with-foreign-slots ((,@callbacks)
 			(foreign-slot-value (get-ptr ,collector) 'periscope-collector 'callbacks)
