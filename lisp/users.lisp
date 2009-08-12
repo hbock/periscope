@@ -517,9 +517,9 @@ IDs will signal a PARSE-ERROR."
 	    (error-redirect "passmatch")))
 
 	 (handler-case
-	     (let ((filters
+	     (let ((filter
 		    (handler-case
-			(list (parse-filter title internal subnet vlan delete))
+			(parse-filter title internal subnet vlan delete)
 		      (filter-parse-error (pe)
 			(setf (session-value 'conf-filter-bad-reason)
 			      (filter-parse-error-type pe)
@@ -533,7 +533,8 @@ IDs will signal a PARSE-ERROR."
 				  :admin (or (not (login-available-p))
 					     (not (null configp))))))
 
-	       (setf (filters user) filters)
+	       (when filter
+		 (setf (filters user) (list filter)))
 	       
 	       ;; If this is the first user created - automatically log them in for convenience.
 	       (when (= 1 (user-count))
