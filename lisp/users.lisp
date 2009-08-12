@@ -171,7 +171,7 @@ currently set up (for configuration purposes)."
 	  (:td "Password")
 	  (:td (password-input "password"))))
 	(when (and denied redirect)
-	  (hidden "redirect" redirect))
+	  (hidden "redirect" (escape-string redirect)))
 	(:input :type "submit" :value "Login")))))
 
 (defun bad-filter-message ()
@@ -334,6 +334,9 @@ alphanumeric characters and underscores."))
     (with-config-form ("/set-user-config")
       (with-config-section ("User Login Settings" "configure")
 	(:table
+	 (when (string= error "badsessiontime")
+	   (error-message
+	    (format nil "Invalid max session time.  Must be an integer greater than ~d seconds." +min-session-time+)))
 	 (:tr
 	  (:td "Maximum login session time (seconds)")
 	  (:td (input "sessiontime" hunchentoot:*session-max-time*)))
@@ -452,6 +455,10 @@ IDs will signal a PARSE-ERROR."
   (valid-session-or-lose :admin t)
 
   (let ((*redirect-page* "/users"))
+    (when (or (null sessiontime)
+	      (< sessiontime +min-session-time+))
+      (error-redirect "badsessiontime"))
+    
     (setf *web-login-required-p* (not (null required)))
     (when sessiontime
       (setf hunchentoot:*session-max-time* sessiontime))
@@ -505,7 +512,7 @@ IDs will signal a PARSE-ERROR."
 	   ((empty-string-p username)
 	    (error-redirect "blankuser"))
 	   
-	   ((not (ppcre:scan "[A-Za-z0-9_]+" username))
+	   ((not (ppcre:scan "^[A-Za-z0-9_]+$" username))
 	    (error-redirect "username"))
 
 	   ((empty-string-p displayname) (error-redirect "dispname"))
@@ -517,9 +524,9 @@ IDs will signal a PARSE-ERROR."
 	    (error-redirect "passmatch")))
 
 	 (handler-case
-	     (let ((filters
+	     (let ((filter
 		    (handler-case
-			(list (parse-filter title internal subnet vlan delete))
+			(parse-filter title internal subnet vlan delete)
 		      (filter-parse-error (pe)
 			(setf (session-value 'conf-filter-bad-reason)
 			      (filter-parse-error-type pe)
@@ -533,7 +540,8 @@ IDs will signal a PARSE-ERROR."
 				  :admin (or (not (login-available-p))
 					     (not (null configp))))))
 
-	       (setf (filters user) filters)
+	       (when filter
+		 (setf (filters user) (list filter)))
 	       
 	       ;; If this is the first user created - automatically log them in for convenience.
 	       (when (= 1 (user-count))
