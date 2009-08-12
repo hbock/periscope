@@ -226,7 +226,7 @@ digits following the decimal point."
 		  (symbol
 		   (if (or (eql cases* t) (eql cases* 'otherwise))
 		       `(t ,@forms)
-		       (error "~a is not one of (T OTHERWISE); cannot test symbols!" cases*))))))))))
+		       (error "~a is not one of (T OTHERWISE); cannot test symbols!" cases*)))))))))
 
 (defmacro with-timeout ((expires) &body body)
   #+sbcl
