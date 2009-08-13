@@ -91,22 +91,23 @@ the pathname of the log itself."
 	    (multiple-value-bind (sec min hour)
 		(decode-universal-time log-time)
 	      (declare (ignore sec min))
-	      (when (/= (this-day log-time) current-day)
-		(setf current-day (this-day log-time))
+	      (cond
+		((/= (this-day log-time) current-day)
+		 (setf current-day (this-day log-time))
 	     
-		(htm (if first
-			 (setf first nil)
-			 (htm (:br) (:br)))
-		     (:b (str (long-date-string
-			       (universal-to-timestamp current-day) :minutes nil)))
-		     (:br))
+		 (htm (if first
+			  (setf first nil)
+			  (htm (:br) (:br)))
+		      (:b (str (long-date-string
+				(universal-to-timestamp current-day) :minutes nil)))
+		      (:br))
 	     
-		(if (< hour 12)
-		    (htm (:b "AM "))
-		    (htm (:b "PM "))))
-
-	      (when (= 12 hour)
-		(htm (:br) (:b "PM ")))
+		 (if (< hour 12)
+		     (htm (:b "AM "))
+		     (htm (:b "PM "))))
+	      
+		((= 12 hour)
+		 (htm (:br) (:b "PM "))))
 	   
 	      (htm (:a :href (format nil "/hourly?time=~d" log-time)
 		       (fmt "~2,'0d:00" hour))))))))))
