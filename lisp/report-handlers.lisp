@@ -74,43 +74,54 @@ the pathname of the log itself."
   "Return the most newly generated hourly Argus log."
   (first (reverse (hourly-logs pathspec))))
 
+(defun daily-split-hourly-logs ()
+  (let ((logs (hourly-logs)) day-logs log-list)
+    (loop
+       :with day = (this-day (car (first logs)))
+       :for log :in logs
+       :if (= (this-day (car log)) day)
+       :do (push log day-logs)
+       :else :do
+       (push (nreverse day-logs) log-list)
+       (setf day-logs nil)
+       (setf day (this-day (car log)))
+       (push log day-logs))
+    (when day-logs
+      (push (nreverse day-logs) log-list))
+    log-list))
+
 (defun print-hourly-list ()
-  "Print out the hourly log list HTML."
+  "Print out the hourly log list HTML, with newest logs first."
   (with-html-output (*standard-output*)
     (:div
      :class "report-listing"
      (:h2 "Hourly Report Listing")
-     (let ((logs (hourly-logs)))
-       (when (null logs)
+     (let ((daily-logs (daily-split-hourly-logs)))
+       (when (null daily-logs)
 	 (htm (:br) "No hourly reports available!"))
-       (loop
-	  :with first = t
-	  :with current-day = 0
-	  :for log :in logs :do
-	  (let ((log-time (car log)))
-	    (multiple-value-bind (sec min hour)
-		(decode-universal-time log-time)
-	      (declare (ignore sec min))
-	      (cond
-		((/= (this-day log-time) current-day)
-		 (setf current-day (this-day log-time))
-	     
-		 (htm (if first
-			  (setf first nil)
-			  (htm (:br) (:br)))
-		      (:b (str (long-date-string
-				(universal-to-timestamp current-day) :minutes nil)))
-		      (:br))
-	     
-		 (if (< hour 12)
-		     (htm (:b "AM "))
-		     (htm (:b "PM "))))
+
+       (dolist (logs daily-logs)
+	 (let ((log-day (this-day (car (first logs)))))
+	   (htm (:br)
+		(:b (str (long-date-string (universal-to-timestamp log-day) :minutes nil)))
+		(:br)))
+	 (loop
+	    :for first = t :then nil
+	    :for log :in logs :do
+	    (let ((log-time (car log)))
+	      (multiple-value-bind (sec min hour)
+		  (decode-universal-time log-time)
+		(declare (ignore sec min))
+		(if first
+		    (if (< hour 12)
+			(htm (:b "AM "))
+			(htm (:b "PM ")))
+		    (when (= 12 hour)
+		      (htm (:br) (:b "PM "))))
 	      
-		((= 12 hour)
-		 (htm (:br) (:b "PM "))))
-	   
-	      (htm (:a :href (format nil "/hourly?time=~d" log-time)
-		       (fmt "~2,'0d:00" hour))))))))))
+		(htm (:a :href (format nil "/hourly?time=~d" log-time)
+			 (fmt "~2,'0d:00" hour))))))
+	 (htm (:br)))))))
 
 (define-report-handler (hourly "/hourly" "Hourly Traffic")
     ((time :parameter-type 'integer))
