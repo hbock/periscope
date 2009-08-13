@@ -40,7 +40,7 @@ filters are defined, a list with the form (time nil &rest reports) is returned."
 	     (make-service-report flow-list)))))
 
 (defun in-report-directory (filespec &optional (directory *report-directory*))
-  (merge-pathnames filespec (truename directory)))
+  (merge-pathnames filespec (truename (ensure-directories-exist directory))))
 
 (defun hourly-log (time &optional (directory *report-directory*))
   "Return the hourly Argus log pathname corresponding to time, searching in directory."

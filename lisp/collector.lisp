@@ -141,11 +141,10 @@ and the time period for which it will bin/split its output logs."
 	   (:hour "1h")
 	   (:half-hour "30m")))
 	(output-spec
-	 (ensure-directories-exist
-	  (in-report-directory (ecase time-period
-				 (:test "test/%Y%m%d-%H:%M:%S")
-				 (:hour "hourly.%Y%m%d-%H")
-				 (:half-hour "halfhour.%Y%m%d-%H.%M"))))))
+	 (in-report-directory (ecase time-period
+				(:test "test/%Y%m%d-%H:%M:%S")
+				(:hour "hourly.%Y%m%d-%H")
+				(:half-hour "halfhour.%Y%m%d-%H.%M")))))
     (setf *collector-process*
 	  (process-create (probe-file *collector-script*) nil
 			  ;; Arguments
