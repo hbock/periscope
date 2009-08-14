@@ -76,19 +76,20 @@ the pathname of the log itself."
 
 (defun daily-split-hourly-logs ()
   (let ((logs (hourly-logs)) day-logs log-list)
-    (loop
-       :with day = (this-day (car (first logs)))
-       :for log :in logs
-       :if (= (this-day (car log)) day)
-       :do (push log day-logs)
-       :else :do
-       (push (nreverse day-logs) log-list)
-       (setf day-logs nil)
-       (setf day (this-day (car log)))
-       (push log day-logs))
-    (when day-logs
-      (push (nreverse day-logs) log-list))
-    log-list))
+    (when logs
+      (loop
+	 :with day = (this-day (car (first logs)))
+	 :for log :in logs
+	 :if (= (this-day (car log)) day)
+	 :do (push log day-logs)
+	 :else :do
+	 (push (nreverse day-logs) log-list)
+	 (setf day-logs nil)
+	 (setf day (this-day (car log)))
+	 (push log day-logs))
+      (when day-logs
+	(push (nreverse day-logs) log-list))
+      log-list)))
 
 (defun print-hourly-list ()
   "Print out the hourly log list HTML, with newest logs first."
@@ -98,7 +99,8 @@ the pathname of the log itself."
      (:h2 "Hourly Report Listing")
      (let ((daily-logs (daily-split-hourly-logs)))
        (when (null daily-logs)
-	 (htm (:br) "No hourly reports available!"))
+	 (htm (:br) "No hourly reports available!")
+	 (return-from print-hourly-list nil))
 
        (dolist (logs daily-logs)
 	 (let ((log-day (this-day (car (first logs)))))
