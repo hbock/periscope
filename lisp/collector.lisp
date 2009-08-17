@@ -38,8 +38,9 @@
     (:ipv4
      (unless (null-pointer-p (get-metrics dsrs))
        (let ((ip (get-ip (get-flow dsrs))))
-	 ;(nadd *current-report* (build-flow dsrs ip))
-	 (push (build-flow dsrs ip) *flow-list*))))))
+	 (nadd *current-report* (build-flow dsrs ip))
+	 ;(push (build-flow dsrs ip) *flow-list*)
+	 )))))
 
 (defmethod initialize-instance :after ((object collector) &key)
   (let ((ptr (foreign-alloc 'periscope-collector)))
@@ -120,12 +121,11 @@
     collector))
 
 (defun process-local-file (file &key (collector (init-basic-collector)) filter)
-  (setf *flow-list* nil)
   (when filter
     (setf (filter collector) filter))
   (add-file collector file)
-  (run collector)
-  (setf *flow-list* (nreverse *flow-list*)))
+  (setf *current-report* (make-instance 'periodic-report))
+  (run collector))
 
 ;;; Collector stuff for racollector script.
 (defun collector-connect-string (&optional (hostname *collector-argus-server*)

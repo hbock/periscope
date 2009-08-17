@@ -49,6 +49,9 @@
 (defgeneric print-html (object &key)
   (:documentation "Print a report object in HTML format."))
 
+(defgeneric nadd (report flows)
+  (:documentation "Add flow data to a given report."))
+
 (defun report-handlers (request)
   "Handle Periscope-specific report requests. Returns the report's handler function as
 defined using DEFINE-REPORT-HANDLER."

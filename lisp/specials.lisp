@@ -58,6 +58,8 @@
 (defvar *collector-shutdown-lock* (bt:make-lock))
 (defvar *collector-shutdown-p* nil)
 
+(defvar *current-report* nil)
+
 (defvar *dns-available-p* t)
 
 (defvar *swank-port* 20571)

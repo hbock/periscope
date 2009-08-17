@@ -24,12 +24,12 @@ are processed correctly, or a proper error is signalled when a report format is 
 supported.")
 
 (defclass periodic-report (report)
-  ((total :accessor total :type stats)
+  ((total :accessor total :type stats :initform (make-instance 'stats))
    (internal :accessor internal :type stats :initform (make-instance 'stats))
    (external :accessor external :type stats :initform (make-instance 'stats))
    (incoming :accessor incoming :type stats :initform (make-instance 'stats))
    (outgoing :accessor outgoing :type stats :initform (make-instance 'stats))
-   (host-stats :initform (make-hash-table :size 1000))
+   (host-stats :initform (make-hash-table :size 100000))
    (format-version :initarg :version :initform *periodic-report-format-version*)
    (filter :initarg :filter :reader filter :initform nil :type filter)
    (report-time :initarg :time :reader report-time :initform (now))))
@@ -54,36 +54,23 @@ supported.")
       (setf (gethash (host-ip host) table) host-stat))))
 
 (defmethod initialize-instance :after ((object periodic-report) &key (flow-list nil flow-list-p))
-  ;; Report is pre-generated, loaded from a file.
-  (unless flow-list-p
-    (return-from initialize-instance nil))
-  
-  (with-slots (total internal external incoming outgoing host-stats format-version) object
-    (setf format-version *periodic-report-format-version*)
-    (setf (total object)
-	  (make-instance 'stats
-			 :flows (length flow-list)
-			 :packets
-			 (reduce #'+ flow-list 
-				 :key (lambda (flow)
-					(+ (host-packets (source flow)) (host-packets (dest flow)))))
-			 :bytes
-			 (reduce #'+ flow-list 
-				 :key (lambda (flow)
-					(+ (host-bytes (source flow)) (host-bytes (dest flow)))))))
+  (declare (ignore flow-list flow-list-p))
+  (setf (slot-value object 'format-version) *periodic-report-format-version*))
 
-    (dolist (flow flow-list)
-      (with-slots (source dest) flow
-	(let ((bytes (+ (host-bytes source) (host-bytes dest)))
-	      (packets (+ (host-packets source) (host-packets dest))))
-	  (case (classify flow)
-	    (:internal-only (add-stats internal :bytes bytes :packets packets))
-	    (:external-only (add-stats external :bytes bytes :packets packets))
-	    (:incoming  (add-stats incoming :bytes bytes :packets packets))
-	    (:outgoing  (add-stats outgoing :bytes bytes :packets packets)))
+(defmethod nadd ((report periodic-report) (flow flow))
+  (with-slots (total internal external incoming outgoing host-stats) report
+    (with-slots (source dest) flow
+      (let ((bytes (+ (host-bytes source) (host-bytes dest)))
+	    (packets (+ (host-packets source) (host-packets dest))))
+	(add-stats total :bytes bytes :packets packets)
+	(case (classify flow)
+	  (:internal-only (add-stats internal :bytes bytes :packets packets))
+	  (:external-only (add-stats external :bytes bytes :packets packets))
+	  (:incoming  (add-stats incoming :bytes bytes :packets packets))
+	  (:outgoing  (add-stats outgoing :bytes bytes :packets packets)))
 
-	  (add-host-stats host-stats source dest)
-	  (add-host-stats host-stats dest source))))))
+	(add-host-stats host-stats source dest)
+	(add-host-stats host-stats dest source)))))
 
 (defmethod local-contact-count ((host host-stats))
   (hash-table-count (slot-value host 'local-contacts)))
