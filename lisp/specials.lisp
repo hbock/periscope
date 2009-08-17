@@ -46,8 +46,11 @@
 (defvar *web-user-db* (make-hash-table :test #'equal))
 (defvar *redirect-page* nil)
 
+(defvar *rastream-binary* "rastream")
+
 (defvar *collector* nil)
-(defvar *collector-script* #P"../racollector")
+(defvar *collector-error-p* nil)
+(defvar *collector-script* (truename #P"rastream-post.sh"))
 (defvar *collector-process* nil)
 (defvar *collector-default-filter* "tcp or icmp or udp")
 (defvar *collector-argus-server* nil)

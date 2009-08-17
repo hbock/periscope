@@ -38,6 +38,7 @@
     (:ipv4
      (unless (null-pointer-p (get-metrics dsrs))
        (let ((ip (get-ip (get-flow dsrs))))
+	 ;(nadd *current-report* (build-flow dsrs ip))
 	 (push (build-flow dsrs ip) *flow-list*))))))
 
 (defmethod initialize-instance :after ((object collector) &key)
@@ -133,9 +134,10 @@
   (format nil "~a:~d" hostname port))
 
 (defun run-collector (server time-period)
-  "Run the racollector script as a child process, specifying the remote Argus server
-and the time period for which it will bin/split its output logs."
-  (let ((time-period-string
+  "Run the rastream client as a child process, specifying the remote Argus server
+and the time period for which it will split its output logs."
+  (let ((start-time (get-universal-time))
+	(time-period-string
 	 (ecase time-period
 	   (:test "10s")
 	   (:hour "1h")
@@ -146,13 +148,23 @@ and the time period for which it will bin/split its output logs."
 				(:hour "hourly.%Y%m%d-%H")
 				(:half-hour "halfhour.%Y%m%d-%H.%M")))))
     (setf *collector-process*
-	  (process-create (probe-file *collector-script*) nil
+	  (process-create *rastream-binary* nil
 			  ;; Arguments
-			  server time-period-string (namestring output-spec)))
-    (process-wait *collector-process*)))
+			  ;; rastream -S <server> -M time <period> -B 20s -f <post-split-script>
+			  ;;          -w <output-format>
+			  "-S" server
+			  "-M" "time" time-period-string
+			  "-B" "20s"
+			  "-f" (namestring *collector-script*)
+			  "-w" (namestring output-spec)))
+    (process-wait *collector-process*)
+    (when (< (- (get-universal-time) start-time) 2)
+      (periscope-config-error "Failed to connect to server '~a'!" server))))
 
 (defun stop-collector (collector-process)
   "Terminate the collector-process by sending it SIGTERM, and wait for it to exit."
+  (bt:with-lock-held (*collector-shutdown-lock*)
+    (setf *collector-shutdown-p* t))
   (when (process-alive-p collector-process)
     (process-wait (process-signal collector-process))))
 
@@ -161,24 +173,22 @@ and the time period for which it will bin/split its output logs."
   (process-alive-p *collector-process*))
 
 (defun collector-aborted-p ()
-  (and *collector-process*
-       (not (process-alive-p *collector-process*))
-       (= 4 (process-wait *collector-process*))))
+  (and (not (process-alive-p *collector-process*)) *collector-error-p*))
 
 (defun collector-thread ()
   "Thread that runs and monitors the collector until *SHUTDOWN-P* is T."
   (bt:with-lock-held (*collector-shutdown-lock*)
     (setf *collector-shutdown-p* nil))
   (loop :named watchdog-loop :do
-     (run-collector (collector-connect-string) :hour)
+     (handler-case (run-collector (collector-connect-string) :hour)
+       (periscope-config-error ()
+	 (setf *collector-error-p* t)
+	 (format t "Error starting rastream occured, aborting!~%")
+	 (return-from watchdog-loop)))
      (bt:with-lock-held (*collector-shutdown-lock*)
        (if *collector-shutdown-p*
 	   (return-from watchdog-loop)
-	   (progn
-	     (when (collector-aborted-p)
-	       (format t "Collector aborted. Terminating thread.~%")
-	       (return-from watchdog-loop))
-	     (format t "Collector stopped unexpectedly. Restarting!~%"))))))
+	   (format t "Collector stopped unexpectedly. Restarting!~%")))))
 
 ;;; This code is defunct for now - we are no longer handling remote Argus
 ;;; sources directly.

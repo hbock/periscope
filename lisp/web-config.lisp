@@ -295,8 +295,6 @@ Invalid CIDR subnets will signal a PARSE-ERROR."
 
       ("stop"
        (unless (not (collector-running-p))
-	 (bt:with-lock-held (*collector-shutdown-lock*)
-	   (setf *collector-shutdown-p* t))
 	 (stop-collector *collector-process*)))))
 
   (hunchentoot:redirect "/periscope-config?error=success"))
@@ -335,7 +333,9 @@ Invalid CIDR subnets will signal a PARSE-ERROR."
 	    (stop-collector *collector-process*)))
 
     	(when (collector-aborted-p)
-    	  (setf *collector-process* nil))
+    	  ;; Clear collector error.
+	  (setf *collector-process* nil
+		*collector-error-p* nil))
 
 	(setf *collector-argus-server* hostname)
 	(setf *collector-argus-port* port)))
