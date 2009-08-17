@@ -24,7 +24,9 @@
     (hunchentoot:stop *web-server*))
 
   (setf *web-server* (make-instance 'hunchentoot:acceptor :port port))
+  (hunchentoot:reset-session-secret)
   (hunchentoot:start *web-server*)
+  
   (push (hunchentoot:create-folder-dispatcher-and-handler "/content/" "share/")
 	hunchentoot:*dispatch-table*))
 
