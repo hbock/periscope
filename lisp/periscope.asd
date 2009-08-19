@@ -28,6 +28,7 @@
 	       :cl-who
 	       :cl-ppcre
 	       :md5
+	       :postmodern
 	       :local-time
 	       :hunchentoot
 	       :trivial-garbage

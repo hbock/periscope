@@ -24,7 +24,12 @@
 		#:url-encode
 		#:define-easy-handler
 		#:session-value
-		#:delete-session-value))
+		#:delete-session-value)
+  (:import-from #:postmodern
+		#:sql
+		#:query
+		#:execute
+		#:doquery))
 
 (in-package :periscope)
 
