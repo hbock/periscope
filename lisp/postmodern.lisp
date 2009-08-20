@@ -23,6 +23,23 @@
 (defparameter *periscope-db-password* "periscope")
 (defparameter *periscope-db-connection* nil)
 
+(defconstant +postgres-oid-inet+ 869)
+
+(defun inet-sql-reader (inet-string)
+  (multiple-value-bind (network netmask)
+      (parse-ip-string inet-string)
+    (if (null netmask)
+	network
+	(cons network netmask))))
+
+(defmethod cl-postgres:to-sql-string ((host flow-host))
+  (format nil "'~a'" (ip-string (host-ip host))))
+
+(defun init-postgres ()
+  "Perform initialization of PostgreSQL functionality - sets up readers for special Periscope
+data types, etc."
+  (cl-postgres:set-sql-reader +postgres-oid-inet+ #'inet-sql-reader))
+
 (defun connect-db (database-name &key (user *periscope-db-user*)
 		   (host *periscope-db-host*)
 		   (password *periscope-db-password*))
@@ -31,17 +48,8 @@
 (defun disconnect-db (&optional (connection *periscope-db-connection*))
   (pomo:disconnect connection))
 
-(defclass host-stat ()
-  ((host-ip :col-type bigint :initarg :host-ip :reader host-ip)
-   (host-type :col-type integer :initarg :host-type :reader host-type)
-   (hour :col-type smallint :initarg :hour)
-   (date :col-type smallint :initarg :date)
-   (month :col-type smallint :initarg :month)
-   (sent-flows :col-type bigint :initform 0 :reader sent-flows)
-   (sent-bytes :col-type bigint :initform 0 :reader sent-bytes)
-   (sent-packets :col-type bigint :initform 0 :reader sent-packets)
-   (received-flows :col-type bigint :initform 0 :reader received-flows)
-   (received-bytes :col-type bigint :initform 0 :reader received-bytes)
-   (received-packets :col-type bigint :initform 0 :reader received-packets))
-  (:metaclass pomo:dao-class)
-  (:keys host-ip hour date month))
+(defun create-schema ()
+  "Create the Periscope database schema on the currently connected database. Creates
+table layouts and their relevant indexes."
+  (execute (pomo:dao-table-definition 'host-stat))
+  (execute (:create-index 'time :on host-stat :fields hour date month)))

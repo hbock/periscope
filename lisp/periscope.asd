@@ -45,6 +45,8 @@
    (:file "collector")
    (:file "utility")
    (:file "dns")
+   ;; Core database support
+   (:file "postmodern")
    ;; Central classes
    (:file "reports")
    (:file "flow")
