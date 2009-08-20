@@ -26,6 +26,8 @@
 (defconstant +postgres-oid-inet+ 869)
 
 (defun inet-sql-reader (inet-string)
+  "Convert an IP-string or CIDR netmask as returned by PostgreSQL into forms used
+by Periscope."
   (multiple-value-bind (network netmask)
       (parse-ip-string inet-string)
     (if (null netmask)
