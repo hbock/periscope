@@ -32,6 +32,9 @@
    (start-time :reader start-time :type local-time:timestamp)
    (end-time :reader end-time :type local-time:timestamp)))
 
+(defmethod cl-postgres:to-sql-string ((host flow-host))
+  (format nil "'~a'" (ip-string (host-ip host))))
+
 (defmethod start-time ((object flow))
   (local-time:timestamp-minimum
    (start-time (source object)) (start-time (dest object))))

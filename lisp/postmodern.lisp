@@ -34,9 +34,6 @@ by Periscope."
 	network
 	(cons network netmask))))
 
-(defmethod cl-postgres:to-sql-string ((host flow-host))
-  (format nil "'~a'" (ip-string (host-ip host))))
-
 (defun init-postgres ()
   "Perform initialization of PostgreSQL functionality - sets up readers for special Periscope
 data types, etc."
