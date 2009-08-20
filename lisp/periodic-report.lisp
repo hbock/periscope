@@ -40,12 +40,12 @@ supported.")
    (hour :col-type smallint :initarg :hour)
    (date :col-type smallint :initarg :date)
    (month :col-type smallint :initarg :month)
-   (sent-flows :col-type bigint :initform 0 :reader sent-flows)
-   (sent-bytes :col-type bigint :initform 0 :reader sent-bytes)
-   (sent-packets :col-type bigint :initform 0 :reader sent-packets)
-   (received-flows :col-type bigint :initform 0 :reader received-flows)
-   (received-bytes :col-type bigint :initform 0 :reader received-bytes)
-   (received-packets :col-type bigint :initform 0 :reader received-packets))
+   (sent-flows   :col-type bigint :col-default 0 :initform 0 :accessor sent-flows)
+   (sent-bytes   :col-type bigint :col-default 0 :initform 0 :accessor sent-bytes)
+   (sent-packets :col-type bigint :col-default 0 :initform 0 :accessor sent-packets)
+   (received-flows   :col-type bigint :col-default 0 :initform 0 :accessor received-flows)
+   (received-bytes   :col-type bigint :col-default 0 :initform 0 :accessor received-bytes)
+   (received-packets :col-type bigint :col-default 0 :initform 0 :accessor received-packets))
   (:metaclass pomo:dao-class)
   (:keys host-ip hour date month))
 
@@ -57,23 +57,28 @@ supported.")
    (local-contacts :initform (make-hash-table))
    (remote-contacts :initform (make-hash-table))))
 
-(defmethod add-host-stats ((table hash-table) (host flow-host) (other flow-host))
-  (multiple-value-bind (host-stat existsp)
-      (gethash (host-ip host) table (make-instance 'host-stats :ip (host-ip host)))
-    (with-slots (sending receiving local-contacts remote-contacts) host-stat
-      (let ((other-ip (host-ip other)))
-	(incf (gethash other-ip (if (remote-host-p other-ip) remote-contacts local-contacts) 0)))
-      (add-stats sending   :bytes (host-bytes host) :packets (host-packets host))
-      (add-stats receiving :bytes (host-bytes other) :packets (host-packets other)))
-    (unless existsp
-      (setf (gethash (host-ip host) table) host-stat))))
+(defmethod update-host-stats ((source flow-host) (dest flow-host))
+  (let ((host
+	 (or (first (pomo:select-dao 'host-stat (:= 'host-ip source)))
+	     (make-instance 'host-stat :host-ip source :host-type 0
+			    :hour 0 :date 26 :month 9))))
+
+    (incf (sent-flows host))
+    (incf (sent-bytes host) (host-bytes source))
+    (incf (sent-packets host) (host-packets source))
+    
+    (incf (received-flows host))
+    (incf (received-bytes host) (host-bytes dest))
+    (incf (received-packets host) (host-packets dest))
+
+    (pomo:save-dao host)))
 
 (defmethod initialize-instance :after ((object periodic-report) &key (flow-list nil flow-list-p))
   (declare (ignore flow-list flow-list-p))
   (setf (slot-value object 'format-version) *periodic-report-format-version*))
 
 (defmethod nadd ((report periodic-report) (flow flow))
-  (with-slots (total internal external incoming outgoing host-stats) report
+  (with-slots (total internal external incoming outgoing) report
     (with-slots (source dest) flow
       (let ((bytes (+ (host-bytes source) (host-bytes dest)))
 	    (packets (+ (host-packets source) (host-packets dest))))
@@ -84,8 +89,7 @@ supported.")
 	  (:incoming  (add-stats incoming :bytes bytes :packets packets))
 	  (:outgoing  (add-stats outgoing :bytes bytes :packets packets)))
 
-	(add-host-stats host-stats source dest)
-	(add-host-stats host-stats dest source)))))
+	(update-host-stats source dest)))))
 
 (defmethod local-contact-count ((host host-stats))
   (hash-table-count (slot-value host 'local-contacts)))
