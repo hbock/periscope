@@ -29,6 +29,8 @@
    (minor-version :initarg :minor-version :reader minor-version)
    (port :initarg :port :reader port)))
 
+(defparameter *flows-seen* 0)
+
 (defcallback receive-flow :void ((collector periscope-collector)
 				 (type :uchar)
 				 (record :pointer)
@@ -38,6 +40,9 @@
     (:ipv4
      (unless (null-pointer-p (get-metrics dsrs))
        (let ((ip (get-ip (get-flow dsrs))))
+	 (when (zerop (mod (incf *flows-seen*) 10000))
+	   (incf *host-cache-visit*))
+	 
 	 (nadd *current-report* (build-flow dsrs ip))
 	 ;(push (build-flow dsrs ip) *flow-list*)
 	 )))))
