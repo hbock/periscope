@@ -25,6 +25,9 @@
 
 (defconstant +postgres-oid-inet+ 869)
 
+(deftype octet ()
+  '(unsigned-byte 8))
+
 (defun inet-sql-reader (inet-string)
   "Convert an IP-string or CIDR netmask as returned by PostgreSQL into forms used
 by Periscope."
@@ -34,10 +37,19 @@ by Periscope."
 	network
 	(cons network netmask))))
 
+(defun inet-binary-sql-reader (inet-stream size)
+  (let ((data (make-array 4 :element-type 'octet))
+	(ip (make-array 4 :element-type 'octet)))
+    (ecase size
+      (8
+       (read-sequence data inet-stream :end 4)
+       (read-sequence ip inet-stream :end 4)
+       (vector-to-ip ip)))))
+
 (defun init-postgres ()
   "Perform initialization of PostgreSQL functionality - sets up readers for special Periscope
 data types, etc."
-  (cl-postgres:set-sql-reader +postgres-oid-inet+ #'inet-sql-reader))
+  (cl-postgres:set-sql-reader +postgres-oid-inet+ #'inet-binary-sql-reader :binary-p t))
 
 (defun connect-db (database-name &key (user *periscope-db-user*)
 		   (host *periscope-db-host*)
