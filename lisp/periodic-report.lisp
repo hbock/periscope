@@ -35,7 +35,7 @@ supported.")
    (report-time :initarg :time :reader report-time :initform (now))))
 
 (defclass host-stat ()
-  ((host-ip :col-type inet :initarg :host-ip :reader host-ip)
+  ((host-ip :col-type inet :initarg :host-ip :accessor host-ip)
    (host-type :col-type integer :initarg :host-type :reader host-type)
    (hour :col-type smallint :initarg :hour)
    (date :col-type smallint :initarg :date)
@@ -123,7 +123,9 @@ supported.")
 	   (incf *cache-misses*)
 	   (if host-entry
 	       ;; If found, it's a true cache miss, re-cache the entry.
-	       (cache-insert host host-entry)
+	       (progn
+		 (setf (host-ip host-entry) (make-instance 'flow-host :ip (host-ip host-entry)))
+		 (cache-insert host host-entry))
 	       ;; And if it is not found, we create, cache, and return a new entry.
 	       (cache-insert host (make-instance 'host-stat :host-ip host :host-type 0
 						 :hour 0 :date 26 :month 9)))))
