@@ -62,19 +62,12 @@ supported.")
 (defvar *host-cache-last-flush* -1)
 (defvar *host-cache-using-db-p* nil)
 
-(defun clear-report ()
-  (prog1
-      (loop 
-	 :with visit-list = (make-array (1+ *host-cache-visit*))
-	 :for ip being the hash-keys in *host-cache* using (:hash-value (host . visit))
-	 :do (incf (aref visit-list visit))
-	 :finally (return visit-list))
-    (execute "truncate table host_stat")
-    (clrhash *host-cache*)
-    (setf *host-cache-using-db-p* nil)
-    (setf *host-cache-visit* 0)
-    (setf *host-cache-last-flush* -1)
-    (setf *current-report* (make-instance 'periodic-report))))
+(defun cache-stats (&optional (cache *host-cache*))
+  (loop 
+     :with visit-list = (make-array (1+ *host-cache-visit*))
+     :for ip being the hash-keys in cache using (:hash-value (host . visit))
+     :do (incf (aref visit-list visit))
+     :finally (return visit-list)))
 
 (defmethod finalize-report ((report periodic-report))
   ""
@@ -83,59 +76,62 @@ supported.")
 	     (pomo:save-dao (car host-entry))) *host-cache*)
   (clrhash *host-cache*))
 
+(defparameter *cache-hits* 0)
+(defparameter *cache-misses* 0)
+
+(defun cache-flush ()
+  (setf *host-cache-using-db-p* t)
+  (format t "Flushing @ visit ~d~%" *host-cache-visit*)
+  (let ((purged-entries 0))
+    (maphash (lambda (key value)
+	       (destructuring-bind (host . last-visit) value
+		 (when (<= last-visit (+ 2 *host-cache-last-flush*))
+		   (incf purged-entries)
+		   (pomo:save-dao host)
+		   (remhash key *host-cache*))))
+	     *host-cache*)
+    (format t "Flushed ~d entries.~%" purged-entries))
+  (incf *host-cache-last-flush* 2))
+
+;;; Our method for host statistics lookup is based on an LRU-like caching algorithm.
 (defmethod find-host-stats ((host flow-host) &key (check-db-p *host-cache-using-db-p*))
   (multiple-value-bind (cached-value existsp)
       (gethash (host-ip host) *host-cache*)
     (flet ((cache-insert (host host-entry)
 	     (when (= (hash-table-size *host-cache*)
 		      (hash-table-count *host-cache*))
-	       (setf *host-cache-using-db-p* t)
-	       ;; Flush old entries out of the hash table to make room for new
-	       ;; unique IPs.
-	       (format t "Flushing @ visit ~d~%" *host-cache-visit*)
-	       (let ((purged-entries 0))
-		 (maphash (lambda (key value)
-			    (destructuring-bind (host . last-visit) value
-			      (when (<= last-visit (+ 2 *host-cache-last-flush*))
-				(format t "Flushing with last = ~d, current = ~d~%"
-					last-visit *host-cache-visit*)
-				(incf purged-entries)
-				(pomo:save-dao host)
-				(remhash key *host-cache*))))
-			  *host-cache*)
-		 (format t "Flushed ~d old entries from the cache, from visit ~d to ~d.~%"
-			 purged-entries
-			 *host-cache-last-flush*
-			 (+ 2 *host-cache-last-flush*)))
-	       (incf *host-cache-last-flush* 2))
-	     ;; END FLUSH!!!!!!!
+	       (cache-flush))
+	     
+	     ;; Insert an element into the cache, with usage information.
 	     (setf (gethash (host-ip host) *host-cache*)
 		   (cons host-entry *host-cache-visit*))
 	     host-entry))
       (cond
 	;; Host stats entry was found (cache hit) - return immediately
 	(existsp
+	 (incf *cache-hits*)
+	 ;; Update the victim time of the host entry in the cache.
 	 (setf (cdr cached-value) *host-cache-visit*)
 	 (car cached-value))
       
-	;; Cache miss, but we are allowed to check the database.
+	;; The host entry is not present in the cache, so we must either find it
+	;; in the backing database, or if this is a new host, we simply create a
+	;; new entry and add to the cache.
 	((and (not existsp) check-db-p)
 	 ;; We first try to SELECT this IP from the database...
-	 (format t "Cache miss for IP ~a, performing DB lookup.~%"
-		 (ip-string (host-ip host)))
-	 (let ((host-entry
-		(or (first (pomo:select-dao 'host-stat (:= 'host-ip host)))
-		    ;; And if it is not found, we create a new entry and return that.
-		    (make-instance 'host-stat :host-ip host :host-type 0
-				   :hour 0 :date 26 :month 9))))
-	   ;; Add this host entry to the cache.
-	   (cache-insert host host-entry)))
+	 (let ((host-entry (first (pomo:select-dao 'host-stat (:= 'host-ip host)))))
+	   (incf *cache-misses*)
+	   (if host-entry
+	       ;; If found, it's a true cache miss, re-cache the entry.
+	       (cache-insert host host-entry)
+	       ;; And if it is not found, we create, cache, and return a new entry.
+	       (cache-insert host (make-instance 'host-stat :host-ip host :host-type 0
+						 :hour 0 :date 26 :month 9)))))
 
-	;; We can't look in the database for the host, so we create a
+	;; We can't (or don't need to) look in the database for the host, so we create a
 	;; new one and add it to the cache.
-	(t (cache-insert host
-			 (make-instance 'host-stat :host-ip host :host-type 0
-					:hour 0 :date 26 :month 9)))))))
+	(t (cache-insert host (make-instance 'host-stat :host-ip host :host-type 0
+					     :hour 0 :date 26 :month 9)))))))
 
 (defmethod update-host-stats ((source flow-host) (dest flow-host))
   (let ((host (find-host-stats source)))
@@ -145,10 +141,7 @@ supported.")
     
     (incf (received-flows host))
     (incf (received-bytes host) (host-bytes dest))
-    (incf (received-packets host) (host-packets dest))
-
-    ;; (pomo:save-dao host)
-    ))
+    (incf (received-packets host) (host-packets dest))))
 
 (defmethod initialize-instance :after ((object periodic-report) &key (flow-list nil flow-list-p))
   (declare (ignore flow-list flow-list-p))

@@ -130,7 +130,15 @@
     (setf (filter collector) filter))
   (add-file collector file)
   (setf *current-report* (make-instance 'periodic-report))
-  (run collector))
+  (execute "TRUNCATE TABLE host_stat")
+  (clrhash *host-cache*)
+  (setf *host-cache-using-db-p* nil)
+  (setf *host-cache-visit* 0)
+  (setf *host-cache-last-flush* -1)
+  (run collector)
+  (format t "Cache hits/miss: ~d/~d (~$%)~%" *cache-hits* *cache-misses*
+	  (* 100 (/ *cache-hits* (+ *cache-hits* *cache-misses*))))
+  (finalize-report *current-report*))
 
 ;;; Collector stuff for racollector script.
 (defun collector-connect-string (&optional (hostname *collector-argus-server*)
