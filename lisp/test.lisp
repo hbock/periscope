@@ -18,6 +18,10 @@
 ;;;; Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 (in-package :periscope)
 
+(define-report-handler (db-report-test "/db-test" "Database Report Test") ()
+  (with-periscope-page ("Database Test")
+    (:div :class "stats" (print-html *current-report*))))
+
 (define-report-handler (split-test "/time-split" "Time Split Test") ()
   (with-periscope-page ("TIME-SPLIT test")
     (when *flow-list*
