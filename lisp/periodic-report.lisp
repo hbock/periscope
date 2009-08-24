@@ -221,7 +221,7 @@ supported.")
 	  (:td (str (funcall key host)))))
 	(setf row-switch (not row-switch))))))
 
-(defun print-busiest-hosts (title list)
+(defun print-busiest-hosts (report title)
   (with-html-output (*standard-output*)
     (:table
      (:tr (:th :colspan 9 (str title)))
@@ -234,15 +234,24 @@ supported.")
 	  (:th "Packets") (:th "Bytes")
 	  (:th "Packets") (:th "Bytes") (:th "Flows"))
      (loop :with row-switch = t
-	:for host :in list :repeat 15 :do
+	:with list =
+	(pomo:query-dao
+	 'host-stat
+	 (:limit (:order-by (:select '* :from 'host-stat) (:desc 'sent-bytes)) 20))
+	:for host :in list :do
 	(htm
 	 (:tr
 	  :class (if row-switch "rowa" "rowb")
-	  (:td (str (ip-string (host-ip host))))
-	  (:td (str (hostname (host-ip host))))
-	  (print-html (receiving host) :with-row nil :flows nil)
-	  (print-html (sending host)   :with-row nil :flows nil)
-	  (print-html (combine-stats (receiving host) (sending host)) :with-row nil)))
+	  (:td (str (host-ip host)))
+	  (:td (str (hostname (parse-ip-string (host-ip host)))))
+	  (:td (fmt "~:d" (sent-packets host)))
+	  (:td (str (byte-string (sent-bytes host))))
+	  (:td (fmt "~:d" (received-packets host)))
+	  (:td (str (byte-string (received-bytes host))))
+	  (:td (fmt "~:d" (+ (received-packets host) (sent-packets host))))
+	  (:td (str (byte-string (+ (received-bytes host) (sent-bytes host)))))
+	  (:td (fmt "~:d" (+ (received-flows host) (sent-flows host))))))
+	
 	(setf row-switch (not row-switch))))))
 
 (defmethod object-forms ((object stats))
@@ -295,12 +304,15 @@ supported.")
 	 (print-html (incoming report) :title "Incoming")
 	 (print-html (outgoing report) :title "Outgoing")
 	 (print-html (total report) :title "Total")))
-       (print-scan-hosts "Possible Incoming Scan Hosts" "Local"
-			 (incoming-scan-hosts report) :key #'local-contact-count)
-       (print-scan-hosts "Possible Outgoing Scan Hosts" "Remote"
-			 (outgoing-scan-hosts report) :key #'remote-contact-count)
-       (print-busiest-hosts "Busiest Local Hosts" (busiest-hosts (local-hosts report)))
-       (print-busiest-hosts "Busiest Remote Hosts" (busiest-hosts (remote-hosts report)))))))
+
+       (print-busiest-hosts report "Busiest Hosts")
+       ;; (print-scan-hosts "Possible Incoming Scan Hosts" "Local"
+       ;; 			 (incoming-scan-hosts report) :key #'local-contact-count)
+       ;; (print-scan-hosts "Possible Outgoing Scan Hosts" "Remote"
+       ;; 			 (outgoing-scan-hosts report) :key #'remote-contact-count)
+       ;; (print-busiest-hosts "Busiest Local Hosts" (busiest-hosts (local-hosts report)))
+       ;; (print-busiest-hosts "Busiest Remote Hosts" (busiest-hosts (remote-hosts report)))
+       ))))
 
 (defun combine-stats (&rest stats)
   (make-instance 'stats
