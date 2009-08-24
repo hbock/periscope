@@ -40,12 +40,10 @@
     (:ipv4
      (unless (null-pointer-p (get-metrics dsrs))
        (let ((ip (get-ip (get-flow dsrs))))
-	 (when (zerop (mod (incf *flows-seen*) 1000))
-	   (incf *host-cache-visit*))
+	 (when (zerop (mod (flows (total *current-report*)) 1000))
+	   (incf (cache-visit *current-report*)))
 	 
-	 (nadd *current-report* (build-flow dsrs ip))
-	 ;(push (build-flow dsrs ip) *flow-list*)
-	 )))))
+	 (nadd *current-report* (build-flow dsrs ip)))))))
 
 (defmethod initialize-instance :after ((object collector) &key)
   (let ((ptr (foreign-alloc 'periscope-collector)))
@@ -129,17 +127,14 @@
   (when filter
     (setf (filter collector) filter))
   (add-file collector file)
+  
   (setf *current-report* (make-instance 'periodic-report))
   (execute "TRUNCATE TABLE host_stat")
-  (clrhash *host-cache*)
-  (setf *flows-seen* 0)
-  (setf *host-cache-using-db-p* nil)
-  (setf *host-cache-visit* 0)
-  (setf *host-cache-last-flush* -1)
-  (setf *cache-hits* 0 *cache-misses* 0)
   (run collector)
-  (format t "Cache hits/miss: ~d/~d (~$%)~%" *cache-hits* *cache-misses*
-	  (* 100 (/ *cache-hits* (+ *cache-hits* *cache-misses*))))
+  
+  (with-slots (cache-hits cache-misses) *current-report*
+    (format t "Cache hits/miss: ~d/~d (~$%)~%" cache-hits cache-misses
+	    (* 100 (/ cache-hits (+ cache-hits cache-misses)))))
   (finalize-report *current-report*))
 
 ;;; Collector stuff for racollector script.

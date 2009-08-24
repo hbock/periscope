@@ -29,10 +29,15 @@ supported.")
    (external :accessor external :type stats :initform (make-instance 'stats))
    (incoming :accessor incoming :type stats :initform (make-instance 'stats))
    (outgoing :accessor outgoing :type stats :initform (make-instance 'stats))
-   (host-stats :initform (make-hash-table :size 100000))
    (format-version :initarg :version :initform *periodic-report-format-version*)
    (filter :initarg :filter :reader filter :initform nil :type filter)
-   (report-time :initarg :time :reader report-time :initform (now))))
+   (report-time :initarg :time :reader report-time :initform (now))
+   (host-cache       :accessor host-cache)
+   (cache-visit     :accessor cache-visit :initform 0)
+   (cache-last-flush :accessor cache-last-flush :initform -1)
+   (cache-hits       :accessor cache-hits   :initform 0)
+   (cache-misses     :accessor cache-misses :initform 0)
+   (using-db         :accessor using-db-p   :initform nil)))
 
 (defclass host-stat ()
   ((host-ip :col-type inet :initarg :host-ip :accessor host-ip)
@@ -58,107 +63,107 @@ supported.")
    (local-contacts :initform (make-hash-table))
    (remote-contacts :initform (make-hash-table))))
 
-(defvar *host-cache* (make-hash-table :size 20000))
-(defvar *host-cache-visit* 0)
-(defvar *host-cache-last-flush* -1)
-(defvar *host-cache-using-db-p* nil)
+(defvar *host-cache-default-size* 30000)
 
-(defun cache-stats (&optional (cache *host-cache*))
-  (loop 
-     :with visit-list = (make-array (1+ *host-cache-visit*))
-     :for ip being the hash-keys in cache using (:hash-value (host . visit))
-     :do (incf (aref visit-list visit))
-     :finally (return visit-list)))
+(defmethod initialize-instance :after ((object periodic-report) &key
+				       (cache-size *host-cache-default-size*))
+  (with-slots (format-version host-cache) object
+    (setf host-cache (make-hash-table :test 'eql :size cache-size))
+    (setf format-version *periodic-report-format-version*)))
+
+(defmethod cache-stats ((report periodic-report))
+  (with-slots (host-cache cache-visit) report
+    (loop 
+       :with visit-list = (make-array (1+ cache-visit))
+       :for ip being the hash-keys in host-cache using (:hash-value (host . visit))
+       :do (incf (aref visit-list visit))
+       :finally (return visit-list))))
 
 (defmethod finalize-report ((report periodic-report))
   ""
-  ;; (maphash (lambda (key host-entry)
-  ;; 	     (declare (ignore key))
-  ;; 	     (pomo:save-dao (car host-entry))) *host-cache*)
-  ;; (clrhash *host-cache*)
-)
+  (maphash (lambda (key host-entry)
+  	     (declare (ignore key))
+  	     (pomo:save-dao (car host-entry))) (host-cache report))
+  (clrhash (host-cache report)))
 
-(defparameter *cache-hits* 0)
-(defparameter *cache-misses* 0)
-
-(defun cache-flush (&optional (flush-levels 3))
-  (setf *host-cache-using-db-p* t)
-  (format t "Flushing @ visit ~d~%" *host-cache-visit*)
-  (let ((purged-entries 0))
-    (maphash (lambda (key value)
-	       (destructuring-bind (host . last-visit) value
-		 (when (<= last-visit (+ flush-levels *host-cache-last-flush*))
-		   (incf purged-entries)
-		   (pomo:save-dao host)
-		   (remhash key *host-cache*))))
-	     *host-cache*)
-    (format t "Flushed ~d entries.~%" purged-entries))
-  (incf *host-cache-last-flush* flush-levels))
+(defun cache-flush (report &optional (flush-levels 3))
+  (with-slots (using-db cache-visit cache-last-flush host-cache) report
+    (setf using-db t)
+    (format t "Flushing @ visit ~d~%" cache-visit)
+    (let ((purged-entries 0))
+      (maphash (lambda (key value)
+		 (destructuring-bind (host . last-visit) value
+		   (when (<= last-visit (+ flush-levels cache-last-flush))
+		     (incf purged-entries)
+		     (pomo:save-dao host)
+		     (remhash key host-cache))))
+	       host-cache)
+      (format t "Flushed ~d entries.~%" purged-entries))
+    (incf cache-last-flush flush-levels)))
 
 ;;; Our method for host statistics lookup is based on an LRU-like caching algorithm.
-(defmethod find-host-stats ((host flow-host) &key (check-db-p *host-cache-using-db-p*))
-  (multiple-value-bind (cached-value existsp)
-      (gethash (host-ip host) *host-cache*)
-    (flet ((cache-insert (host host-entry)
-	     (when (= (hash-table-size *host-cache*)
-		      (hash-table-count *host-cache*))
-	       (cache-flush))
+(defmethod find-host-stats ((report periodic-report) (host flow-host)
+			    &key (check-db-p (using-db-p report)))
+  (with-slots (host-cache cache-visit cache-hits cache-misses) report
+    (multiple-value-bind (cached-value existsp)
+	(gethash (host-ip host) host-cache)
+      (flet ((cache-insert (host host-entry)
+	       (when (= (hash-table-size host-cache)
+			(hash-table-count host-cache))
+		 (cache-flush report))
 	     
-	     ;; Insert an element into the cache, with usage information.
-	     (setf (gethash (host-ip host) *host-cache*)
-		   (cons host-entry *host-cache-visit*))
-	     host-entry))
-      (cond
-	;; Host stats entry was found (cache hit) - return immediately
-	(existsp
-	 (incf *cache-hits*)
-	 ;; Update the victim time of the host entry in the cache.
-	 (setf (cdr cached-value) *host-cache-visit*)
-	 (incf (refcount (car cached-value)))
-	 (car cached-value))
+	       ;; Insert an element into the cache, with usage information.
+	       (setf (gethash (host-ip host) host-cache)
+		     (cons host-entry cache-visit))
+	       host-entry))
+	(cond
+	  ;; Host stats entry was found (cache hit) - return immediately
+	  (existsp
+	   (incf cache-hits)
+	   ;; Update the victim time of the host entry in the cache.
+	   (setf (cdr cached-value) cache-visit)
+	   (incf (refcount (car cached-value)))
+	   (car cached-value))
       
-	;; The host entry is not present in the cache, so we must either find it
-	;; in the backing database, or if this is a new host, we simply create a
-	;; new entry and add to the cache.
-	((and (not existsp) check-db-p)
-	 ;; We first try to SELECT this IP from the database...
-	 (let ((host-entry (first (pomo:select-dao 'host-stat (:= 'host-ip host)))))
-	   (incf *cache-misses*)
-	   (if host-entry
-	       ;; If found, it's a true cache miss, re-cache the entry.
-	       (progn
-		 (setf (host-ip host-entry) (make-instance 'flow-host :ip (host-ip host-entry)))
-		 (cache-insert host host-entry))
-	       ;; And if it is not found, we create, cache, and return a new entry.
-	       (cache-insert host (make-instance 'host-stat :host-ip host :host-type 0
-						 :hour 0 :date 26 :month 9)))))
+	  ;; The host entry is not present in the cache, so we must either find it
+	  ;; in the backing database, or if this is a new host, we simply create a
+	  ;; new entry and add to the cache.
+	  ((and (not existsp) check-db-p)
+	   ;; We first try to SELECT this IP from the database...
+	   (let ((host-entry (first (pomo:select-dao 'host-stat (:= 'host-ip host)))))
+	     (incf cache-misses)
+	     (if host-entry
+		 ;; If found, it's a true cache miss, re-cache the entry.
+		 (progn
+		   (setf (host-ip host-entry) (make-instance 'flow-host :ip (host-ip host-entry)))
+		   (cache-insert host host-entry))
+		 ;; And if it is not found, we create, cache, and return a new entry.
+		 (cache-insert host (make-instance 'host-stat :host-ip host :host-type 0
+						   :hour 0 :date 26 :month 9)))))
 
-	;; We can't (or don't need to) look in the database for the host, so we create a
-	;; new one and add it to the cache.
-	(t (cache-insert host (make-instance 'host-stat :host-ip host :host-type 0
-					     :hour 0 :date 26 :month 9)))))))
+	  ;; We can't (or don't need to) look in the database for the host, so we create a
+	  ;; new one and add it to the cache.
+	  (t (cache-insert host (make-instance 'host-stat :host-ip host :host-type 0
+					       :hour 0 :date 26 :month 9))))))))
 
-(defmethod update-host-stats ((source flow-host) (dest flow-host))
-  (let ((source-host (find-host-stats source))
-	(dest-host (find-host-stats dest)))
-    (incf (sent-flows source-host))
-    (incf (sent-bytes source-host) (host-bytes source))
-    (incf (sent-packets source-host) (host-packets source))
-    (incf (received-bytes source-host) (host-bytes dest))
-    (incf (received-packets source-host) (host-packets dest))
+(defmethod update-host-stats ((report periodic-report) (source flow-host) (dest flow-host))
+  (with-slots (host-cache) report
+    (let ((source-host (find-host-stats report source))
+	  (dest-host (find-host-stats report dest)))
+      (incf (sent-flows source-host))
+      (incf (sent-bytes source-host) (host-bytes source))
+      (incf (sent-packets source-host) (host-packets source))
+      (incf (received-bytes source-host) (host-bytes dest))
+      (incf (received-packets source-host) (host-packets dest))
     
-    (incf (received-flows dest-host))
-    (incf (sent-bytes dest-host) (host-bytes dest))
-    (incf (sent-packets dest-host) (host-packets dest))
-    (incf (received-bytes dest-host) (host-bytes source))
-    (incf (received-packets dest-host) (host-packets source))))
-
-(defmethod initialize-instance :after ((object periodic-report) &key (flow-list nil flow-list-p))
-  (declare (ignore flow-list flow-list-p))
-  (setf (slot-value object 'format-version) *periodic-report-format-version*))
+      (incf (received-flows dest-host))
+      (incf (sent-bytes dest-host) (host-bytes dest))
+      (incf (sent-packets dest-host) (host-packets dest))
+      (incf (received-bytes dest-host) (host-bytes source))
+      (incf (received-packets dest-host) (host-packets source)))))
 
 (defmethod nadd ((report periodic-report) (flow flow))
-  (with-slots (total internal external incoming outgoing) report
+  (with-slots (total internal external incoming outgoing host-cache) report
     (with-slots (source dest) flow
       (let ((bytes (+ (host-bytes source) (host-bytes dest)))
 	    (packets (+ (host-packets source) (host-packets dest))))
@@ -169,7 +174,7 @@ supported.")
 	  (:incoming  (add-stats incoming :bytes bytes :packets packets))
 	  (:outgoing  (add-stats outgoing :bytes bytes :packets packets)))
 
-	(update-host-stats source dest)))))
+	(update-host-stats report source dest)))))
 
 (defmethod local-contact-count ((host host-stats))
   (hash-table-count (slot-value host 'local-contacts)))
