@@ -40,7 +40,7 @@
     (:ipv4
      (unless (null-pointer-p (get-metrics dsrs))
        (let ((ip (get-ip (get-flow dsrs))))
-	 (when (zerop (mod (incf *flows-seen*) 10000))
+	 (when (zerop (mod (incf *flows-seen*) 1000))
 	   (incf *host-cache-visit*))
 	 
 	 (nadd *current-report* (build-flow dsrs ip))
@@ -132,9 +132,11 @@
   (setf *current-report* (make-instance 'periodic-report))
   (execute "TRUNCATE TABLE host_stat")
   (clrhash *host-cache*)
+  (setf *flows-seen* 0)
   (setf *host-cache-using-db-p* nil)
   (setf *host-cache-visit* 0)
   (setf *host-cache-last-flush* -1)
+  (setf *cache-hits* 0 *cache-misses* 0)
   (run collector)
   (format t "Cache hits/miss: ~d/~d (~$%)~%" *cache-hits* *cache-misses*
 	  (* 100 (/ *cache-hits* (+ *cache-hits* *cache-misses*))))
