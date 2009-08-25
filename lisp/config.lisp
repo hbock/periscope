@@ -61,6 +61,9 @@
 	     *collector-argus-port*
 	     *collector-argus-server*
 	     *collector-default-filter*
+	     *database-host*
+	     *database-user*
+	     *database-password*
 	     hunchentoot:*show-lisp-errors-p*
 	     hunchentoot:*session-max-time*
 	     *swank-port* *enable-swank-p*
