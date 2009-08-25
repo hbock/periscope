@@ -129,39 +129,40 @@ the pathname of the log itself."
     ((time :parameter-type 'integer))
   (with-periscope-page ("Hourly Traffic Reports")
     (if time
-	(handler-case
-	    (let* ((flows (process-local-file (hourly-log time)))
-		   (report-lists (make-filtered-reports flows time (user)))
-		   (logs (mapcar #'car (hourly-logs)))
-		   (position (position time logs))
-		   (previous-time
-		    (when (plusp position)
-		      (nth (1- position) logs)))
-		   (next-time (nth (1+ position) logs)))
-	      (htm
-	       (:h2 "Hourly Report")
-	       (if previous-time
-		   (htm (:a :href (format nil "/hourly?time=~d" previous-time) "Previous Report"))
-		   (htm "Previous Report"))
-	       " | "
-	       (:a :href "/hourly" "Back to all hourly reports")
-	       " | "
-	       (if next-time
-		   (htm (:a :href (format nil "/hourly?time=~d" next-time) "Next Report"))
-		   (htm "Next Report"))
-	       (:div :class "stats"
-		     (dolist (report-list report-lists)
-		       (destructuring-bind (time filter &rest reports) report-list
-			 (htm
-			  (:h3 (str (long-date-string (universal-to-timestamp time))))
-			  (when filter (print-html filter)))
+	(not-implemented 'show-reports)
+	;; (handler-case
+	;;     (let* ((flows (process-local-file (hourly-log time)))
+	;; 	   (report-lists (make-filtered-reports flows time (user)))
+	;; 	   (logs (mapcar #'car (hourly-logs)))
+	;; 	   (position (position time logs))
+	;; 	   (previous-time
+	;; 	    (when (plusp position)
+	;; 	      (nth (1- position) logs)))
+	;; 	   (next-time (nth (1+ position) logs)))
+	;;       (htm
+	;;        (:h2 "Hourly Report")
+	;;        (if previous-time
+	;; 	   (htm (:a :href (format nil "/hourly?time=~d" previous-time) "Previous Report"))
+	;; 	   (htm "Previous Report"))
+	;;        " | "
+	;;        (:a :href "/hourly" "Back to all hourly reports")
+	;;        " | "
+	;;        (if next-time
+	;; 	   (htm (:a :href (format nil "/hourly?time=~d" next-time) "Next Report"))
+	;; 	   (htm "Next Report"))
+	;;        (:div :class "stats"
+	;; 	     (dolist (report-list report-lists)
+	;; 	       (destructuring-bind (time filter &rest reports) report-list
+	;; 		 (htm
+	;; 		  (:h3 (str (long-date-string (universal-to-timestamp time))))
+	;; 		  (when filter (print-html filter)))
 			 
-			 (dolist (report reports)
-			   (print-html report)))
-		       (htm (:hr))))))
-	  ;; PROCESS-LOCAL-FILE and HOURLY-LOG can throw PERISCOPE-FILE-ERROR
-	  ;; to indicate file-not-found
-	  (file-error () (hunchentoot:redirect "/nothingtoseehere")))
+	;; 		 (dolist (report reports)
+	;; 		   (print-html report)))
+	;; 	       (htm (:hr))))))
+	;;   ;; PROCESS-LOCAL-FILE and HOURLY-LOG can throw PERISCOPE-FILE-ERROR
+	;;   ;; to indicate file-not-found
+	;;   (file-error () (hunchentoot:redirect "/nothingtoseehere")))
 	;; When 'time' GET parameter is not specified, print the list of all available
 	;; reports.
 	(print-hourly-list))))
