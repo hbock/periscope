@@ -64,6 +64,7 @@
 	     *database-host*
 	     *database-user*
 	     *database-password*
+	     *host-cache-default-size*
 	     hunchentoot:*show-lisp-errors-p*
 	     hunchentoot:*session-max-time*
 	     *swank-port* *enable-swank-p*
