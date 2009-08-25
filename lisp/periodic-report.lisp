@@ -319,6 +319,15 @@ supported.")
        (htm
 	(:h3 "Unique Hosts")
 	(:table
+	 (:tr (:th :colspan 4 "Flow Statistics"))
+	 (:tr (:th "") (:th "Packets") (:th "Bytes") (:th "Flows"))
+	 (print-html (internal report) :title "Internal Only")
+	 (print-html (external report) :title "External Only")
+	 (print-html (incoming report) :title "Incoming")
+	 (print-html (outgoing report) :title "Outgoing")
+	 (print-html (total report) :title "Total"))
+
+	(:table
 	 (:tr (:th :colspan 2 "Unique Hosts"))
 	 (:tr (:th "Type") (:th "Count"))
 	 (loop :for (desc type) :in '(("Local" :local) ("Remote" :remote)
@@ -326,15 +335,7 @@ supported.")
 				      ("Total" nil)) :do
 	    (htm
 	     (:tr (:td (:b (str desc)))
-		  (:td (fmt "~:d" (unique-hosts report :type type)))))))
-	(:table
-	 (:tr (:th :colspan 4 "Flow Statistics"))
-	 (:tr (:th "") (:th "Packets") (:th "Bytes") (:th "Flows"))
-	 (print-html (internal report) :title "Internal Only")
-	 (print-html (external report) :title "External Only")
-	 (print-html (incoming report) :title "Incoming")
-	 (print-html (outgoing report) :title "Outgoing")
-	 (print-html (total report) :title "Total")))
+		  (:td (fmt "~:d" (unique-hosts report :type type))))))))
 
        (print-busiest-hosts report "Busiest Local Hosts" :type :local)
        (print-busiest-hosts report "Busiest Remote Hosts" :type :remote)
