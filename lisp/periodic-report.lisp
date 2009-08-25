@@ -35,10 +35,12 @@ supported.")
    (filter :initarg :filter :reader filter :initform nil :type filter)
    (report-time :initarg :time :reader report-time :initform (this-hour (now)))
    (host-cache       :accessor host-cache)
+   (host-on-disk     :accessor host-on-disk)
    (cache-visit     :accessor cache-visit :initform 0)
    (cache-last-flush :accessor cache-last-flush :initform -1)
    (cache-hits       :accessor cache-hits   :initform 0)
    (cache-misses     :accessor cache-misses :initform 0)
+   (cache-lookups    :accessor cache-lookups :initform 0)
    (using-db         :accessor using-db-p   :initform nil)))
 
 (defclass host-stat ()
@@ -67,8 +69,9 @@ supported.")
 
 (defmethod initialize-instance :after ((object periodic-report) &key
 				       (cache-size *host-cache-default-size*))
-  (with-slots (format-version host-cache) object
+  (with-slots (format-version host-cache host-on-disk) object
     (setf host-cache (make-hash-table :test 'eql :size cache-size))
+    (setf host-on-disk (make-hash-table :test 'eql :size (* 10 cache-size)))
     (setf format-version *periodic-report-format-version*)))
 
 (defmethod cache-stats ((report periodic-report))
@@ -87,16 +90,19 @@ supported.")
   (clrhash (host-cache report)))
 
 (defun cache-flush (report &optional (flush-levels 3))
-  (with-slots (using-db cache-visit cache-last-flush host-cache) report
+  (with-slots (using-db cache-visit cache-last-flush host-cache host-on-disk cache-hits
+			cache-misses cache-lookups) report
     (setf using-db t)
-    (format t "Flushing @ visit ~d~%" cache-visit)
+    (format t "Flushing @ visit ~d (h/m/l ~:d/~:d/~:d)~%" cache-visit
+	    cache-hits cache-misses cache-lookups)
     (let ((purged-entries 0))
       (maphash (lambda (key value)
 		 (destructuring-bind (host . last-visit) value
 		   (when (<= last-visit (+ flush-levels cache-last-flush))
 		     (incf purged-entries)
 		     (pomo:save-dao host)
-		     (remhash key host-cache))))
+		     (remhash key host-cache)
+		     (setf (gethash key host-on-disk) t))))
 	       host-cache)
       (format t "Flushed ~d entries.~%" purged-entries))
     (incf cache-last-flush flush-levels)))
@@ -104,7 +110,7 @@ supported.")
 ;;; Our method for host statistics lookup is based on an LRU-like caching algorithm.
 (defmethod find-host-stats ((report periodic-report) (host flow-host)
 			    &key (check-db-p (using-db-p report)))
-  (with-slots (host-cache cache-visit cache-hits cache-misses) report
+  (with-slots (host-cache host-on-disk cache-visit cache-hits cache-misses cache-lookups) report
     (multiple-value-bind (cached-value existsp)
 	(gethash (host-ip host) host-cache)
       (flet ((new-entry ()
@@ -117,7 +123,7 @@ supported.")
 	       (when (= (hash-table-size host-cache)
 			(hash-table-count host-cache))
 		 (cache-flush report))
-	     
+
 	       ;; Insert an element into the cache, with usage information.
 	       (setf (gethash (host-ip host) host-cache)
 		     (cons host-entry cache-visit))
@@ -135,15 +141,17 @@ supported.")
 	  ;; in the backing database, or if this is a new host, we simply create a
 	  ;; new entry and add to the cache.
 	  ((and (not existsp) check-db-p)
-	   ;; We first try to SELECT this IP from the database...
-	   (let ((host-entry (first (pomo:select-dao 'host-stat (:= 'host-ip host)))))
-	     (incf cache-misses)
-	     (if host-entry
-		 ;; If found, it's a true cache miss, re-cache the entry.
-		 (progn
+	   (multiple-value-bind (on-disk-p seen-p)
+	       (gethash (host-ip host) host-on-disk)
+	     (if on-disk-p
+		 ;; We first try to SELECT this IP from the database...
+		 (let ((host-entry (first (pomo:select-dao 'host-stat (:= 'host-ip host)))))
+		   (incf cache-misses)
+		   (unless host-entry
+		     (error "Shit."))
+		   (incf cache-lookups)
 		   (setf (host-ip host-entry) (make-instance 'flow-host :ip (host-ip host-entry)))
 		   (cache-insert host host-entry))
-		 ;; And if it is not found, we create, cache, and return a new entry.
 		 (cache-insert host (new-entry)))))
 
 	  ;; We can't (or don't need to) look in the database for the host, so we create a
@@ -248,8 +256,8 @@ supported.")
 	(htm
 	 (:tr
 	  :class (if row-switch "rowa" "rowb")
-	  (:td (str (host-ip host)))
-	  (:td (str (hostname (parse-ip-string (host-ip host)))))
+	  (:td (str (ip-string (host-ip host))))
+	  (:td (str (hostname (host-ip host))))
 	  (:td (fmt "~:d" (sent-packets host)))
 	  (:td (str (byte-string (sent-bytes host))))
 	  (:td (fmt "~:d" (received-packets host)))
