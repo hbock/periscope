@@ -22,6 +22,8 @@
   "Current version of the PERIOD-REPORT file/class format. Used to ensure older report formats
 are processed correctly, or a proper error is signalled when a report format is no longer
 supported.")
+(defvar *host-cache-default-size* 30000)
+(defconstant +min-host-cache-size+ 30000)
 
 (defclass periodic-report (report)
   ((total :accessor total :type stats :initform (make-instance 'stats))
@@ -62,8 +64,6 @@ supported.")
    (receiving :accessor receiving :type stats :initform (make-instance 'stats))
    (local-contacts :initform (make-hash-table))
    (remote-contacts :initform (make-hash-table))))
-
-(defvar *host-cache-default-size* 30000)
 
 (defmethod initialize-instance :after ((object periodic-report) &key
 				       (cache-size *host-cache-default-size*))

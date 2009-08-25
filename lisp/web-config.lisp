@@ -229,7 +229,7 @@ Invalid CIDR subnets will signal a PARSE-ERROR."
     (error-redirect "success")))
 
 (hunchentoot:define-easy-handler (periscope-config :uri "/periscope-config")
-    (error host port)
+    (error host port db-host db-user)
   (with-periscope-page ("Periscope Configuration" :admin t)
     (when (string= error "success")
       (htm (:p :class "success" "Configuration values successfully applied!")))
@@ -243,28 +243,52 @@ Invalid CIDR subnets will signal a PARSE-ERROR."
 	  (:td "Perform DNS reverse lookup in reports")
 	  (:td (checkbox "dnslookup" :checked *dns-available-p*)))))
 
-      (if *collector-argus-server*
-	  (with-config-section ("Data Collection Settings")
-	    (cond
-	      ((collector-running-p)
-	       (htm
-		"Currently connected to remote Argus server "
-		(:b (str (collector-connect-string)))
-		"." (:br)
-		(:b (:a :href "/collector?action=stop" "Stop the collector."))))
-	      (t (if (collector-aborted-p)
-		     (htm
-		      (:b :class "error" "Collector process failed to start.")
-		      (:p
-		       "Ensure Argus is running on " (:b (str (collector-connect-string)))
-		       " and is accessible from this machine."
-		       (collector-connect-string)))
-		     (htm
-		      "Data collection from " (:b (str (collector-connect-string))) " is stopped."
-		      (:br)
-		      (:a :href "/collector?action=start" "Start the collector.")))))))
+      (with-config-section ("Report Generation Settings" "database")
+	(:table
+	 (when (string= error "baddbhost")
+	   (error-message (format nil "Invalid host '~a'!" db-host)))
+	 (:tr
+	  (:td "Database Hostname")
+	  (:td (input "db-host" (escape-string *database-host*))))
+	 (when (string= error "baddbuser")
+	   (error-message (format nil "Bad PostgreSQL username '~a' Must contain only alphanumeric characters and underscores."
+				  db-user)))
+	 (:tr
+	  (:td "Database Username")
+	  (:td (input "db-user" (escape-string *database-user*))))
+	 (when (string= error "baddbpass")
+	   (error-message "PostgreSQL database password cannot be empty!"))
+	 (:tr
+	  (:td "Database Password")
+	  (:td (password-input "db-password" :default *database-password*)))
+	 (when (string= error "badcachesize")
+	   (error-message (format nil "Cache size must be a positive integer (at least ~d entries)."
+				  +min-host-cache-size+)))
+	 (:tr
+	  (:td "Maximum cache size (entries)")
+	  (:td (input "cache-size" *host-cache-default-size* :size 8)))))
       
       (with-config-section ("Argus Server Settings" "argus")
+	(when *collector-argus-server*
+	  (cond
+	    ((collector-running-p)
+	     (htm
+	      "Currently connected to remote Argus server "
+	      (:b (str (collector-connect-string)))
+	      "." (:br)
+	      (:b (:a :href "/collector?action=stop" "Stop the collector."))))
+	    (t (if (collector-aborted-p)
+		   (htm
+		    (:b :class "error" "Collector process failed to start.")
+		    (:p
+		     "Ensure Argus is running on " (:b (str (collector-connect-string)))
+		     " and is accessible from this machine."
+		     (collector-connect-string)))
+		   (htm
+		    (:p
+		     "Data collection from " (:b (str (collector-connect-string))) " is stopped."
+		     (:br)
+		     (:a :href "/collector?action=start" "Start the collector.")))))))
 	(:table
 	 (string-case error
 	   ("badhost"
@@ -300,13 +324,34 @@ Invalid CIDR subnets will signal a PARSE-ERROR."
   (hunchentoot:redirect "/periscope-config?error=success"))
 
 (hunchentoot:define-easy-handler (set-periscope-config :uri "/set-periscope-config")
-    ((web-port :parameter-type 'integer) dnslookup hostname port)
+    ((web-port :parameter-type 'integer)
+     (cache-size :parameter-type 'integer)
+     dnslookup hostname port
+     db-host db-user db-password)
   (valid-session-or-lose :admin t)
   
   (let ((*redirect-page* "/periscope-config"))
-    ;; TODO: Restart server!   
+    (cond
+      ((or (null cache-size) (< cache-size +min-host-cache-size+))
+       (error-redirect "badcachesize"))
+      
+      ((not (ppcre:scan "^[a-zA-Z0-9_]+$" db-user))
+       (error-redirect "baddbuser" :db-user db-user))
+
+      ((or (empty-string-p db-host) (not (lookup db-host)))
+       (error-redirect "baddbhost" :db-host db-host))
+
+      ((empty-string-p db-password)
+       (error-redirect "baddbpass")))
+    
+    ;; TODO: Restart server!
     (when web-port
       (setf *web-port* web-port))
+
+    (setf *host-cache-default-size* cache-size
+	  *database-user* db-user
+	  *database-host* db-host
+	  *database-password* db-password)
     
     ;; Start and stop DNS lookup thread according to the dnslookup value.
     (cond
@@ -341,8 +386,9 @@ Invalid CIDR subnets will signal a PARSE-ERROR."
 	(setf *collector-argus-port* port)))
       
     ;; TODO: need to implement saving sources.
+    
     (save-config)
-    (error-redirect "success")))
+    (error-redirect "success") ))
 
 (defun print-sources (list title)
   (when list
