@@ -36,7 +36,7 @@
   (with-html-output (*standard-output*)
     (if with-row
 	(htm
-	 (:tr (:th (str title))
+	 (:tr (:td (:b (str title)))
 	      (:td (fmt "~:d" (packets object)))
 	      (:td (str (byte-string (bytes object))))
 	      (:td (fmt "~:d" (flows object)))))
