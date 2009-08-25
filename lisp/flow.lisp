@@ -35,6 +35,21 @@
 (defmethod cl-postgres:to-sql-string ((host flow-host))
   (format nil "'~a'" (ip-string (host-ip host))))
 
+(defmethod flow-host-type ((host flow-host))
+  (with-slots (ip) host
+    (cond
+      ((any-broadcast-address-p ip) 0)
+      ((multicast-address-p ip) 1)
+      ((local-host-p ip) 2)
+      ((remote-host-p ip) 3))))
+
+(defmethod flow-host-type ((type symbol))
+  (ecase type
+    (:broadcast 0)
+    (:multicast 1)
+    (:local 2)
+    (:remote 3)))
+
 (defmethod start-time ((object flow))
   (local-time:timestamp-minimum
    (start-time (source object)) (start-time (dest object))))

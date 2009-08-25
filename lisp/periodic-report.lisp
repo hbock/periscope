@@ -33,7 +33,7 @@ supported.")
    (outgoing :accessor outgoing :type stats :initform (make-instance 'stats))
    (format-version :initarg :version :initform *periodic-report-format-version*)
    (filter :initarg :filter :reader filter :initform nil :type filter)
-   (report-time :initarg :time :reader report-time :initform (now))
+   (report-time :initarg :time :reader report-time :initform (this-hour (now)))
    (host-cache       :accessor host-cache)
    (cache-visit     :accessor cache-visit :initform 0)
    (cache-last-flush :accessor cache-last-flush :initform -1)
@@ -107,7 +107,13 @@ supported.")
   (with-slots (host-cache cache-visit cache-hits cache-misses) report
     (multiple-value-bind (cached-value existsp)
 	(gethash (host-ip host) host-cache)
-      (flet ((cache-insert (host host-entry)
+      (flet ((new-entry ()
+	       (make-instance 'host-stat :host-ip host
+			      :host-type (flow-host-type host)
+			      :hour (timestamp-hour (report-time report))
+			      :date (timestamp-day (report-time report))
+			      :month (timestamp-month (report-time report))))
+	     (cache-insert (host host-entry)
 	       (when (= (hash-table-size host-cache)
 			(hash-table-count host-cache))
 		 (cache-flush report))
@@ -138,13 +144,11 @@ supported.")
 		   (setf (host-ip host-entry) (make-instance 'flow-host :ip (host-ip host-entry)))
 		   (cache-insert host host-entry))
 		 ;; And if it is not found, we create, cache, and return a new entry.
-		 (cache-insert host (make-instance 'host-stat :host-ip host :host-type 0
-						   :hour 0 :date 26 :month 9)))))
+		 (cache-insert host (new-entry)))))
 
 	  ;; We can't (or don't need to) look in the database for the host, so we create a
 	  ;; new one and add it to the cache.
-	  (t (cache-insert host (make-instance 'host-stat :host-ip host :host-type 0
-					       :hour 0 :date 26 :month 9))))))))
+	  (t (cache-insert host (new-entry))))))))
 
 (defmethod update-host-stats ((report periodic-report) (source flow-host) (dest flow-host))
   (with-slots (host-cache) report
@@ -221,7 +225,7 @@ supported.")
 	  (:td (str (funcall key host)))))
 	(setf row-switch (not row-switch))))))
 
-(defun print-busiest-hosts (report title)
+(defun print-busiest-hosts (report title &key (type :local))
   (with-html-output (*standard-output*)
     (:table
      (:tr (:th :colspan 9 (str title)))
@@ -237,7 +241,9 @@ supported.")
 	:with list =
 	(pomo:query-dao
 	 'host-stat
-	 (:limit (:order-by (:select '* :from 'host-stat) (:desc 'sent-bytes)) 20))
+	 (:limit (:order-by (:select '* :from 'host-stat
+				     :where (:= 'host-type (flow-host-type type)))
+			    (:desc 'sent-bytes)) 20))
 	:for host :in list :do
 	(htm
 	 (:tr
@@ -286,6 +292,12 @@ supported.")
   (with-open-file (stream file :direction :input)
     (eval (read stream))))
 
+(defmethod unique-hosts ((report periodic-report) &key type)
+  (if type
+      (query (:select (:count 'host-ip) :from 'host-stat
+		      :where (:= 'host-type (flow-host-type type))) :single)
+      (query (:select (:count 'host-ip) :from 'host-stat) :single)))
+
 (defmethod print-html ((report periodic-report) &key title)
   (with-html-output (*standard-output*)
     (:h3 "General Statistics")
@@ -297,7 +309,18 @@ supported.")
        (htm (:b "No flows matched this filter.")))
       (t
        (htm
+	(:h3 "Unique Hosts")
 	(:table
+	 (:tr (:th :colspan 2 "Unique Hosts"))
+	 (:tr (:th "Type") (:th "Count"))
+	 (loop :for (desc type) :in '(("Local" :local) ("Remote" :remote)
+				      ("Broadcast" :broadcast) ("Multicast" :multicast)
+				      ("Total" nil)) :do
+	    (htm
+	     (:tr (:td (:b (str desc)))
+		  (:td (fmt "~:d" (unique-hosts report :type type)))))))
+	(:table
+	 (:tr (:th :colspan 4 "Flow Statistics"))
 	 (:tr (:th "") (:th "Packets") (:th "Bytes") (:th "Flows"))
 	 (print-html (internal report) :title "Internal Only")
 	 (print-html (external report) :title "External Only")
@@ -305,13 +328,12 @@ supported.")
 	 (print-html (outgoing report) :title "Outgoing")
 	 (print-html (total report) :title "Total")))
 
-       (print-busiest-hosts report "Busiest Hosts")
+       (print-busiest-hosts report "Busiest Local Hosts" :type :local)
+       (print-busiest-hosts report "Busiest Remote Hosts" :type :remote)
        ;; (print-scan-hosts "Possible Incoming Scan Hosts" "Local"
        ;; 			 (incoming-scan-hosts report) :key #'local-contact-count)
        ;; (print-scan-hosts "Possible Outgoing Scan Hosts" "Remote"
        ;; 			 (outgoing-scan-hosts report) :key #'remote-contact-count)
-       ;; (print-busiest-hosts "Busiest Local Hosts" (busiest-hosts (local-hosts report)))
-       ;; (print-busiest-hosts "Busiest Remote Hosts" (busiest-hosts (remote-hosts report)))
        ))))
 
 (defun combine-stats (&rest stats)
