@@ -46,14 +46,20 @@
      (:tr (:td "Collector foreign pointer")
 	  (:td (if *collector*
 		   (str (get-ptr *collector*))
-		   (str "Not initialized!"))))))
-  (collector-diag)
-  (dns-diag)
-  #+sbcl (sbcl-parameters))
+		   (str "Not initialized!")))))))
 
 (defun y-or-n-td (generalized-boolean)
   (with-html-output (*standard-output*)
     (:td (fmt "~:[No~;Yes~]" generalized-boolean))))
+
+(defun db-diag ()
+  (with-config-section ("Reporting/PostgreSQL Diagnostics" "pgsql")
+    (:table
+     (:tr (:td "PostgreSQL user/password")
+	  (:td (fmt "~a/~a" *database-user* *database-password*)))
+     (:tr (:td "Connected to database?") (y-or-n-td (database-connected-p)))
+     (:tr (:td "Host cache minimum size") (:td (fmt "~:d entries" +min-host-cache-size+)))
+     (:tr (:td "Host cache current size") (:td (fmt "~:d entries" *host-cache-default-size*))))))
 
 (defun dns-diag ()
   (with-config-section ("DNS Lookup Thread" "dns")
@@ -101,19 +107,27 @@
   (declare (ignore begin))
   (with-periscope-page ("Diagnostic Suite" :admin t)
     (:h2 "Periscope Diagnostic Suite")
-    (:p (who:fmt "Welcome to the diagnostic test suite for Periscope ~a. " *periscope-version*))
+    (:p (who:fmt "Welcome to the diagnostic test suite for Periscope ~a. " *periscope-version*)
     
-    (warning-box
-     "This test suite will do many evil things and may crash your Lisp, your browser, 
-and your child.  Unfortunately, we cannot reboot your child.")
-
+	(warning-box
+	 "This test suite will do many evil things and may crash your Lisp, your browser, 
+and your child.  Unfortunately, we cannot reboot your child."))
+    (:br)
     (when (running-p *collector*)
       (htm
        (:p (:a :href "/stop" "Stop") "the running collector.")))
 
-    (diag-settings-form)    
-    (diag-image-parameters)
-    (diag-thread-list)))
+    (:table
+     (:tr
+      (:td :valign "top"
+	   (diag-settings-form)
+	   (db-diag)
+	   (diag-image-parameters))
+      (:td :valign "top"
+	   (collector-diag)
+	   (dns-diag)
+	   #+sbcl (sbcl-parameters)
+	   (diag-thread-list))))))
 
 (hunchentoot:define-easy-handler (set-diag :uri "/set-diag")
     (showbt showdiag swank (swankport :parameter-type 'integer))
