@@ -18,10 +18,9 @@
 ;;;; Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 (in-package :periscope)
 
-(defparameter *periscope-db-user* "periscope")
-(defparameter *periscope-db-host* "localhost")
-(defparameter *periscope-db-password* "periscope")
-(defparameter *periscope-db-connection* nil)
+(defparameter *database-host* "localhost")
+(defparameter *database-user* "periscope")
+(defparameter *database-password* "periscope")
 
 (defconstant +postgres-oid-inet+ 869)
 
@@ -46,17 +45,23 @@ by Periscope."
        (read-sequence ip inet-stream :end 4)
        (vector-to-ip ip)))))
 
-(defun init-postgres ()
+(defun database-initialize ()
   "Perform initialization of PostgreSQL functionality - sets up readers for special Periscope
 data types, etc."
-  (cl-postgres:set-sql-reader +postgres-oid-inet+ #'inet-binary-sql-reader :binary-p t))
+  (cl-postgres:set-sql-reader +postgres-oid-inet+ #'inet-binary-sql-reader :binary-p t)
+  (database-connect "periscope")
+  (unless (pomo:table-exists-p 'host-stat)
+    (create-schema)))
 
-(defun connect-db (database-name &key (user *periscope-db-user*)
-		   (host *periscope-db-host*)
-		   (password *periscope-db-password*))
-  (setf *periscope-db-connection* (pomo:connect database-name user password host)))
+(defun database-connect (database-name &key (user *database-user*)
+			 (host *database-host*)
+			 (password *database-password*))
+  (setf pomo:*database* (pomo:connect database-name user password host)))
 
-(defun disconnect-db (&optional (connection *periscope-db-connection*))
+(defun database-connected-p ()
+  (pomo:connected-p pomo:*database*))
+
+(defun database-disconnect (&optional (connection pomo:*database*))
   (pomo:disconnect connection))
 
 (defun create-schema ()
