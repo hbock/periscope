@@ -59,14 +59,6 @@ supported.")
   (:metaclass pomo:dao-class)
   (:keys host-ip hour date month))
 
-(defclass host-stats ()
-  ((ip :initarg :ip :accessor host-ip :initform (error "Must provide IP!"))
-   (total :accessor total :type stats)
-   (sending :accessor sending :type stats :initform (make-instance 'stats))
-   (receiving :accessor receiving :type stats :initform (make-instance 'stats))
-   (local-contacts :initform (make-hash-table))
-   (remote-contacts :initform (make-hash-table))))
-
 (defmethod initialize-instance :after ((object periodic-report) &key
 				       (cache-size *host-cache-default-size*))
   (with-slots (format-version host-cache host-on-disk) object
@@ -84,10 +76,55 @@ supported.")
 
 (defmethod finalize-report ((report periodic-report))
   ""
-  (maphash (lambda (key host-entry)
-  	     (declare (ignore key))
-  	     (pomo:save-dao (car host-entry))) (host-cache report))
+  (with-open-file (outspec "sql.csv" :direction :output
+			   :if-exists :supersede
+			   :if-does-not-exist :create)
+    (maphash (lambda (key host-entry)
+	       (if (gethash key (host-on-disk report))
+		   (pomo:update-dao (car host-entry))
+		   (write-flat-host-entry (car host-entry) outspec)))
+	     (host-cache report)))
+  (copy-host-data "sql.csv")
   (clrhash (host-cache report)))
+
+(defun copy-host-data (file)
+  (execute
+   (format nil
+	   "COPY host_stat (host_ip, host_type, hour, date, month, sent_flows, sent_bytes, 
+sent_packets, received_flows, received_bytes, received_packets) FROM '~a' WITH CSV"
+	   (truename file))))
+
+(defun write-flat-host-entry (host &optional (stream *standard-output*))
+  (with-slots (host-ip host-type hour date month sent-flows sent-bytes sent-packets
+		       received-flows received-bytes received-packets)
+      host
+    (format stream "~a,~d,~d,~d,~d,~d,~d,~d,~d,~d,~d~%"
+	    (ip-string (host-ip host-ip)) host-type hour date month sent-flows sent-bytes sent-packets
+	    received-flows received-bytes received-packets)))
+
+(defmacro fast-update ()
+  (flet ((placeholder (n) (make-symbol (format nil "$~d" n))))
+    (let* (set-fields
+	   (last-field-num
+	    (loop :for i = 1 :then (1+ i)
+	       :for symbol :in '(sent-flows sent-bytes sent-packets
+				 received-flows received-bytes received-packets) :do
+	       (push symbol set-fields)
+	       (push (placeholder i) set-fields)
+	       :finally (return i))))
+      (s-sql:sql-compile
+       `(:update 'host-stat :set ,@(nreverse set-fields)
+		 :where (:= host-ip ,(placeholder last-field-num)))))))
+
+(pomo:defprepared host-stat-update
+    (fast-update))
+
+(defmethod prepared-update ((host host-stat))
+  (with-slots (host-ip sent-flows sent-bytes sent-packets received-flows received-bytes
+		       received-packets)
+      host
+    (host-stat-update sent-flows sent-bytes sent-packets received-flows
+		      received-bytes received-packets (ip-string (host-ip host-ip)))))
 
 (defun cache-flush (report &optional (flush-levels 3))
   (with-slots (using-db cache-visit cache-last-flush host-cache host-on-disk cache-hits
@@ -95,16 +132,28 @@ supported.")
     (setf using-db t)
     (format t "Flushing @ visit ~d (h/m/l ~:d/~:d/~:d)~%" cache-visit
 	    cache-hits cache-misses cache-lookups)
-    (let ((purged-entries 0))
-      (maphash (lambda (key value)
-		 (destructuring-bind (host . last-visit) value
-		   (when (<= last-visit (+ flush-levels cache-last-flush))
-		     (incf purged-entries)
-		     (pomo:save-dao host)
-		     (remhash key host-cache)
-		     (setf (gethash key host-on-disk) t))))
-	       host-cache)
-      (format t "Flushed ~d entries.~%" purged-entries))
+    (let ((purged-entries 0)
+	  (updates 0) (inserts 0) (time (get-universal-time)))
+      (with-open-file (outspec "sql.csv" :direction :output
+			       :if-exists :supersede
+			       :if-does-not-exist :create)
+	(maphash (lambda (key value)
+		   (destructuring-bind (host . last-visit) value
+		     (when (<= last-visit (+ flush-levels cache-last-flush))
+		       (incf purged-entries)
+		       (if (gethash key (host-on-disk report))
+			   (progn
+			     (incf updates)
+			     (prepared-update host))
+			   (progn
+			     (incf inserts)
+			     (write-flat-host-entry host outspec)
+			     (setf (gethash key host-on-disk) t)))
+		       (remhash key host-cache))))
+		 host-cache))
+      (copy-host-data "sql.csv")
+      (format t "Flushed ~d entries (~d updates, ~d inserts) in ~d seconds.~%"
+	      purged-entries updates inserts (- (get-universal-time) time)))
     (incf cache-last-flush flush-levels)))
 
 ;;; Our method for host statistics lookup is based on an LRU-like caching algorithm.
@@ -195,6 +244,12 @@ supported.")
 (defmethod remote-contact-count ((host host-stats))
   (hash-table-count (slot-value host 'remote-contacts)))
 
+(defmethod busiest-hosts ((report periodic-report) &key (limit 20) (type :local))
+  (pomo:query-dao
+   'host-stat
+   (:limit (:order-by (:select '* :from 'host-stat :where (:= 'host-type (flow-host-type type)))
+		      (:desc 'sent-bytes)) limit)))
+
 (defun print-scan-hosts (title host-type list &key key)
   (with-html-output (*standard-output*)
     (:table
@@ -211,7 +266,6 @@ supported.")
 	(setf row-switch (not row-switch))))))
 
 (defun print-busiest-hosts (report title &key (type :local))
-  (declare (ignore report))
   (with-html-output (*standard-output*)
     (:table
      (:tr (:th :colspan 9 (str title)))
@@ -223,28 +277,21 @@ supported.")
 	  (:th "Packets") (:th "Bytes")
 	  (:th "Packets") (:th "Bytes")
 	  (:th "Packets") (:th "Bytes") (:th "Flows"))
-     (loop :with row-switch = t
-	:with list =
-	(pomo:query-dao
-	 'host-stat
-	 (:limit (:order-by (:select '* :from 'host-stat
-				     :where (:= 'host-type (flow-host-type type)))
-			    (:desc 'sent-bytes)) 20))
-	:for host :in list :do
-	(htm
-	 (:tr
-	  :class (if row-switch "rowa" "rowb")
-	  (:td (str (ip-string (host-ip host))))
-	  (:td (str (hostname (host-ip host))))
-	  (:td (fmt "~:d" (sent-packets host)))
-	  (:td (str (byte-string (sent-bytes host))))
-	  (:td (fmt "~:d" (received-packets host)))
-	  (:td (str (byte-string (received-bytes host))))
-	  (:td (fmt "~:d" (+ (received-packets host) (sent-packets host))))
-	  (:td (str (byte-string (+ (received-bytes host) (sent-bytes host)))))
-	  (:td (fmt "~:d" (+ (received-flows host) (sent-flows host))))))
-	
-	(setf row-switch (not row-switch))))))
+     (let ((row-switch t))
+       (dolist (host (busiest-hosts report :type type))
+	 (htm
+	  (:tr
+	   :class (if row-switch "rowa" "rowb")
+	   (:td (str (ip-string (host-ip host))))
+	   (:td (str (hostname (host-ip host))))
+	   (:td (fmt "~:d" (sent-packets host)))
+	   (:td (str (byte-string (sent-bytes host))))
+	   (:td (fmt "~:d" (received-packets host)))
+	   (:td (str (byte-string (received-bytes host))))
+	   (:td (fmt "~:d" (+ (received-packets host) (sent-packets host))))
+	   (:td (str (byte-string (+ (received-bytes host) (sent-bytes host)))))
+	   (:td (fmt "~:d" (+ (received-flows host) (sent-flows host))))))
+	 (setf row-switch (not row-switch)))))))
 
 (defmethod print-object ((report periodic-report) stream)
   (print-unreadable-object (report stream :type t :identity t)
