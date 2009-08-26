@@ -68,4 +68,5 @@ data types, etc."
   "Create the Periscope database schema on the currently connected database. Creates
 table layouts and their relevant indexes."
   (execute (pomo:dao-table-definition 'host-stat))
-  (execute (:create-index 'time :on host-stat :fields hour date month)))
+  ;(execute (:create-index 'time :on host-stat :fields hour date month))
+  )
