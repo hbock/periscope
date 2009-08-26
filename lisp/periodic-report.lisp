@@ -143,6 +143,7 @@ supported.")
 	  ((and (not existsp) check-db-p)
 	   (multiple-value-bind (on-disk-p seen-p)
 	       (gethash (host-ip host) host-on-disk)
+	     (declare (ignore seen-p))
 	     (if on-disk-p
 		 ;; We first try to SELECT this IP from the database...
 		 (let ((host-entry (first (pomo:select-dao 'host-stat (:= 'host-ip host)))))
@@ -194,30 +195,6 @@ supported.")
 (defmethod remote-contact-count ((host host-stats))
   (hash-table-count (slot-value host 'remote-contacts)))
 
-(defmethod hosts-collect-if ((object periodic-report) predicate)
-  (with-slots (host-stats) object
-    (loop :for host-ip :being :the :hash-keys :in host-stats :using (:hash-value stats)
-       :when (funcall predicate host-ip)
-       :collect stats)))
-
-(defmethod remote-hosts ((object periodic-report))
-  (hosts-collect-if object #'remote-host-p))
-
-(defmethod local-hosts ((object periodic-report))
-  (hosts-collect-if object #'local-host-p))
-
-(defun busiest-hosts (stat-list)
-  (sort stat-list #'> :key (lambda (stats)
-			     (+ (bytes (receiving stats)) (bytes (sending stats))))))
-
-(defmethod incoming-scan-hosts ((report periodic-report))
-  (sort (remove-if #'zerop (remote-hosts report) :key #'local-contact-count)
-	#'> :key #'local-contact-count))
-
-(defmethod outgoing-scan-hosts ((report periodic-report))
-  (sort (remove-if #'zerop (local-hosts report) :key #'remote-contact-count)
-	#'> :key #'remote-contact-count))
-
 (defun print-scan-hosts (title host-type list &key key)
   (with-html-output (*standard-output*)
     (:table
@@ -234,6 +211,7 @@ supported.")
 	(setf row-switch (not row-switch))))))
 
 (defun print-busiest-hosts (report title &key (type :local))
+  (declare (ignore report))
   (with-html-output (*standard-output*)
     (:table
      (:tr (:th :colspan 9 (str title)))
@@ -268,23 +246,6 @@ supported.")
 	
 	(setf row-switch (not row-switch))))))
 
-(defmethod object-forms ((object stats))
-  (with-slots (flows bytes packets) object
-    `(make-instance 'stats :flows ,flows :bytes ,bytes :packets ,packets)))
-
-(defmethod object-forms ((report periodic-report))
-  (with-slots (total internal external incoming outgoing) report
-    `(let ((report (make-instance 'periodic-report
-				  :time ,(report-time report)
-				  :version ,(report-format-version report))))
-       (with-slots (total internal external incoming outgoing) report
-	 (setf total ,(object-forms total))
-	 (setf internal ,(object-forms internal))
-	 (setf external ,(object-forms external))
-	 (setf incoming ,(object-forms incoming))
-	 (setf outgoing ,(object-forms incoming)))
-       report)))
-
 (defmethod print-object ((report periodic-report) stream)
   (print-unreadable-object (report stream :type t :identity t)
     (format stream "~:[~;~:*Filter ~S, ~]version ~d"
@@ -308,6 +269,7 @@ supported.")
 
 (defmethod print-html ((report periodic-report) &key title)
   (with-html-output (*standard-output*)
+    (when title (htm (:h3 (str title))))
     (:h3 "General Statistics")
     (with-slots (host-stats) report
       (fmt "Report generated at ~a" (iso8661-date-string (generation-time report))))
@@ -330,8 +292,10 @@ supported.")
 	(:table
 	 (:tr (:th :colspan 2 "Unique Hosts"))
 	 (:tr (:th "Type") (:th "Count"))
-	 (loop :for (desc type) :in '(("Local" :local) ("Remote" :remote)
-				      ("Broadcast" :broadcast) ("Multicast" :multicast)
+	 (loop :for (desc type) :in '(("Local" :local)
+				      ("Remote" :remote)
+				      ("Broadcast" :broadcast)
+				      ("Multicast" :multicast)
 				      ("Total" nil)) :do
 	    (htm
 	     (:tr (:td (:b (str desc)))
@@ -351,6 +315,6 @@ supported.")
 		 :bytes (reduce #'+ stats :key #'bytes)
 		 :packets (reduce #'+ stats :key #'packets)))
 
-(defun make-periodic-report (flow-list &optional filter)
-  (make-instance 'periodic-report :flow-list flow-list :filter filter))
+(defun make-periodic-report (&optional filter)
+  (make-instance 'periodic-report :filter filter))
 
