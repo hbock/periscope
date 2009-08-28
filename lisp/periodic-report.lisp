@@ -238,11 +238,11 @@ sent_packets, received_flows, received_bytes, received_packets) FROM '~a' WITH C
 
 	(update-host-stats report source dest)))))
 
-(defmethod local-contact-count ((host host-stats))
-  (hash-table-count (slot-value host 'local-contacts)))
+;; (defmethod local-contact-count ((host host-stats))
+;;   (hash-table-count (slot-value host 'local-contacts)))
 
-(defmethod remote-contact-count ((host host-stats))
-  (hash-table-count (slot-value host 'remote-contacts)))
+;; (defmethod remote-contact-count ((host host-stats))
+;;   (hash-table-count (slot-value host 'remote-contacts)))
 
 (defmethod busiest-hosts ((report periodic-report) &key (limit 20) (type :local))
   (pomo:query-dao
