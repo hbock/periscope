@@ -42,7 +42,8 @@
        (let* ((ip (get-ip (get-flow dsrs)))
 	      (flow (build-flow dsrs ip)))
 	 (destructuring-bind (filter &rest reports) *current-report*
-	   (when (filter-pass-p filter flow)
+	   (when (or (null filter)
+		     (filter-pass-p filter flow))
 	     (dolist (report reports)
 	       (add-flow report flow)))))))))
 
