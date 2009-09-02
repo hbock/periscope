@@ -74,5 +74,5 @@ table layouts and their relevant indexes."
 (defmacro with-database ((database &key (user *database-user*)
 				   (host *database-host*)
 				   (password *database-password*)) &body body)
-  `(pomo:with-connection (,database ,user ,password ,host)
+  `(pomo:with-connection (list ,database ,user ,password ,host)
      ,@body))
