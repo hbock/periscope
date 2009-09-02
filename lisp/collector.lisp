@@ -156,13 +156,14 @@ and the time period for which it will split its output logs."
 	 (ecase time-period
 	   (:test "10s")
 	   (:hour "1h")
-	   (:half-hour "30m")))
+	   (:half-hour "30m")
+	   (:five-minute-chunks "5m")))
 	(output-spec
 	 (in-report-directory (ecase time-period
 				(:test "test/%Y%m%d-%H:%M:%S")
-				(:five-minute-chunks "temp/temp.%Y%m%d-%H:%M")
 				(:hour "hourly.%Y%m%d-%H")
-				(:half-hour "halfhour.%Y%m%d-%H.%M")))))
+				(:half-hour "halfhour.%Y%m%d-%H.%M")
+				(:five-minute-chunks "temp/temp.%Y%m%d-%H:%M")))))
     (setf *collector-process*
 	  (process-create *rastream-binary* nil
 			  ;; Arguments
