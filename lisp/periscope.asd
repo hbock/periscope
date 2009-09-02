@@ -42,11 +42,11 @@
    ;; Foreign function interface for libperiscope/Argus
    (:file "periscope-cffi")
    (:file "argus-cffi")
-   (:file "collector")
    (:file "utility")
-   (:file "dns")
    ;; Core database support
    (:file "postmodern")
+   (:file "collector")
+   (:file "dns")
    ;; Central classes
    (:file "reports")
    (:file "flow")
