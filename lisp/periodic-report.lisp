@@ -74,17 +74,30 @@ supported.")
        :do (incf (aref visit-list visit))
        :finally (return visit-list))))
 
+(defmacro with-fast-insert ((stream &optional (output-file #p"sql.csv")) &body body)
+  `(prog1
+       (with-open-file (,stream ,output-file
+				:direction :output
+				:if-exists :supersede
+				:if-does-not-exist :create)
+	 (flet ((insert-host (host)
+		  (with-slots (host-ip host-type hour date month sent-flows sent-bytes sent-packets
+				       received-flows received-bytes received-packets)  host
+		    (format ,stream "~a,~d,~d,~d,~d,~d,~d,~d,~d,~d,~d~%"
+			    (ip-string (host-ip host-ip)) host-type hour date month
+			    sent-flows sent-bytes sent-packets
+			    received-flows received-bytes received-packets))))
+	   ,@body))
+     (copy-host-data ,output-file)))
+
 (defmethod finalize-report ((report periodic-report))
   ""
-  (with-open-file (outspec "sql.csv" :direction :output
-			   :if-exists :supersede
-			   :if-does-not-exist :create)
+  (with-fast-insert (insert-stream)
     (maphash (lambda (key host-entry)
 	       (if (gethash key (host-on-disk report))
-		   (pomo:update-dao (car host-entry))
-		   (write-flat-host-entry (car host-entry) outspec)))
+		   (update-host (car host-entry))
+		   (insert-host (car host-entry))))
 	     (host-cache report)))
-  (copy-host-data "sql.csv")
   (clrhash (host-cache report)))
 
 (defun copy-host-data (file)
@@ -93,14 +106,6 @@ supported.")
 	   "COPY host_stat (host_ip, host_type, hour, date, month, sent_flows, sent_bytes, 
 sent_packets, received_flows, received_bytes, received_packets) FROM '~a' WITH CSV"
 	   (truename file))))
-
-(defun write-flat-host-entry (host &optional (stream *standard-output*))
-  (with-slots (host-ip host-type hour date month sent-flows sent-bytes sent-packets
-		       received-flows received-bytes received-packets)
-      host
-    (format stream "~a,~d,~d,~d,~d,~d,~d,~d,~d,~d,~d~%"
-	    (ip-string (host-ip host-ip)) host-type hour date month sent-flows sent-bytes sent-packets
-	    received-flows received-bytes received-packets)))
 
 (defmacro fast-update ()
   (flet ((placeholder (n) (make-symbol (format nil "$~d" n))))
@@ -119,12 +124,13 @@ sent_packets, received_flows, received_bytes, received_packets) FROM '~a' WITH C
 (pomo:defprepared host-stat-update
     (fast-update))
 
-(defmethod prepared-update ((host host-stat))
+(defmethod update-host ((host host-stat))
   (with-slots (host-ip sent-flows sent-bytes sent-packets received-flows received-bytes
-		       received-packets)
-      host
+		       received-packets) host
     (host-stat-update sent-flows sent-bytes sent-packets received-flows
-		      received-bytes received-packets (ip-string (host-ip host-ip)))))
+		      received-bytes received-packets
+		      (let ((ip (host-ip host-ip)))
+			(if (stringp ip) ip (ip-string ip))))))
 
 (defun cache-flush (report &optional (flush-levels 3))
   (with-slots (using-db cache-visit cache-last-flush host-cache host-on-disk cache-hits
@@ -134,24 +140,23 @@ sent_packets, received_flows, received_bytes, received_packets) FROM '~a' WITH C
 	    cache-hits cache-misses cache-lookups)
     (let ((purged-entries 0)
 	  (updates 0) (inserts 0) (time (get-universal-time)))
-      (with-open-file (outspec "sql.csv" :direction :output
-			       :if-exists :supersede
-			       :if-does-not-exist :create)
+      (with-fast-insert (insert-stream)
 	(maphash (lambda (key value)
 		   (destructuring-bind (host . last-visit) value
 		     (when (<= last-visit (+ flush-levels cache-last-flush))
 		       (incf purged-entries)
-		       (if (gethash key (host-on-disk report))
-			   (progn
-			     (incf updates)
-			     (prepared-update host))
-			   (progn
-			     (incf inserts)
-			     (write-flat-host-entry host outspec)
-			     (setf (gethash key host-on-disk) t)))
+		       (cond
+			 ;; We know the host is already on disk - do a prepared update
+			 ((gethash key (host-on-disk report))
+			  (incf updates)
+			  (update-host host))
+			 ;; We know the host is not yet on disk - insert it
+			 (t
+			  (incf inserts)
+			  (insert-host host)
+			  (setf (gethash key host-on-disk) t)))
 		       (remhash key host-cache))))
 		 host-cache))
-      (copy-host-data "sql.csv")
       (format t "Flushed ~d entries (~d updates, ~d inserts) in ~d seconds.~%"
 	      purged-entries updates inserts (- (get-universal-time) time)))
     (incf cache-last-flush flush-levels)))
@@ -363,4 +368,3 @@ sent_packets, received_flows, received_bytes, received_packets) FROM '~a' WITH C
 
 (defun make-periodic-report (&optional filter)
   (make-instance 'periodic-report :filter filter))
-
