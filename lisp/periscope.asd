@@ -29,7 +29,8 @@
 	       :cl-ppcre
 	       :md5
 	       :postmodern
-	       :local-time
+	       :simple-date ; For PostgreSQL date compatibility
+	       :local-time  ; DEPRECATED
 	       :hunchentoot
 	       :trivial-garbage
 	       :bordeaux-threads)
