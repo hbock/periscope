@@ -46,6 +46,7 @@
    (:file "utility")
    ;; Core database support
    (:file "postmodern")
+   (:file "argus-log")
    (:file "collector")
    (:file "dns")
    ;; Central classes

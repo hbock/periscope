@@ -129,26 +129,27 @@
   (when filter
     (setf (filter collector) filter))
   (add-file collector file)
+
+  (let ((log (parse-log-pathname file)))
+    (setf *current-report* (list
+			    (when (and user (filters user))
+			      (first (filters user)))
+			    (make-periodic-report)
+			    (make-service-report)))
   
-  (setf *current-report* (list
-			  (when (and user (filters user))
-			    (first (filters user)))
-			  (make-periodic-report)
-			  (make-service-report)))
-  
-  (with-database ("periscope")
-    (execute "TRUNCATE TABLE host_stat")
-    (run collector)
-    (dolist (report (rest *current-report*))
-      (finalize-report report))))
+    (with-database ("periscope")
+      (execute "TRUNCATE TABLE host_stat")
+      (run collector)
+      (dolist (report (rest *current-report*))
+	(finalize-report report)))))
 
 ;;; Collector stuff for racollector script.
 (defun collector-connect-string (&optional (hostname *collector-argus-server*)
 				 (port *collector-argus-port*))
-  (declare (type (unsigned-byte 16) port))
+  (declare (type port-number port))
   (format nil "~a:~d" hostname port))
 
-(defun run-collector (server time-period)
+(defun run-collector (server &optional (time-period :five-minute))
   "Run the rastream client as a child process, specifying the remote Argus server
 and the time period for which it will split its output logs."
   (let ((start-time (get-universal-time))
@@ -157,13 +158,13 @@ and the time period for which it will split its output logs."
 	   (:test "10s")
 	   (:hour "1h")
 	   (:half-hour "30m")
-	   (:five-minute-chunks "5m")))
+	   (:five-minute "5m")))
 	(output-spec
 	 (in-report-directory (ecase time-period
-				(:test "test/%Y%m%d-%H:%M:%S")
-				(:hour "hourly.%Y%m%d-%H")
-				(:half-hour "halfhour.%Y%m%d-%H.%M")
-				(:five-minute-chunks "temp/temp.%Y%m%d-%H:%M")))))
+				(:test "test/test-%Y%m%d-%H:%M:%S")
+				(:hour "hourly-%Y%m%d-%H")
+				(:half-hour "halfhour-%Y%m%d-%H.%M")
+				(:five-minute "temp/fm-%Y%m%d-%H:%M")))))
     (setf *collector-process*
 	  (process-create *rastream-binary* nil
 			  ;; Arguments
@@ -197,7 +198,7 @@ and the time period for which it will split its output logs."
   (bt:with-lock-held (*collector-shutdown-lock*)
     (setf *collector-shutdown-p* nil))
   (loop :named watchdog-loop :do
-     (handler-case (run-collector (collector-connect-string) :five-minute-chunks)
+     (handler-case (run-collector (collector-connect-string) :five-minute)
        (periscope-config-error ()
 	 (setf *collector-error-p* t)
 	 (format t "Error starting rastream occured, aborting!~%")
