@@ -129,13 +129,14 @@
   (add-file collector file)
   
   (setf *current-report* (make-instance 'periodic-report))
-  (execute "TRUNCATE TABLE host_stat")
-  (run collector)
+  (with-database ("periscope")
+    (execute "TRUNCATE TABLE host_stat")
+    (run collector)
   
-  (with-slots (cache-hits cache-misses) *current-report*
-    (format t "Cache hits/miss: ~d/~d (~$%)~%" cache-hits cache-misses
-	    (* 100 (/ cache-hits (+ cache-hits cache-misses)))))
-  (finalize-report *current-report*))
+    (with-slots (cache-hits cache-misses) *current-report*
+      (format t "Cache hits/miss: ~d/~d (~$%)~%" cache-hits cache-misses
+	      (* 100 (/ cache-hits (+ cache-hits cache-misses)))))
+    (finalize-report *current-report*)))
 
 ;;; Collector stuff for racollector script.
 (defun collector-connect-string (&optional (hostname *collector-argus-server*)
