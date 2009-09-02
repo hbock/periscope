@@ -93,8 +93,9 @@ supported.")
 (defmethod finalize-report ((report periodic-report))
   ""
   (with-slots (cache-hits cache-misses) report
-    (format t "Cache hits/miss: ~d/~d (~$%)~%" cache-hits cache-misses
-	    (* 100 (/ cache-hits (+ cache-hits cache-misses)))))
+      (unless (= 0 cache-hits cache-misses)
+	(format t "Cache hits/miss: ~d/~d (~$%)~%" cache-hits cache-misses
+		(* 100 (/ cache-hits (+ cache-hits cache-misses))))))
   
   (with-fast-insert (insert-stream)
     (maphash (lambda (key host-entry)
