@@ -52,6 +52,10 @@
 (defgeneric add-flow (report flow)
   (:documentation "Add flow data to a given report."))
 
+(defgeneric finalize-report (report)
+  (:documentation "Finalizes a report object, committing it to disk and making it available
+for viewing."))
+
 (defun report-handlers (request)
   "Handle Periscope-specific report requests. Returns the report's handler function as
 defined using DEFINE-REPORT-HANDLER."
