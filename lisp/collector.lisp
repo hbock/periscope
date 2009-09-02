@@ -39,11 +39,14 @@
   (case (foreign-enum-keyword 'argus-flow-types type :errorp nil)
     (:ipv4
      (unless (null-pointer-p (get-metrics dsrs))
-       (let ((ip (get-ip (get-flow dsrs))))
+       (let* ((ip (get-ip (get-flow dsrs)))
+	      (flow (build-flow dsrs ip)))
 	 (when (zerop (mod (flows (total *current-report*)) 1000))
 	   (incf (cache-visit *current-report*)))
-	 
-	 (nadd *current-report* (build-flow dsrs ip)))))))
+	 (destructuring-bind (filter &rest reports) *current-report*
+	   (when (filter-pass-p filter flow)
+	     (dolist (report reports)
+	       (nadd report flow)))))))))
 
 (defmethod initialize-instance :after ((object collector) &key)
   (let ((ptr (foreign-alloc 'periscope-collector)))
@@ -123,20 +126,21 @@
       (setf (filter collector) default-filter))
     collector))
 
-(defun process-local-file (file &key (collector (init-basic-collector)) filter)
+(defun process-local-file (file &key (collector (init-basic-collector)) user filter)
   (when filter
     (setf (filter collector) filter))
   (add-file collector file)
   
-  (setf *current-report* (make-instance 'periodic-report))
+  (setf *current-report* (list
+			  (when (and user (filters user))
+			    (first (filters user)))
+			  (make-periodic-report)))
+  
   (with-database ("periscope")
     (execute "TRUNCATE TABLE host_stat")
     (run collector)
-  
-    (with-slots (cache-hits cache-misses) *current-report*
-      (format t "Cache hits/miss: ~d/~d (~$%)~%" cache-hits cache-misses
-	      (* 100 (/ cache-hits (+ cache-hits cache-misses)))))
-    (finalize-report *current-report*)))
+    (dolist (report (rest *current-report*))
+      (finalize-report report))))
 
 ;;; Collector stuff for racollector script.
 (defun collector-connect-string (&optional (hostname *collector-argus-server*)

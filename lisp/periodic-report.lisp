@@ -92,6 +92,10 @@ supported.")
 
 (defmethod finalize-report ((report periodic-report))
   ""
+  (with-slots (cache-hits cache-misses) report
+    (format t "Cache hits/miss: ~d/~d (~$%)~%" cache-hits cache-misses
+	    (* 100 (/ cache-hits (+ cache-hits cache-misses)))))
+  
   (with-fast-insert (insert-stream)
     (maphash (lambda (key host-entry)
 	       (if (gethash key (host-on-disk report))
@@ -230,6 +234,9 @@ sent_packets, received_flows, received_bytes, received_packets) FROM '~a' WITH C
       (incf (received-packets dest-host) (host-packets source)))))
 
 (defmethod nadd ((report periodic-report) (flow flow))
+  (when (zerop (mod (flows (total report)) 1000))
+    (incf (cache-visit report)))
+
   (with-slots (total internal external incoming outgoing host-cache) report
     (with-slots (source dest) flow
       (let ((bytes (+ (host-bytes source) (host-bytes dest)))
@@ -284,18 +291,21 @@ sent_packets, received_flows, received_bytes, received_packets) FROM '~a' WITH C
 	  (:th "Packets") (:th "Bytes") (:th "Flows"))
      (let ((row-switch t))
        (dolist (host (busiest-hosts report :type type))
-	 (htm
-	  (:tr
-	   :class (if row-switch "rowa" "rowb")
-	   (:td (str (ip-string (host-ip host))))
-	   (:td (str (hostname (host-ip host))))
-	   (:td (fmt "~:d" (sent-packets host)))
-	   (:td (str (byte-string (sent-bytes host))))
-	   (:td (fmt "~:d" (received-packets host)))
-	   (:td (str (byte-string (received-bytes host))))
-	   (:td (fmt "~:d" (+ (received-packets host) (sent-packets host))))
-	   (:td (str (byte-string (+ (received-bytes host) (sent-bytes host)))))
-	   (:td (fmt "~:d" (+ (received-flows host) (sent-flows host))))))
+	 (let ((ip (if (stringp (host-ip host))
+		       (parse-ip-string (host-ip host))
+		       (host-ip host))))
+	   (htm
+	    (:tr
+	     :class (if row-switch "rowa" "rowb")
+	     (:td (str (ip-string ip)))
+	     (:td (str (hostname ip)))
+	     (:td (fmt "~:d" (sent-packets host)))
+	     (:td (str (byte-string (sent-bytes host))))
+	     (:td (fmt "~:d" (received-packets host)))
+	     (:td (str (byte-string (received-bytes host))))
+	     (:td (fmt "~:d" (+ (received-packets host) (sent-packets host))))
+	     (:td (str (byte-string (+ (received-bytes host) (sent-bytes host)))))
+	     (:td (fmt "~:d" (+ (received-flows host) (sent-flows host)))))))
 	 (setf row-switch (not row-switch)))))))
 
 (defmethod print-object ((report periodic-report) stream)
