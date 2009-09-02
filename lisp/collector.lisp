@@ -155,6 +155,7 @@ and the time period for which it will split its output logs."
 	(output-spec
 	 (in-report-directory (ecase time-period
 				(:test "test/%Y%m%d-%H:%M:%S")
+				(:five-minute-chunks "temp/temp.%Y%m%d-%H:%M")
 				(:hour "hourly.%Y%m%d-%H")
 				(:half-hour "halfhour.%Y%m%d-%H.%M")))))
     (setf *collector-process*
