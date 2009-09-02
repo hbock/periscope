@@ -23,4 +23,9 @@
     (when (not (database-connected-p))
       (htm (:b "Not connected, reconnecting..."))
       (database-connect "periscope"))
-    (:div :class "stats" (print-html *current-report*))))
+    (destructuring-bind (filter &rest reports) *current-report*
+      (when filter (print-html filter))
+      (dolist (report reports)
+	(htm
+	 (:div :class "stats"
+	       (print-html report)))))))
