@@ -70,3 +70,9 @@ table layouts and their relevant indexes."
   (execute (pomo:dao-table-definition 'host-stat))
   ;(execute (:create-index 'time :on host-stat :fields hour date month))
   )
+
+(defmacro with-database ((database &key (user *database-user*)
+				   (host *database-host*)
+				   (password *database-password*)) &body body)
+  `(pomo:with-connection (,database ,user ,password ,host)
+     ,@body))
