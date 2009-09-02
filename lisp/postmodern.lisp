@@ -59,7 +59,7 @@ data types, etc."
   (setf pomo:*database* (pomo:connect database-name user password host)))
 
 (defun database-connected-p ()
-  (pomo:connected-p pomo:*database*))
+  (and pomo:*database* (pomo:connected-p pomo:*database*)))
 
 (defun database-disconnect (&optional (connection pomo:*database*))
   (pomo:disconnect connection))
