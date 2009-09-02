@@ -132,7 +132,8 @@
   (setf *current-report* (list
 			  (when (and user (filters user))
 			    (first (filters user)))
-			  (make-periodic-report)))
+			  (make-periodic-report)
+			  (make-service-report)))
   
   (with-database ("periscope")
     (execute "TRUNCATE TABLE host_stat")
