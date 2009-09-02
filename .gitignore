@@ -5,6 +5,7 @@ Makefile
 *.o
 *.la
 *.fasl
+*.csv
 periscope
 !lisp/Makefile
 \#*
