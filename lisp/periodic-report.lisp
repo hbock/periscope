@@ -233,7 +233,7 @@ sent_packets, received_flows, received_bytes, received_packets) FROM '~a' WITH C
       (incf (received-bytes dest-host) (host-bytes source))
       (incf (received-packets dest-host) (host-packets source)))))
 
-(defmethod nadd ((report periodic-report) (flow flow))
+(defmethod add-flow ((report periodic-report) (flow flow))
   (when (zerop (mod (flows (total report)) 1000))
     (incf (cache-visit report)))
 

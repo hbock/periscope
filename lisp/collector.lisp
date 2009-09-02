@@ -41,12 +41,10 @@
      (unless (null-pointer-p (get-metrics dsrs))
        (let* ((ip (get-ip (get-flow dsrs)))
 	      (flow (build-flow dsrs ip)))
-	 (when (zerop (mod (flows (total *current-report*)) 1000))
-	   (incf (cache-visit *current-report*)))
 	 (destructuring-bind (filter &rest reports) *current-report*
 	   (when (filter-pass-p filter flow)
 	     (dolist (report reports)
-	       (nadd report flow)))))))))
+	       (add-flow report flow)))))))))
 
 (defmethod initialize-instance :after ((object collector) &key)
   (let ((ptr (foreign-alloc 'periscope-collector)))
