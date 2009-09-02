@@ -196,7 +196,7 @@ and the time period for which it will split its output logs."
   (bt:with-lock-held (*collector-shutdown-lock*)
     (setf *collector-shutdown-p* nil))
   (loop :named watchdog-loop :do
-     (handler-case (run-collector (collector-connect-string) :hour)
+     (handler-case (run-collector (collector-connect-string) :five-minute-chunks)
        (periscope-config-error ()
 	 (setf *collector-error-p* t)
 	 (format t "Error starting rastream occured, aborting!~%")
