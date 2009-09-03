@@ -22,6 +22,14 @@
   ((generated :reader generation-time :initform (now))
    (format-version :reader report-format-version)))
 
+(defclass report-collection ()
+  ((log :initarg :log :reader report-log)
+   (timestamp :initarg :timestamp :reader report-timestamp)
+   (filter :initarg :filter :reader report-filter :initform nil)
+   (reports :initarg :reports :reader report-list :initform nil)
+   (generated :reader report-generation-time :initform (simple-date:universal-time-to-timestamp
+						 (get-universal-time)))))
+
 (defclass stats ()
   ((flows :initarg :flows :accessor flows :initform 0)
    (bytes :initarg :bytes :accessor bytes :initform 0)

@@ -46,7 +46,6 @@
    (:file "utility")
    ;; Core database support
    (:file "postmodern")
-   (:file "argus-log")
    (:file "collector")
    (:file "dns")
    ;; Central classes
@@ -54,6 +53,7 @@
    (:file "flow")
    (:file "filter")
    (:file "time")
+   (:file "argus-log")
    ;; Web interface
    (:file "web")
    (:file "web-index")
@@ -64,6 +64,7 @@
    ;; Reports
    (:file "periodic-report")
    (:file "service")
+   (:file "processing")
    (:file "report-handlers")
    ;; Entry point(s?)
    (:file "main")))

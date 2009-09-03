@@ -20,7 +20,8 @@
 
 (defclass collector ()
   ((ptr :initform nil :accessor get-ptr)
-   (remote :initform nil :accessor remote-sources)))
+   (remote :initform nil :accessor remote-sources)
+   (current-report :accessor current-report :initform nil)))
 
 (defclass source ()
   ((ptr :initarg :ptr :initform nil :accessor get-ptr)
@@ -30,22 +31,34 @@
    (port :initarg :port :reader port)))
 
 (defparameter *flows-seen* 0)
+(defvar *collector-lookup-table* (make-hash-table)
+  "Reverse lookup table for PeriscopeCollector foreign pointers.")
+
+(defgeneric process-flow (context flow)
+  (:documentation "Process flow data in a given context; currently the collector associated
+with the flow data."))
+
+(defun find-collector (pointer)
+  "Given a CFFI pointer to a PeriscopeCollector instance, find the associated Lisp 
+COLLECTOR object."
+  (multiple-value-bind (collector existsp)
+      (gethash (pointer-address pointer) *collector-lookup-table*)
+    (unless existsp
+      (periscope-error "Could not find collector at foreign address ~a." pointer))
+    collector))
 
 (defcallback receive-flow :void ((collector periscope-collector)
 				 (type :uchar)
 				 (record :pointer)
 				 (dsrs periscope-dsrs))
-  (declare (ignore collector record))
-  (case (foreign-enum-keyword 'argus-flow-types type :errorp nil)
-    (:ipv4
-     (unless (null-pointer-p (get-metrics dsrs))
-       (let* ((ip (get-ip (get-flow dsrs)))
-	      (flow (build-flow dsrs ip)))
-	 (destructuring-bind (filter &rest reports) *current-report*
-	   (when (or (null filter)
-		     (filter-pass-p filter flow))
-	     (dolist (report reports)
-	       (add-flow report flow)))))))))
+  (declare (ignore record))
+  (let ((collector (find-collector collector)))
+    (case (foreign-enum-keyword 'argus-flow-types type :errorp nil)
+      (:ipv4
+       (unless (null-pointer-p (get-metrics dsrs))
+	 (let* ((ip (get-ip (get-flow dsrs)))
+		(flow (build-flow dsrs ip)))
+	   (process-flow collector flow)))))))
 
 (defmethod initialize-instance :after ((object collector) &key)
   (let ((ptr (foreign-alloc 'periscope-collector)))
@@ -53,9 +66,14 @@
     (when (minusp (%collector-init ptr))
       (foreign-free ptr)
       (error "Unable to initialize collector!"))
+    ;; Add collector object to the pointer lookup table.
+    (setf (gethash (pointer-address ptr) *collector-lookup-table*) object)
     (tg:finalize object (lambda ()
+			  ;; Free the memory associated with it...
 			  (%collector-free ptr)
-			  (foreign-free ptr)))))
+			  (foreign-free ptr)
+			  ;; ...and remove its association in the pointer lookup table.
+			  (remhash (pointer-address ptr) *collector-lookup-table*)))))
 
 (defmethod run ((object collector))
   "Start the collector."
@@ -120,28 +138,10 @@
 (defun init-basic-collector (&key (default-filter *collector-default-filter*))
   (let ((collector (make-instance 'collector)))
     (with-collector-callbacks (process_flow) collector
-	(setf process_flow (callback receive-flow)))
+      (setf process_flow (callback receive-flow)))
     (when default-filter
       (setf (filter collector) default-filter))
     collector))
-
-(defun process-local-file (file &key (collector (init-basic-collector)) user filter)
-  (when filter
-    (setf (filter collector) filter))
-  (add-file collector file)
-
-  (let ((log (parse-log-pathname file)))
-    (setf *current-report* (list
-			    (when (and user (filters user))
-			      (first (filters user)))
-			    (make-periodic-report)
-			    (make-service-report)))
-  
-    (with-database ("periscope")
-      (execute "TRUNCATE TABLE host_stat")
-      (run collector)
-      (dolist (report (rest *current-report*))
-	(finalize-report report)))))
 
 ;;; Collector stuff for racollector script.
 (defun collector-connect-string (&optional (hostname *collector-argus-server*)
