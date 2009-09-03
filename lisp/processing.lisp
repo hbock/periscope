@@ -59,3 +59,10 @@
 	      (filter-pass-p filter flow))
       (dolist (report reports)
 	(add-flow report flow)))))
+
+(defmethod print-html ((object report-collection) &key)
+  (with-html-output (*standard-output*)
+    (with-slots (filter reports) object
+      (when filter (print-html filter))
+      (dolist (report reports)
+	(htm (:div :class "stats" (print-html report)))))))

@@ -23,7 +23,4 @@
     (when (not (database-connected-p))
       (htm (:b "Not connected, reconnecting..."))
       (database-connect "periscope"))
-    (with-slots (filter reports) (current-report *collector*)
-      (when filter (print-html filter))
-      (dolist (report reports)
-	(htm (:div :class "stats" (print-html report)))))))
+    (print-html (current-report *collector*))))
