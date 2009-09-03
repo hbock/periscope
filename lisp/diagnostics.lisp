@@ -42,11 +42,7 @@
      (:tr (:td "Machine hardware") (:td (str (machine-version))))
      (:tr (:td "Host Lisp")
 	  (:td (fmt "~a ~a (~a)" (lisp-implementation-type)
-		    (lisp-implementation-version) (machine-type))))
-     (:tr (:td "Collector foreign pointer")
-	  (:td (if *collector*
-		   (str (get-ptr *collector*))
-		   (str "Not initialized!")))))))
+		    (lisp-implementation-version) (machine-type)))))))
 
 (defun y-or-n-td (generalized-boolean)
   (with-html-output (*standard-output*)
