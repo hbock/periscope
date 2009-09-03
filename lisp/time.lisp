@@ -161,3 +161,13 @@
 	    (nreverse split-list))
 	(when (car split)
 	  (push (first split) split-list))))))
+
+(defmethod extract ((time simple-date:timestamp) &key type)
+  "Extract a part of a SIMPLE-DATE:TIMESTAMP. Type can be one of :YEAR, :MONTH, :DAY,
+:HOUR, or :MINUTE."
+  (nth-value (ecase type
+	       (:minute 4)
+	       (:hour   3)
+	       (:date   2)
+	       (:month  1)
+	       (:year   0)) (simple-date:decode-timestamp time)))
