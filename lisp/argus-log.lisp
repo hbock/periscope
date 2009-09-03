@@ -39,25 +39,8 @@
 (defmethod parse-log-pathname ((file string))
   (parse-log-pathname (pathname file)))
 
-(defmethod process-log ((log argus-log) &key (collector (init-basic-collector)) user argus-filter)
-  (when argus-filter
-    (setf (filter collector) argus-filter))
-  (add-file collector (argus-log-pathname log))
-
-  (setf (current-report collector)
-	(list
-	 (when (and user (filters user))
-	   (first (filters user)))
-	 (make-periodic-report)
-	 (make-service-report))
-	;; TODO: REMOVE ME!
-	*collector* collector)
-
-  (with-database ("periscope")
-    (execute "TRUNCATE TABLE host_stat")
-    (run collector)
-    (dolist (report (rest (current-report collector)))
-      (finalize-report report))))
+(defmethod find-logs ((directory pathname))
+  (remove nil (mapcar #'parse-log-pathname (fad:list-directory directory))))
 
 (defmethod timestamp-string ((object simple-date:timestamp))
   (multiple-value-bind (year month day hour minute)
@@ -66,6 +49,6 @@
 
 (defmethod print-object ((object argus-log) stream)
   (print-unreadable-object (object stream :type t)
-    (format stream "type ~a, timestamp ~a"
-	    (argus-log-type object)
-	    (timestamp-string (argus-log-timestamp object)))))
+    (with-slots (type timestamp gzip-p) object
+      (format stream "type ~a,~:[~; gz,~] timestamp ~a"
+	      type gzip-p (timestamp-string timestamp)))))
