@@ -32,8 +32,7 @@ supported.")
    (incoming :accessor incoming :type stats :initform (make-instance 'stats))
    (outgoing :accessor outgoing :type stats :initform (make-instance 'stats))
    (format-version :initarg :version :initform *periodic-report-format-version*)
-   (filter :initarg :filter :reader filter :initform nil :type filter)
-   (report-time :initarg :time :reader report-time :initform (this-hour (now)))
+   (report-time :initarg :time :reader report-time :type simple-date:timestamp)
    (host-cache       :accessor host-cache)
    (host-on-disk     :accessor host-on-disk)
    (cache-visit     :accessor cache-visit :initform 0)
@@ -310,10 +309,8 @@ sent_packets, received_flows, received_bytes, received_packets) FROM '~a' WITH C
 	 (setf row-switch (not row-switch)))))))
 
 (defmethod print-object ((report periodic-report) stream)
-  (print-unreadable-object (report stream :type t :identity t)
-    (format stream "~:[~;~:*Filter ~S, ~]version ~d"
-	    (when (filter report) (filter-title (filter report)))
-	    (report-format-version report))))
+  (print-unreadable-object (report stream :type t)
+    (format stream "version ~d" (report-format-version report))))
 
 (defmethod save-report ((object report))
   (with-open-file (stream (in-report-directory (format nil "report-~d" (report-time object)))
@@ -377,5 +374,5 @@ sent_packets, received_flows, received_bytes, received_packets) FROM '~a' WITH C
 		 :bytes (reduce #'+ stats :key #'bytes)
 		 :packets (reduce #'+ stats :key #'packets)))
 
-(defun make-periodic-report (&optional filter)
-  (make-instance 'periodic-report :filter filter))
+(defun make-periodic-report (time)
+  (make-instance 'periodic-report :time time))
