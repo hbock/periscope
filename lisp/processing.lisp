@@ -30,7 +30,10 @@
 (defmethod initialize-instance :after ((object report-collection) &key)
   (unless (slot-boundp object 'timestamp)
     (with-slots (timestamp log) object
-      (setf timestamp (argus-log-timestamp log)))))
+      (setf timestamp (argus-log-timestamp log))))
+
+  (with-slots (timestamp reports) object
+    (setf reports (mapcar (lambda (type) (make-instance type :time timestamp)) reports))))
 
 (defmethod process-log ((log argus-log) &key (collector (init-basic-collector)) user argus-filter)
   (when argus-filter
@@ -41,9 +44,7 @@
 	(make-instance 'report-collection
 		       :log log
 		       :filter (when user (first (filters user)))
-		       :reports (list
-				 (make-periodic-report)
-				 (make-service-report)))
+		       :reports (list 'periodic-report 'service))
 	;; TODO: REMOVE ME!
 	*collector* collector)
 
@@ -51,7 +52,9 @@
     (execute "TRUNCATE TABLE host_stat")
     (run collector)
     (dolist (report (report-list (current-report collector)))
-      (finalize-report report))))
+      (finalize-report report)))
+
+  (current-report collector))
 
 (defmethod process-flow ((collector collector) (flow flow))
   (with-slots (filter reports) (current-report collector)
@@ -66,3 +69,9 @@
       (when filter (print-html filter))
       (dolist (report reports)
 	(htm (:div :class "stats" (print-html report)))))))
+
+(defmethod print-object ((object report-collection) stream)
+  (print-unreadable-object (object stream :type t)
+    (with-slots (reports timestamp) object
+      (format stream "reports (~{~a~^, ~}) @[~a]" (mapcar #'type-of reports)
+	      (timestamp-string timestamp)))))
