@@ -109,9 +109,11 @@ logged-in user.  If no user is logged in, returns NIL."
 (defun user-count ()
   (hash-table-count *web-user-db*))
 
-(defun user-list ()
-  "Returns all users in the database."
+(defun user-list (&key logged-in-p)
+  "Returns all users in the database. If LOGGED-IN-P is T, return only users who are
+currently logged in."
   (loop :for username :being :the :hash-keys :in *web-user-db* :using (:hash-value user)
+     :when (or (null logged-in-p) (logged-in-p user))
      :collect user))
 
 (defun logout (&optional (user (user)))

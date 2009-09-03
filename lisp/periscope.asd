@@ -29,7 +29,8 @@
 	       :cl-ppcre
 	       :md5
 	       :postmodern
-	       :local-time
+	       :simple-date ; For PostgreSQL date compatibility
+	       :local-time  ; DEPRECATED
 	       :hunchentoot
 	       :trivial-garbage
 	       :bordeaux-threads)
@@ -42,16 +43,17 @@
    ;; Foreign function interface for libperiscope/Argus
    (:file "periscope-cffi")
    (:file "argus-cffi")
-   (:file "collector")
    (:file "utility")
-   (:file "dns")
    ;; Core database support
    (:file "postmodern")
+   (:file "collector")
+   (:file "dns")
    ;; Central classes
    (:file "reports")
    (:file "flow")
    (:file "filter")
    (:file "time")
+   (:file "argus-log")
    ;; Web interface
    (:file "web")
    (:file "web-index")
@@ -62,6 +64,7 @@
    ;; Reports
    (:file "periodic-report")
    (:file "service")
+   (:file "processing")
    (:file "report-handlers")
    ;; Entry point(s?)
    (:file "main")))

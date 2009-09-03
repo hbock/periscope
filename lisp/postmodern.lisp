@@ -59,7 +59,7 @@ data types, etc."
   (setf pomo:*database* (pomo:connect database-name user password host)))
 
 (defun database-connected-p ()
-  (pomo:connected-p pomo:*database*))
+  (and pomo:*database* (pomo:connected-p pomo:*database*)))
 
 (defun database-disconnect (&optional (connection pomo:*database*))
   (pomo:disconnect connection))
@@ -70,3 +70,9 @@ table layouts and their relevant indexes."
   (execute (pomo:dao-table-definition 'host-stat))
   ;(execute (:create-index 'time :on host-stat :fields hour date month))
   )
+
+(defmacro with-database ((database &key (user *database-user*)
+				   (host *database-host*)
+				   (password *database-password*)) &body body)
+  `(pomo:with-connection (list ,database ,user ,password ,host)
+     ,@body))

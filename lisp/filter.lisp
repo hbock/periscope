@@ -66,6 +66,10 @@
 			  :subnets ,(network-list-forms subnets)
 			  :internal-networks ,(network-list-forms internal-networks))))
 
+(defmethod filter-pass-p ((filter filter) (flow flow))
+  "Returns true if FLOW passes the filter predicate defined for FILTER."
+  (funcall (filter-predicate filter) flow))
+
 (defun apply-filters (sequence predicate-list &key key)
   "Apply each predicate in predicate-list once to each element in sequence, returning
 one filtered list per predicate."

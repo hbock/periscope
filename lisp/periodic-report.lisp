@@ -32,8 +32,6 @@ supported.")
    (incoming :accessor incoming :type stats :initform (make-instance 'stats))
    (outgoing :accessor outgoing :type stats :initform (make-instance 'stats))
    (format-version :initarg :version :initform *periodic-report-format-version*)
-   (filter :initarg :filter :reader filter :initform nil :type filter)
-   (report-time :initarg :time :reader report-time :initform (this-hour (now)))
    (host-cache       :accessor host-cache)
    (host-on-disk     :accessor host-on-disk)
    (cache-visit     :accessor cache-visit :initform 0)
@@ -74,17 +72,35 @@ supported.")
        :do (incf (aref visit-list visit))
        :finally (return visit-list))))
 
+(defmacro with-fast-insert ((stream &optional (output-file #p"sql.csv")) &body body)
+  `(prog1
+       (with-open-file (,stream ,output-file
+				:direction :output
+				:if-exists :supersede
+				:if-does-not-exist :create)
+	 (flet ((insert-host (host)
+		  (with-slots (host-ip host-type hour date month sent-flows sent-bytes sent-packets
+				       received-flows received-bytes received-packets)  host
+		    (format ,stream "~a,~d,~d,~d,~d,~d,~d,~d,~d,~d,~d~%"
+			    (ip-string (host-ip host-ip)) host-type hour date month
+			    sent-flows sent-bytes sent-packets
+			    received-flows received-bytes received-packets))))
+	   ,@body))
+     (copy-host-data ,output-file)))
+
 (defmethod finalize-report ((report periodic-report))
   ""
-  (with-open-file (outspec "sql.csv" :direction :output
-			   :if-exists :supersede
-			   :if-does-not-exist :create)
+  (with-slots (cache-hits cache-misses) report
+      (unless (= 0 cache-hits cache-misses)
+	(format t "Cache hits/miss: ~d/~d (~$%)~%" cache-hits cache-misses
+		(* 100 (/ cache-hits (+ cache-hits cache-misses))))))
+  
+  (with-fast-insert (insert-stream)
     (maphash (lambda (key host-entry)
 	       (if (gethash key (host-on-disk report))
-		   (pomo:update-dao (car host-entry))
-		   (write-flat-host-entry (car host-entry) outspec)))
+		   (update-host (car host-entry))
+		   (insert-host (car host-entry))))
 	     (host-cache report)))
-  (copy-host-data "sql.csv")
   (clrhash (host-cache report)))
 
 (defun copy-host-data (file)
@@ -93,14 +109,6 @@ supported.")
 	   "COPY host_stat (host_ip, host_type, hour, date, month, sent_flows, sent_bytes, 
 sent_packets, received_flows, received_bytes, received_packets) FROM '~a' WITH CSV"
 	   (truename file))))
-
-(defun write-flat-host-entry (host &optional (stream *standard-output*))
-  (with-slots (host-ip host-type hour date month sent-flows sent-bytes sent-packets
-		       received-flows received-bytes received-packets)
-      host
-    (format stream "~a,~d,~d,~d,~d,~d,~d,~d,~d,~d,~d~%"
-	    (ip-string (host-ip host-ip)) host-type hour date month sent-flows sent-bytes sent-packets
-	    received-flows received-bytes received-packets)))
 
 (defmacro fast-update ()
   (flet ((placeholder (n) (make-symbol (format nil "$~d" n))))
@@ -119,12 +127,13 @@ sent_packets, received_flows, received_bytes, received_packets) FROM '~a' WITH C
 (pomo:defprepared host-stat-update
     (fast-update))
 
-(defmethod prepared-update ((host host-stat))
+(defmethod update-host ((host host-stat))
   (with-slots (host-ip sent-flows sent-bytes sent-packets received-flows received-bytes
-		       received-packets)
-      host
+		       received-packets) host
     (host-stat-update sent-flows sent-bytes sent-packets received-flows
-		      received-bytes received-packets (ip-string (host-ip host-ip)))))
+		      received-bytes received-packets
+		      (let ((ip (host-ip host-ip)))
+			(if (stringp ip) ip (ip-string ip))))))
 
 (defun cache-flush (report &optional (flush-levels 3))
   (with-slots (using-db cache-visit cache-last-flush host-cache host-on-disk cache-hits
@@ -134,24 +143,23 @@ sent_packets, received_flows, received_bytes, received_packets) FROM '~a' WITH C
 	    cache-hits cache-misses cache-lookups)
     (let ((purged-entries 0)
 	  (updates 0) (inserts 0) (time (get-universal-time)))
-      (with-open-file (outspec "sql.csv" :direction :output
-			       :if-exists :supersede
-			       :if-does-not-exist :create)
+      (with-fast-insert (insert-stream)
 	(maphash (lambda (key value)
 		   (destructuring-bind (host . last-visit) value
 		     (when (<= last-visit (+ flush-levels cache-last-flush))
 		       (incf purged-entries)
-		       (if (gethash key (host-on-disk report))
-			   (progn
-			     (incf updates)
-			     (prepared-update host))
-			   (progn
-			     (incf inserts)
-			     (write-flat-host-entry host outspec)
-			     (setf (gethash key host-on-disk) t)))
+		       (cond
+			 ;; We know the host is already on disk - do a prepared update
+			 ((gethash key (host-on-disk report))
+			  (incf updates)
+			  (update-host host))
+			 ;; We know the host is not yet on disk - insert it
+			 (t
+			  (incf inserts)
+			  (insert-host host)
+			  (setf (gethash key host-on-disk) t)))
 		       (remhash key host-cache))))
 		 host-cache))
-      (copy-host-data "sql.csv")
       (format t "Flushed ~d entries (~d updates, ~d inserts) in ~d seconds.~%"
 	      purged-entries updates inserts (- (get-universal-time) time)))
     (incf cache-last-flush flush-levels)))
@@ -165,9 +173,9 @@ sent_packets, received_flows, received_bytes, received_packets) FROM '~a' WITH C
       (flet ((new-entry ()
 	       (make-instance 'host-stat :host-ip host
 			      :host-type (flow-host-type host)
-			      :hour (timestamp-hour (report-time report))
-			      :date (timestamp-day (report-time report))
-			      :month (timestamp-month (report-time report))))
+			      :hour (extract (report-time report) :type :hour)
+			      :date (extract (report-time report) :type :date)
+			      :month (extract (report-time report) :type :month)))
 	     (cache-insert (host host-entry)
 	       (when (= (hash-table-size host-cache)
 			(hash-table-count host-cache))
@@ -224,7 +232,10 @@ sent_packets, received_flows, received_bytes, received_packets) FROM '~a' WITH C
       (incf (received-bytes dest-host) (host-bytes source))
       (incf (received-packets dest-host) (host-packets source)))))
 
-(defmethod nadd ((report periodic-report) (flow flow))
+(defmethod add-flow ((report periodic-report) (flow flow))
+  (when (zerop (mod (flows (total report)) 1000))
+    (incf (cache-visit report)))
+
   (with-slots (total internal external incoming outgoing host-cache) report
     (with-slots (source dest) flow
       (let ((bytes (+ (host-bytes source) (host-bytes dest)))
@@ -279,25 +290,26 @@ sent_packets, received_flows, received_bytes, received_packets) FROM '~a' WITH C
 	  (:th "Packets") (:th "Bytes") (:th "Flows"))
      (let ((row-switch t))
        (dolist (host (busiest-hosts report :type type))
-	 (htm
-	  (:tr
-	   :class (if row-switch "rowa" "rowb")
-	   (:td (str (ip-string (host-ip host))))
-	   (:td (str (hostname (host-ip host))))
-	   (:td (fmt "~:d" (sent-packets host)))
-	   (:td (str (byte-string (sent-bytes host))))
-	   (:td (fmt "~:d" (received-packets host)))
-	   (:td (str (byte-string (received-bytes host))))
-	   (:td (fmt "~:d" (+ (received-packets host) (sent-packets host))))
-	   (:td (str (byte-string (+ (received-bytes host) (sent-bytes host)))))
-	   (:td (fmt "~:d" (+ (received-flows host) (sent-flows host))))))
+	 (let ((ip (if (stringp (host-ip host))
+		       (parse-ip-string (host-ip host))
+		       (host-ip host))))
+	   (htm
+	    (:tr
+	     :class (if row-switch "rowa" "rowb")
+	     (:td (str (ip-string ip)))
+	     (:td (str (hostname ip)))
+	     (:td (fmt "~:d" (sent-packets host)))
+	     (:td (str (byte-string (sent-bytes host))))
+	     (:td (fmt "~:d" (received-packets host)))
+	     (:td (str (byte-string (received-bytes host))))
+	     (:td (fmt "~:d" (+ (received-packets host) (sent-packets host))))
+	     (:td (str (byte-string (+ (received-bytes host) (sent-bytes host)))))
+	     (:td (fmt "~:d" (+ (received-flows host) (sent-flows host)))))))
 	 (setf row-switch (not row-switch)))))))
 
 (defmethod print-object ((report periodic-report) stream)
-  (print-unreadable-object (report stream :type t :identity t)
-    (format stream "~:[~;~:*Filter ~S, ~]version ~d"
-	    (when (filter report) (filter-title (filter report)))
-	    (report-format-version report))))
+  (print-unreadable-object (report stream :type t)
+    (format stream "version ~d" (report-format-version report))))
 
 (defmethod save-report ((object report))
   (with-open-file (stream (in-report-directory (format nil "report-~d" (report-time object)))
@@ -318,8 +330,7 @@ sent_packets, received_flows, received_bytes, received_packets) FROM '~a' WITH C
   (with-html-output (*standard-output*)
     (when title (htm (:h3 (str title))))
     (:h3 "General Statistics")
-    (with-slots (host-stats) report
-      (fmt "Report generated at ~a" (iso8661-date-string (generation-time report))))
+    (fmt "Report generated at ~a" (iso8661-date-string (generation-time report)))
     
     (cond
       ((zerop (flows (total report)))
@@ -362,6 +373,5 @@ sent_packets, received_flows, received_bytes, received_packets) FROM '~a' WITH C
 		 :bytes (reduce #'+ stats :key #'bytes)
 		 :packets (reduce #'+ stats :key #'packets)))
 
-(defun make-periodic-report (&optional filter)
-  (make-instance 'periodic-report :filter filter))
-
+(defun make-periodic-report (time)
+  (make-instance 'periodic-report :time time))

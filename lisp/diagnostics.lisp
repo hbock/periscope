@@ -42,11 +42,7 @@
      (:tr (:td "Machine hardware") (:td (str (machine-version))))
      (:tr (:td "Host Lisp")
 	  (:td (fmt "~a ~a (~a)" (lisp-implementation-type)
-		    (lisp-implementation-version) (machine-type))))
-     (:tr (:td "Collector foreign pointer")
-	  (:td (if *collector*
-		   (str (get-ptr *collector*))
-		   (str "Not initialized!")))))))
+		    (lisp-implementation-version) (machine-type)))))))
 
 (defun y-or-n-td (generalized-boolean)
   (with-html-output (*standard-output*)
@@ -93,14 +89,12 @@
        (:tr (:td "Total GC run time")
 	    (:td (fmt "~$ seconds" (/ sb-ext:*gc-run-time* internal-time-units-per-second))))))))
 
-(defun diag-thread-list ()
-  (with-config-section ("Thread List" "threads")
+(defun diag-login-list ()
+  (with-config-section ("Logged in Users" "threads")
     (:table
-     (dolist (thread (bt:all-threads))
+     (dolist (user (user-list :logged-in-p t))
        (htm
-	(:tr (:td
-	      (let ((name (bt:thread-name thread)))
-		(str (if name name "[No Name]"))))))))))
+	(:tr (:td (str (username user)))))))))
 
 ;;; Periscope Diagnostics Test Suite
 (hunchentoot:define-easy-handler (diagnostic-handler :uri "/uuddlrlrbastart") (begin)
@@ -127,7 +121,7 @@ and your child.  Unfortunately, we cannot reboot your child."))
 	   (collector-diag)
 	   (dns-diag)
 	   #+sbcl (sbcl-parameters)
-	   (diag-thread-list))))))
+	   (diag-login-list))))))
 
 (hunchentoot:define-easy-handler (set-diag :uri "/set-diag")
     (showbt showdiag swank (swankport :parameter-type 'integer))

@@ -23,4 +23,4 @@
     (when (not (database-connected-p))
       (htm (:b "Not connected, reconnecting..."))
       (database-connect "periscope"))
-    (:div :class "stats" (print-html *current-report*))))
+    (print-html (current-report *collector*))))

@@ -20,6 +20,7 @@
 
 (defclass report ()
   ((generated :reader generation-time :initform (now))
+   (timestamp :initarg :time :reader report-time :type simple-date:timestamp)
    (format-version :reader report-format-version)))
 
 (defclass stats ()
@@ -49,8 +50,12 @@
 (defgeneric print-html (object &key)
   (:documentation "Print a report object in HTML format."))
 
-(defgeneric nadd (report flows)
+(defgeneric add-flow (report flow)
   (:documentation "Add flow data to a given report."))
+
+(defgeneric finalize-report (report)
+  (:documentation "Finalizes a report object, committing it to disk and making it available
+for viewing."))
 
 (defun report-handlers (request)
   "Handle Periscope-specific report requests. Returns the report's handler function as

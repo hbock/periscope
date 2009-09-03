@@ -20,7 +20,8 @@
 
 (defclass collector ()
   ((ptr :initform nil :accessor get-ptr)
-   (remote :initform nil :accessor remote-sources)))
+   (remote :initform nil :accessor remote-sources)
+   (current-report :accessor current-report :initform nil)))
 
 (defclass source ()
   ((ptr :initarg :ptr :initform nil :accessor get-ptr)
@@ -30,20 +31,34 @@
    (port :initarg :port :reader port)))
 
 (defparameter *flows-seen* 0)
+(defvar *collector-lookup-table* (make-hash-table)
+  "Reverse lookup table for PeriscopeCollector foreign pointers.")
+
+(defgeneric process-flow (context flow)
+  (:documentation "Process flow data in a given context; currently the collector associated
+with the flow data."))
+
+(defun find-collector (pointer)
+  "Given a CFFI pointer to a PeriscopeCollector instance, find the associated Lisp 
+COLLECTOR object."
+  (multiple-value-bind (collector existsp)
+      (gethash (pointer-address pointer) *collector-lookup-table*)
+    (unless existsp
+      (periscope-error "Could not find collector at foreign address ~a." pointer))
+    collector))
 
 (defcallback receive-flow :void ((collector periscope-collector)
 				 (type :uchar)
 				 (record :pointer)
 				 (dsrs periscope-dsrs))
-  (declare (ignore collector record))
-  (case (foreign-enum-keyword 'argus-flow-types type :errorp nil)
-    (:ipv4
-     (unless (null-pointer-p (get-metrics dsrs))
-       (let ((ip (get-ip (get-flow dsrs))))
-	 (when (zerop (mod (flows (total *current-report*)) 1000))
-	   (incf (cache-visit *current-report*)))
-	 
-	 (nadd *current-report* (build-flow dsrs ip)))))))
+  (declare (ignore record))
+  (let ((collector (find-collector collector)))
+    (case (foreign-enum-keyword 'argus-flow-types type :errorp nil)
+      (:ipv4
+       (unless (null-pointer-p (get-metrics dsrs))
+	 (let* ((ip (get-ip (get-flow dsrs)))
+		(flow (build-flow dsrs ip)))
+	   (process-flow collector flow)))))))
 
 (defmethod initialize-instance :after ((object collector) &key)
   (let ((ptr (foreign-alloc 'periscope-collector)))
@@ -51,9 +66,14 @@
     (when (minusp (%collector-init ptr))
       (foreign-free ptr)
       (error "Unable to initialize collector!"))
+    ;; Add collector object to the pointer lookup table.
+    (setf (gethash (pointer-address ptr) *collector-lookup-table*) object)
     (tg:finalize object (lambda ()
+			  ;; Free the memory associated with it...
 			  (%collector-free ptr)
-			  (foreign-free ptr)))))
+			  (foreign-free ptr)
+			  ;; ...and remove its association in the pointer lookup table.
+			  (remhash (pointer-address ptr) *collector-lookup-table*)))))
 
 (defmethod run ((object collector))
   "Start the collector."
@@ -118,32 +138,18 @@
 (defun init-basic-collector (&key (default-filter *collector-default-filter*))
   (let ((collector (make-instance 'collector)))
     (with-collector-callbacks (process_flow) collector
-	(setf process_flow (callback receive-flow)))
+      (setf process_flow (callback receive-flow)))
     (when default-filter
       (setf (filter collector) default-filter))
     collector))
 
-(defun process-local-file (file &key (collector (init-basic-collector)) filter)
-  (when filter
-    (setf (filter collector) filter))
-  (add-file collector file)
-  
-  (setf *current-report* (make-instance 'periodic-report))
-  (execute "TRUNCATE TABLE host_stat")
-  (run collector)
-  
-  (with-slots (cache-hits cache-misses) *current-report*
-    (format t "Cache hits/miss: ~d/~d (~$%)~%" cache-hits cache-misses
-	    (* 100 (/ cache-hits (+ cache-hits cache-misses)))))
-  (finalize-report *current-report*))
-
 ;;; Collector stuff for racollector script.
 (defun collector-connect-string (&optional (hostname *collector-argus-server*)
 				 (port *collector-argus-port*))
-  (declare (type (unsigned-byte 16) port))
+  (declare (type port-number port))
   (format nil "~a:~d" hostname port))
 
-(defun run-collector (server time-period)
+(defun run-collector (server &optional (time-period :five-minute))
   "Run the rastream client as a child process, specifying the remote Argus server
 and the time period for which it will split its output logs."
   (let ((start-time (get-universal-time))
@@ -151,12 +157,14 @@ and the time period for which it will split its output logs."
 	 (ecase time-period
 	   (:test "10s")
 	   (:hour "1h")
-	   (:half-hour "30m")))
+	   (:half-hour "30m")
+	   (:five-minute "5m")))
 	(output-spec
 	 (in-report-directory (ecase time-period
-				(:test "test/%Y%m%d-%H:%M:%S")
-				(:hour "hourly.%Y%m%d-%H")
-				(:half-hour "halfhour.%Y%m%d-%H.%M")))))
+				(:test "test/test-%Y%m%d-%H:%M:%S")
+				(:hour "hourly-%Y%m%d-%H")
+				(:half-hour "halfhour-%Y%m%d-%H.%M")
+				(:five-minute "temp/fm-%Y%m%d-%H:%M")))))
     (setf *collector-process*
 	  (process-create *rastream-binary* nil
 			  ;; Arguments
@@ -190,7 +198,7 @@ and the time period for which it will split its output logs."
   (bt:with-lock-held (*collector-shutdown-lock*)
     (setf *collector-shutdown-p* nil))
   (loop :named watchdog-loop :do
-     (handler-case (run-collector (collector-connect-string) :hour)
+     (handler-case (run-collector (collector-connect-string) :five-minute)
        (periscope-config-error ()
 	 (setf *collector-error-p* t)
 	 (format t "Error starting rastream occured, aborting!~%")
