@@ -20,7 +20,5 @@
 
 (define-report-handler (db-report-test "/db-test" "Database Report Test") ()
   (with-periscope-page ("Database Test")
-    (when (not (database-connected-p))
-      (htm (:b "Not connected, reconnecting..."))
-      (database-connect "periscope"))
-    (print-html (current-report *collector*))))
+    (with-database ("periscope")
+      (print-html (current-report *collector*)))))
