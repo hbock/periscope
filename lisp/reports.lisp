@@ -18,7 +18,7 @@
 ;;;; Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 (in-package :periscope)
 
-(defclass report ()
+(defclass statistics-report ()
   ((generated :reader generation-time :initform (now))
    (timestamp :initarg :time :reader report-time :type simple-date:timestamp)
    (format-version :reader report-format-version)))

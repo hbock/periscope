@@ -31,13 +31,13 @@ filters are defined, a list with the form (time nil &rest reports) is returned."
 	   (let ((*internal-networks* (if internal-networks internal-networks *internal-networks*)))
 	     (list time
 		   filter
-		   (make-periodic-report flows)
-		   (make-service-report flows)))))
+		   (make-general-stats flows)
+		   (make-service-stats flows)))))
       (list
        (list time
 	     nil
-	     (make-periodic-report flow-list)
-	     (make-service-report flow-list)))))
+	     (make-general-stats flow-list)
+	     (make-service-stats flow-list)))))
 
 (defun in-report-directory (filespec &optional (directory *report-directory*))
   (merge-pathnames filespec (truename (ensure-directories-exist directory))))

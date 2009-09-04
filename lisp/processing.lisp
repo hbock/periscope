@@ -44,7 +44,7 @@
 	(make-instance 'report-collection
 		       :log log
 		       :filter (when user (first (filters user)))
-		       :reports (list 'periodic-report 'service))
+		       :reports (list 'general-stats 'service-stats))
 	;; TODO: REMOVE ME!
 	*collector* collector)
 

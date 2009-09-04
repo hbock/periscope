@@ -62,8 +62,8 @@
    (:file "diagnostics")
    (:file "users")
    ;; Reports
-   (:file "periodic-report")
-   (:file "service")
+   (:file "stats-general")
+   (:file "stats-service")
    (:file "processing")
    (:file "report-handlers")
    ;; Entry point(s?)
