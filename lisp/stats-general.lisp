@@ -311,11 +311,6 @@ sent_packets, received_flows, received_bytes, received_packets) FROM '~a' WITH C
   (print-unreadable-object (report stream :type t)
     (format stream "version ~d" (report-format-version report))))
 
-(defmethod save-report ((object report))
-  (with-open-file (stream (in-report-directory (format nil "report-~d" (report-time object)))
-			  :direction :output :if-does-not-exist :create :if-exists :supersede)
-    (format stream "~S" (object-forms object))))
-
 (defmethod load-report (file)
   (with-open-file (stream file :direction :input)
     (eval (read stream))))
