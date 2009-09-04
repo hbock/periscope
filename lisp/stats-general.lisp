@@ -44,9 +44,7 @@ supported.")
 (defclass host-stat ()
   ((host-ip :col-type inet :initarg :host-ip :accessor host-ip)
    (host-type :col-type integer :initarg :host-type :reader host-type)
-   (hour :col-type smallint :initarg :hour)
-   (date :col-type smallint :initarg :date)
-   (month :col-type smallint :initarg :month)
+   (timestamp :col-type timestamp :initarg :timestamp :reader timestamp)
    (sent-flows   :col-type bigint :col-default 0 :initform 0 :accessor sent-flows)
    (sent-bytes   :col-type bigint :col-default 0 :initform 0 :accessor sent-bytes)
    (sent-packets :col-type bigint :col-default 0 :initform 0 :accessor sent-packets)
@@ -55,7 +53,7 @@ supported.")
    (received-packets :col-type bigint :col-default 0 :initform 0 :accessor received-packets)
    (refcount :initform 1 :accessor refcount))
   (:metaclass pomo:dao-class)
-  (:keys host-ip hour date month))
+  (:keys host-ip timestamp))
 
 (defmethod initialize-instance :after ((object general-stats) &key
 				       (cache-size *host-cache-default-size*))
@@ -79,10 +77,10 @@ supported.")
 				:if-exists :supersede
 				:if-does-not-exist :create)
 	 (flet ((insert-host (host)
-		  (with-slots (host-ip host-type hour date month sent-flows sent-bytes sent-packets
+		  (with-slots (host-ip host-type timestamp sent-flows sent-bytes sent-packets
 				       received-flows received-bytes received-packets)  host
-		    (format ,stream "~a,~d,~d,~d,~d,~d,~d,~d,~d,~d,~d~%"
-			    (ip-string (host-ip host-ip)) host-type hour date month
+		    (format ,stream "~a,~d,~d,~d,~d,~d,~d,~d,~d~%"
+			    (ip-string (host-ip host-ip)) host-type (timestamp-string timestamp)
 			    sent-flows sent-bytes sent-packets
 			    received-flows received-bytes received-packets))))
 	   ,@body))
@@ -106,7 +104,7 @@ supported.")
 (defun copy-host-data (file)
   (execute
    (format nil
-	   "COPY host_stat (host_ip, host_type, hour, date, month, sent_flows, sent_bytes, 
+	   "COPY host_stat (host_ip, host_type, timestamp, sent_flows, sent_bytes, 
 sent_packets, received_flows, received_bytes, received_packets) FROM '~a' WITH CSV"
 	   (truename file))))
 
@@ -173,9 +171,7 @@ sent_packets, received_flows, received_bytes, received_packets) FROM '~a' WITH C
       (flet ((new-entry ()
 	       (make-instance 'host-stat :host-ip host
 			      :host-type (flow-host-type host)
-			      :hour (extract (report-time report) :type :hour)
-			      :date (extract (report-time report) :type :date)
-			      :month (extract (report-time report) :type :month)))
+			      :timestamp (report-time report)))
 	     (cache-insert (host host-entry)
 	       (when (= (hash-table-size host-cache)
 			(hash-table-count host-cache))
@@ -318,8 +314,10 @@ sent_packets, received_flows, received_bytes, received_packets) FROM '~a' WITH C
 (defmethod unique-hosts ((report general-stats) &key type)
   (if type
       (query (:select (:count 'host-ip) :from 'host-stat
-		      :where (:= 'host-type (flow-host-type type))) :single)
-      (query (:select (:count 'host-ip) :from 'host-stat) :single)))
+		      :where (:and (:= 'host-type (flow-host-type type))
+				   (:= 'timestamp (report-time report)))) :single)
+      (query (:select (:count 'host-ip) :from 'host-stat
+		      :where (:= 'timestamp (report-time report))) :single)))
 
 (defmethod print-html ((report general-stats) &key title)
   (with-html-output (*standard-output*)
