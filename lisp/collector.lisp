@@ -31,7 +31,7 @@
    (port :initarg :port :reader port)))
 
 (defparameter *flows-seen* 0)
-(defvar *collector-lookup-table* (make-hash-table)
+(defvar *collector-lookup-table* (tg:make-weak-hash-table :weakness :value)
   "Reverse lookup table for PeriscopeCollector foreign pointers.")
 
 (defgeneric process-flow (context flow)
@@ -71,9 +71,7 @@ COLLECTOR object."
     (tg:finalize object (lambda ()
 			  ;; Free the memory associated with it...
 			  (%collector-free ptr)
-			  (foreign-free ptr)
-			  ;; ...and remove its association in the pointer lookup table.
-			  (remhash (pointer-address ptr) *collector-lookup-table*)))))
+			  (foreign-free ptr)))))
 
 (defmethod run ((object collector))
   "Start the collector."
