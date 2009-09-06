@@ -44,12 +44,12 @@
 	(make-instance 'report-collection
 		       :log log
 		       :filter (when user (first (filters user)))
-		       :reports (list 'periodic-report 'service))
+		       :reports (list 'general-stats 'service-stats))
 	;; TODO: REMOVE ME!
 	*collector* collector)
 
   (with-database ("periscope")
-    (execute "TRUNCATE TABLE host_stat")
+    ;(execute "TRUNCATE TABLE host_stat")
     (run collector)
     (dolist (report (report-list (current-report collector)))
       (finalize-report report)))
@@ -63,6 +63,15 @@
       (dolist (report reports)
 	(add-flow report flow)))))
 
+(defun process-log-group (log-list)
+  (let (threads)
+    (dolist (log log-list)
+      (push (bt:make-thread (lambda () (process-log log))
+			    :name (format nil "LOG PROCESSING ~a" log)) threads))
+
+    (dolist (thread threads)
+      (bt:join-thread thread))))
+
 (defmethod print-html ((object report-collection) &key)
   (with-html-output (*standard-output*)
     (with-slots (filter reports) object
@@ -72,6 +81,9 @@
 
 (defmethod print-object ((object report-collection) stream)
   (print-unreadable-object (object stream :type t)
-    (with-slots (reports timestamp) object
-      (format stream "reports (~{~a~^, ~}) @[~a]" (mapcar #'type-of reports)
-	      (timestamp-string timestamp)))))
+    (with-slots (reports timestamp filter) object
+      ;; FORMAT RULEZ PRINTF DROOLZ
+      (format stream "(~{~a~^, ~}) @[~a]~:[~; ~:*~S~]"
+	      (mapcar #'type-of reports)
+	      (timestamp-string timestamp)
+	      (and filter (filter-title filter))))))

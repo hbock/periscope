@@ -18,23 +18,23 @@
 ;;;; Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 (in-package :periscope)
 
-(defvar *periodic-report-format-version* 0
+(defvar *general-stats-format-version* 0
   "Current version of the PERIOD-REPORT file/class format. Used to ensure older report formats
 are processed correctly, or a proper error is signalled when a report format is no longer
 supported.")
 (defvar *host-cache-default-size* 30000)
 (defconstant +min-host-cache-size+ 30000)
 
-(defclass periodic-report (report)
+(defclass general-stats (statistics-report)
   ((total :accessor total :type stats :initform (make-instance 'stats))
    (internal :accessor internal :type stats :initform (make-instance 'stats))
    (external :accessor external :type stats :initform (make-instance 'stats))
    (incoming :accessor incoming :type stats :initform (make-instance 'stats))
    (outgoing :accessor outgoing :type stats :initform (make-instance 'stats))
-   (format-version :initarg :version :initform *periodic-report-format-version*)
+   (format-version :initarg :version :initform *general-stats-format-version*)
    (host-cache       :accessor host-cache)
    (host-on-disk     :accessor host-on-disk)
-   (cache-visit     :accessor cache-visit :initform 0)
+   (cache-visit      :accessor cache-visit :initform 0)
    (cache-last-flush :accessor cache-last-flush :initform -1)
    (cache-hits       :accessor cache-hits   :initform 0)
    (cache-misses     :accessor cache-misses :initform 0)
@@ -44,9 +44,7 @@ supported.")
 (defclass host-stat ()
   ((host-ip :col-type inet :initarg :host-ip :accessor host-ip)
    (host-type :col-type integer :initarg :host-type :reader host-type)
-   (hour :col-type smallint :initarg :hour)
-   (date :col-type smallint :initarg :date)
-   (month :col-type smallint :initarg :month)
+   (timestamp :col-type timestamp :initarg :timestamp :reader timestamp)
    (sent-flows   :col-type bigint :col-default 0 :initform 0 :accessor sent-flows)
    (sent-bytes   :col-type bigint :col-default 0 :initform 0 :accessor sent-bytes)
    (sent-packets :col-type bigint :col-default 0 :initform 0 :accessor sent-packets)
@@ -55,16 +53,16 @@ supported.")
    (received-packets :col-type bigint :col-default 0 :initform 0 :accessor received-packets)
    (refcount :initform 1 :accessor refcount))
   (:metaclass pomo:dao-class)
-  (:keys host-ip hour date month))
+  (:keys host-ip timestamp))
 
-(defmethod initialize-instance :after ((object periodic-report) &key
+(defmethod initialize-instance :after ((object general-stats) &key
 				       (cache-size *host-cache-default-size*))
   (with-slots (format-version host-cache host-on-disk) object
     (setf host-cache (make-hash-table :test 'eql :size cache-size))
     (setf host-on-disk (make-hash-table :test 'eql :size (* 10 cache-size)))
-    (setf format-version *periodic-report-format-version*)))
+    (setf format-version *general-stats-format-version*)))
 
-(defmethod cache-stats ((report periodic-report))
+(defmethod cache-stats ((report general-stats))
   (with-slots (host-cache cache-visit) report
     (loop 
        :with visit-list = (make-array (1+ cache-visit))
@@ -79,16 +77,16 @@ supported.")
 				:if-exists :supersede
 				:if-does-not-exist :create)
 	 (flet ((insert-host (host)
-		  (with-slots (host-ip host-type hour date month sent-flows sent-bytes sent-packets
+		  (with-slots (host-ip host-type timestamp sent-flows sent-bytes sent-packets
 				       received-flows received-bytes received-packets)  host
-		    (format ,stream "~a,~d,~d,~d,~d,~d,~d,~d,~d,~d,~d~%"
-			    (ip-string (host-ip host-ip)) host-type hour date month
+		    (format ,stream "~a,~d,~d,~d,~d,~d,~d,~d,~d~%"
+			    (ip-string (host-ip host-ip)) host-type (timestamp-string timestamp)
 			    sent-flows sent-bytes sent-packets
 			    received-flows received-bytes received-packets))))
 	   ,@body))
      (copy-host-data ,output-file)))
 
-(defmethod finalize-report ((report periodic-report))
+(defmethod finalize-report ((report general-stats))
   ""
   (with-slots (cache-hits cache-misses) report
       (unless (= 0 cache-hits cache-misses)
@@ -106,7 +104,7 @@ supported.")
 (defun copy-host-data (file)
   (execute
    (format nil
-	   "COPY host_stat (host_ip, host_type, hour, date, month, sent_flows, sent_bytes, 
+	   "COPY host_stat (host_ip, host_type, timestamp, sent_flows, sent_bytes, 
 sent_packets, received_flows, received_bytes, received_packets) FROM '~a' WITH CSV"
 	   (truename file))))
 
@@ -165,7 +163,7 @@ sent_packets, received_flows, received_bytes, received_packets) FROM '~a' WITH C
     (incf cache-last-flush flush-levels)))
 
 ;;; Our method for host statistics lookup is based on an LRU-like caching algorithm.
-(defmethod find-host-stats ((report periodic-report) (host flow-host)
+(defmethod find-host-stats ((report general-stats) (host flow-host)
 			    &key (check-db-p (using-db-p report)))
   (with-slots (host-cache host-on-disk cache-visit cache-hits cache-misses cache-lookups) report
     (multiple-value-bind (cached-value existsp)
@@ -173,9 +171,7 @@ sent_packets, received_flows, received_bytes, received_packets) FROM '~a' WITH C
       (flet ((new-entry ()
 	       (make-instance 'host-stat :host-ip host
 			      :host-type (flow-host-type host)
-			      :hour (extract (report-time report) :type :hour)
-			      :date (extract (report-time report) :type :date)
-			      :month (extract (report-time report) :type :month)))
+			      :timestamp (report-time report)))
 	     (cache-insert (host host-entry)
 	       (when (= (hash-table-size host-cache)
 			(hash-table-count host-cache))
@@ -216,7 +212,7 @@ sent_packets, received_flows, received_bytes, received_packets) FROM '~a' WITH C
 	  ;; new one and add it to the cache.
 	  (t (cache-insert host (new-entry))))))))
 
-(defmethod update-host-stats ((report periodic-report) (source flow-host) (dest flow-host))
+(defmethod update-host-stats ((report general-stats) (source flow-host) (dest flow-host))
   (with-slots (host-cache) report
     (let ((source-host (find-host-stats report source))
 	  (dest-host (find-host-stats report dest)))
@@ -232,7 +228,7 @@ sent_packets, received_flows, received_bytes, received_packets) FROM '~a' WITH C
       (incf (received-bytes dest-host) (host-bytes source))
       (incf (received-packets dest-host) (host-packets source)))))
 
-(defmethod add-flow ((report periodic-report) (flow flow))
+(defmethod add-flow ((report general-stats) (flow flow))
   (when (zerop (mod (flows (total report)) 1000))
     (incf (cache-visit report)))
 
@@ -255,7 +251,7 @@ sent_packets, received_flows, received_bytes, received_packets) FROM '~a' WITH C
 ;; (defmethod remote-contact-count ((host host-stats))
 ;;   (hash-table-count (slot-value host 'remote-contacts)))
 
-(defmethod busiest-hosts ((report periodic-report) &key (limit 20) (type :local))
+(defmethod busiest-hosts ((report general-stats) &key (limit 20) (type :local))
   (pomo:query-dao
    'host-stat
    (:limit (:order-by (:select '* :from 'host-stat :where (:= 'host-type (flow-host-type type)))
@@ -307,26 +303,23 @@ sent_packets, received_flows, received_bytes, received_packets) FROM '~a' WITH C
 	     (:td (fmt "~:d" (+ (received-flows host) (sent-flows host)))))))
 	 (setf row-switch (not row-switch)))))))
 
-(defmethod print-object ((report periodic-report) stream)
+(defmethod print-object ((report general-stats) stream)
   (print-unreadable-object (report stream :type t)
     (format stream "version ~d" (report-format-version report))))
-
-(defmethod save-report ((object report))
-  (with-open-file (stream (in-report-directory (format nil "report-~d" (report-time object)))
-			  :direction :output :if-does-not-exist :create :if-exists :supersede)
-    (format stream "~S" (object-forms object))))
 
 (defmethod load-report (file)
   (with-open-file (stream file :direction :input)
     (eval (read stream))))
 
-(defmethod unique-hosts ((report periodic-report) &key type)
+(defmethod unique-hosts ((report general-stats) &key type)
   (if type
       (query (:select (:count 'host-ip) :from 'host-stat
-		      :where (:= 'host-type (flow-host-type type))) :single)
-      (query (:select (:count 'host-ip) :from 'host-stat) :single)))
+		      :where (:and (:= 'host-type (flow-host-type type))
+				   (:= 'timestamp (report-time report)))) :single)
+      (query (:select (:count 'host-ip) :from 'host-stat
+		      :where (:= 'timestamp (report-time report))) :single)))
 
-(defmethod print-html ((report periodic-report) &key title)
+(defmethod print-html ((report general-stats) &key title)
   (with-html-output (*standard-output*)
     (when title (htm (:h3 (str title))))
     (:h3 "General Statistics")
@@ -373,5 +366,5 @@ sent_packets, received_flows, received_bytes, received_packets) FROM '~a' WITH C
 		 :bytes (reduce #'+ stats :key #'bytes)
 		 :packets (reduce #'+ stats :key #'packets)))
 
-(defun make-periodic-report (time)
-  (make-instance 'periodic-report :time time))
+(defun make-general-stats (time)
+  (make-instance 'general-stats :time time))
