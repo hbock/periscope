@@ -12,3 +12,4 @@ periscope
 \.\#*
 *.argus
 lisp/reports
+*.gz
