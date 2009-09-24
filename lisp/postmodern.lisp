@@ -18,10 +18,6 @@
 ;;;; Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 (in-package :periscope)
 
-(defparameter *database-host* "localhost")
-(defparameter *database-user* "periscope")
-(defparameter *database-password* "periscope")
-
 (defconstant +postgres-oid-inet+ 869)
 
 (deftype octet ()
@@ -45,6 +41,17 @@ by Periscope."
        (read-sequence ip inet-stream :end 4)
        (vector-to-ip ip)))))
 
+(eval-when (:compile-toplevel :load-toplevel)
+  (defparameter *database-host* "localhost")
+  (defparameter *database-user* "periscope")
+  (defparameter *database-password* "periscope")
+
+  (defmacro with-database ((database &key (user '*database-user*)
+				     (host '*database-host*)
+				     (password '*database-password*)) &body body)
+    `(pomo:with-connection (list ,database ,user ,password ,host)
+       ,@body)))
+
 (defun database-initialize ()
   "Perform initialization of PostgreSQL functionality - sets up readers for special Periscope
 data types, etc."
@@ -67,12 +74,8 @@ data types, etc."
 (defun create-schema ()
   "Create the Periscope database schema on the currently connected database. Creates
 table layouts and their relevant indexes."
-  (execute (pomo:dao-table-definition 'host-stat))
-  ;(execute (:create-index 'time :on host-stat :fields hour date month))
-  )
+  (with-database ("periscope")
+    (execute (pomo:dao-table-definition 'host-stat))
+    ;(execute (:create-index 'time :on host-stat :fields hour date month))
+    ))
 
-(defmacro with-database ((database &key (user *database-user*)
-				   (host *database-host*)
-				   (password *database-password*)) &body body)
-  `(pomo:with-connection (list ,database ,user ,password ,host)
-     ,@body))
