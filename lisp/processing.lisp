@@ -35,7 +35,8 @@
   (with-slots (timestamp reports) object
     (setf reports (mapcar (lambda (type) (make-instance type :time timestamp)) reports))))
 
-(defmethod process-log ((log argus-log) &key (collector (init-basic-collector)) user argus-filter)
+(defmethod process-log ((log argus-log) &key (collector (init-basic-collector))
+			user argus-filter truncate)
   (when argus-filter
     (setf (filter collector) argus-filter))
   (add-file collector (argus-log-pathname log))
@@ -47,9 +48,10 @@
 		       :reports (list 'general-stats 'service-stats))
 	;; TODO: REMOVE ME!
 	*collector* collector)
-
+  
   (with-database ("periscope")
-    ;(execute "TRUNCATE TABLE host_stat")
+    (when truncate
+      (execute "TRUNCATE TABLE host_stat"))
     (run collector)
     (dolist (report (report-list (current-report collector)))
       (finalize-report report)))
