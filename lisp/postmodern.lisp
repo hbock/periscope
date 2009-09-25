@@ -76,6 +76,11 @@ data types, etc."
 table layouts and their relevant indexes."
   (with-database ("periscope")
     (execute (pomo:dao-table-definition 'host-stat))
+    (execute (pomo:dao-table-definition 'traffic-stats))
     ;(execute (:create-index 'time :on host-stat :fields hour date month))
     ))
 
+(defmacro insert-slots ((&rest slots) object)
+  `(with-slots (,@slots) ,object
+     ,@(loop :for slot :in slots
+	  :collect `(pomo:insert-dao ,slot))))
