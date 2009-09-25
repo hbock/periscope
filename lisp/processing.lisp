@@ -51,7 +51,9 @@
   
   (with-database ("periscope")
     (when truncate
-      (execute "TRUNCATE TABLE host_stat"))
+      (execute "TRUNCATE TABLE host_stat")
+      (execute "TRUNCATE TABLE traffic_stats"))
+    
     (run collector)
     (dolist (report (report-list (current-report collector)))
       (finalize-report report)))

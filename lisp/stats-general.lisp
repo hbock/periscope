@@ -25,12 +25,21 @@ supported.")
 (defvar *host-cache-default-size* 30000)
 (defconstant +min-host-cache-size+ 30000)
 
+(defclass traffic-stats ()
+  ((bytes   :col-type bigint  :initarg :bytes   :initform 0 :accessor bytes)
+   (packets :col-type bigint  :initarg :packets :initform 0 :accessor packets)
+   (flows   :col-type bigint  :initarg :flows   :initform 0 :accessor flows)
+   (type    :col-type integer :initarg :type :reader stats-type)
+   (timestamp :col-type timestamp :initarg :timestamp :reader timestamp))
+  (:metaclass pomo:dao-class)
+  (:keys type timestamp))
+
 (defclass general-stats (statistics-report)
-  ((total :accessor total :type stats :initform (make-instance 'stats))
-   (internal :accessor internal :type stats :initform (make-instance 'stats))
-   (external :accessor external :type stats :initform (make-instance 'stats))
-   (incoming :accessor incoming :type stats :initform (make-instance 'stats))
-   (outgoing :accessor outgoing :type stats :initform (make-instance 'stats))
+  ((total :accessor total :type traffic-stats)
+   (internal :accessor internal :type traffic-stats)
+   (external :accessor external :type traffic-stats)
+   (incoming :accessor incoming :type traffic-stats)
+   (outgoing :accessor outgoing :type traffic-stats)
    (format-version :initarg :version :initform *general-stats-format-version*)
    (host-cache       :accessor host-cache)
    (host-on-disk     :accessor host-on-disk)
@@ -57,6 +66,11 @@ supported.")
 
 (defmethod initialize-instance :after ((object general-stats) &key
 				       (cache-size *host-cache-default-size*))
+  (loop :for stats :in '(internal external incoming outgoing total)
+     :for i = 1 :then (1+ i) :do
+     (setf (slot-value object stats)
+	   (make-instance 'traffic-stats :type i :timestamp (report-time object))))
+  
   (with-slots (format-version host-cache host-on-disk) object
     (setf host-cache (make-hash-table :test 'eql :size cache-size))
     (setf host-on-disk (make-hash-table :test 'eql :size (* 10 cache-size)))
@@ -87,11 +101,13 @@ supported.")
      (copy-host-data ,output-file)))
 
 (defmethod finalize-report ((report general-stats))
-  ""
+  ;; TODO: Remove me when done debugging!
   (with-slots (cache-hits cache-misses) report
       (unless (= 0 cache-hits cache-misses)
 	(format t "Cache hits/miss: ~d/~d (~$%)~%" cache-hits cache-misses
 		(* 100 (/ cache-hits (+ cache-hits cache-misses))))))
+
+  (insert-slots (internal external incoming outgoing total) report)
   
   (with-fast-insert (insert-stream)
     (maphash (lambda (key host-entry)
@@ -228,6 +244,11 @@ sent_packets, received_flows, received_bytes, received_packets) FROM '~a' WITH C
       (incf (received-bytes dest-host) (host-bytes source))
       (incf (received-packets dest-host) (host-packets source)))))
 
+(defmethod add-traffic-stats ((stats traffic-stats) &optional (bytes 0) (packets 0) (flows 1))
+  (incf (flows stats) flows)
+  (incf (bytes stats) bytes)
+  (incf (packets stats) packets))
+
 (defmethod add-flow ((report general-stats) (flow flow))
   (when (zerop (mod (flows (total report)) 1000))
     (incf (cache-visit report)))
@@ -236,12 +257,12 @@ sent_packets, received_flows, received_bytes, received_packets) FROM '~a' WITH C
     (with-slots (source dest) flow
       (let ((bytes (+ (host-bytes source) (host-bytes dest)))
 	    (packets (+ (host-packets source) (host-packets dest))))
-	(add-stats total :bytes bytes :packets packets)
+	(add-traffic-stats total bytes packets)
 	(case (classify flow)
-	  (:internal-only (add-stats internal :bytes bytes :packets packets))
-	  (:external-only (add-stats external :bytes bytes :packets packets))
-	  (:incoming  (add-stats incoming :bytes bytes :packets packets))
-	  (:outgoing  (add-stats outgoing :bytes bytes :packets packets)))
+	  (:internal-only (add-traffic-stats internal bytes packets))
+	  (:external-only (add-traffic-stats external bytes packets))
+	  (:incoming  (add-traffic-stats incoming bytes packets))
+	  (:outgoing  (add-traffic-stats outgoing bytes packets)))
 
 	(update-host-stats report source dest)))))
 
@@ -250,6 +271,14 @@ sent_packets, received_flows, received_bytes, received_packets) FROM '~a' WITH C
 
 ;; (defmethod remote-contact-count ((host host-stats))
 ;;   (hash-table-count (slot-value host 'remote-contacts)))
+
+(defun traffic-stats-type (sql-enum)
+  (ecase sql-enum
+    (1 :internal-only)
+    (2 :external-only)
+    (3 :incoming)
+    (4 :outgoing)
+    (5 :total)))
 
 (defmethod busiest-hosts ((report general-stats) &key (limit 20) (type :local))
   (pomo:query-dao
@@ -319,6 +348,20 @@ sent_packets, received_flows, received_bytes, received_packets) FROM '~a' WITH C
       (query (:select (:count 'host-ip) :from 'host-stat
 		      :where (:= 'timestamp (report-time report))) :single)))
 
+(defmethod print-html ((object traffic-stats) &key (title "General Stats") (with-row t) (flows t))
+  (with-html-output (*standard-output*)
+    (if with-row
+	(htm
+	 (:tr (:td (:b (str title)))
+	      (:td (fmt "~:d" (packets object)))
+	      (:td (str (byte-string (bytes object))))
+	      (:td (fmt "~:d" (flows object)))))
+	(htm
+	 (:td (fmt "~:d" (packets object)))
+	 (:td (str (byte-string (bytes object))))
+	 (when flows
+	   (htm (:td (fmt "~:d" (flows object)))))))))
+
 (defmethod print-html ((report general-stats) &key title)
   (with-html-output (*standard-output*)
     (when title (htm (:h3 (str title))))
@@ -334,11 +377,9 @@ sent_packets, received_flows, received_bytes, received_packets) FROM '~a' WITH C
 	(:table
 	 (:tr (:th :colspan 4 "Flow Statistics"))
 	 (:tr (:th "") (:th "Packets") (:th "Bytes") (:th "Flows"))
-	 (print-html (internal report) :title "Internal Only")
-	 (print-html (external report) :title "External Only")
-	 (print-html (incoming report) :title "Incoming")
-	 (print-html (outgoing report) :title "Outgoing")
-	 (print-html (total report) :title "Total"))
+	 (loop :for stats :in
+	    (pomo:select-dao 'traffic-stats (:= 'timestamp (report-time report)) 'type)
+	    :do (print-html stats :title (traffic-stats-type (stats-type stats)))))
 
 	(:table
 	 (:tr (:th :colspan 2 "Unique Hosts"))
