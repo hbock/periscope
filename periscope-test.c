@@ -268,6 +268,7 @@ main (int argc, char **argv)
 {
    int i, sources = (argc - 1);
    struct sigaction signals;
+   struct nff_program* fprg = (struct nff_program *)malloc(sizeof(struct nff_program));
    char *filter = "tcp or udp or icmp";
 
    /* Set up signal handling for SIGINT. */
@@ -286,6 +287,14 @@ main (int argc, char **argv)
 
    g_collector.callbacks.process_flow = process_flow;
    g_collector.callbacks.input_complete = input_source_completed;
+
+   if((fprg = periscope_argus_filter_compile("tcpp or icmp", 0)) == NULL) {
+      printf("No compile!\n");
+   } else {
+      printf("Compile filter ok!\n");
+      nff_dump(fprg, 1);
+   }
+   exit(0);
 
    if(argc >= 2 && strcmp(argv[1], "unittest") == 0) {
       int tests, fail;

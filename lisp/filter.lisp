@@ -19,64 +19,39 @@
 (in-package :periscope)
 
 (defclass filter ()
-  ((title :initarg :title :reader filter-title :initform nil)
-   (vlans :initarg :vlans :initform nil)
-   (subnets :initarg :subnets :initform nil)
-   (internal-networks :initarg :internal-networks :initform nil)
-   (predicate :initarg :predicate :accessor filter-predicate
-	      :initform (lambda (flow)
-			  (declare (ignore flow)) t))))
+  ((title :initarg :title :type string :reader filter-title)
+   (string :initarg :string :type string :reader filter-string
+	   :initform (error "Must supply filter string!"))
+   (internal-networks :initarg :internal-networks
+		      :initform nil)
+   (program :reader filter-program)))
 
-(defun vlan-list-filter (vlans)
-  (unless (every #'vlan-p vlans)
-    (error "~a is not a valid VLAN ID!" (find-if-not #'vlan-p vlans)))
-  (lambda (flow)
-    (or (find (host-vlan (source flow)) vlans :test #'=)
-	(find (host-vlan (dest flow))   vlans :test #'=))))
+(defmethod initialize-instance :after ((object filter) &key optimize)
+  (with-slots (string program) object
+    (setf program (%filter-compile string (if optimize 1 0)))
+    (when (null-pointer-p program)
+      (error "Syntax error in filter: ~a" string))
+    (tg:finalize object (lambda () (%filter-free program)))))
 
-(defun subnet-list-filter (subnet*)
-  (lambda (flow)
-    (or
-     (some (lambda (subnet)
-	     (network-member-p (host-ip (source flow)) (car subnet) (cdr subnet))) subnet*)
-     (some (lambda (subnet)
-	     (network-member-p (host-ip (dest flow)) (car subnet) (cdr subnet))) subnet*))))
+(defmethod filter-match-p ((object filter) record-ptr)
+  (plusp (%filter-record (foreign-slot-value
+			  (filter-program object) 'argus-nff-program 'bf_insns) record-ptr)))
 
-(defun make-generic-filter (title &key vlans subnets internal-networks)
-  (let ((predicate
-	 (cond ((not (or vlans subnets))
-	(lambda (flow)
-		  (declare (ignore flow)) t))
-	       ((null subnets)
-		(vlan-list-filter vlans))
-	       ((null vlans)
-		(subnet-list-filter subnets))
-	       (t
-		(let ((vlan-predicate (vlan-list-filter vlans))
-		      (subnet-predicate (subnet-list-filter subnets)))
-		  (lambda (flow)
-		    (or (funcall vlan-predicate flow)
-			(funcall subnet-predicate flow))))))))
-    (make-instance 'filter :title title :vlans vlans :subnets subnets :predicate predicate
-		   :internal-networks internal-networks)))
+(defmethod make-filter ((title string) (filter-string string) &key internal-networks optimize)
+  (make-instance 'filter :string filter-string :internal-networks internal-networks
+		 :optimize optimize))
 
 (defmethod print-config-forms ((object filter))
-  (with-slots (vlans subnets internal-networks title) object
-    `(make-generic-filter ,title :vlans (list ,@vlans)
-			  :subnets ,(network-list-forms subnets)
-			  :internal-networks ,(network-list-forms internal-networks))))
+  (with-slots (string title internal-networks) object
+    `(make-filter ,title ,string :internal-networks ,(network-list-forms internal-networks))))
 
-(defmethod filter-pass-p ((filter filter) (flow flow))
-  "Returns true if FLOW passes the filter predicate defined for FILTER."
-  (funcall (filter-predicate filter) flow))
-
-(defun apply-filters (sequence predicate-list &key key)
-  "Apply each predicate in predicate-list once to each element in sequence, returning
-one filtered list per predicate."
-  (mapcar (lambda (predicate) (remove-if-not predicate sequence :key key)) predicate-list))
+;; (defun apply-filters (sequence predicate-list &key key)
+;;   "Apply each predicate in predicate-list once to each element in sequence, returning
+;; one filtered list per predicate."
+;;   (mapcar (lambda (predicate) (remove-if-not predicate sequence :key key)) predicate-list))
 
 (defmethod print-html ((object filter) &key)
-  (with-slots (title vlans subnets internal-networks) object
+  (with-slots (title string internal-networks) object
     (with-html-output (*standard-output*)
       (:div :class "filter-title"
 	    (:big "Filter " (:b (str (filter-title object))))
@@ -87,12 +62,4 @@ one filtered list per predicate."
 				      internal-networks
 				      *internal-networks*)))
 	    (:br) (:br)
-	    (:i "Filter Parameters")
-	    (:br)
-	    (when vlans
-	      (htm (:b "VLANs: ")
-		   (fmt "~{~a~^, ~}" (mapcar #'vlan-name vlans))))
-	    (:br)
-	    (when subnets
-	      (htm (:b "Subnets: ")
-		   (fmt "~{~a~^, ~}" (network-strings subnets))))))))
+	    (:i "Filter string: ") (str string)))))

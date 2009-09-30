@@ -127,8 +127,24 @@
 (defcfun ("periscope_argus_debug_dsrs" %argus-debug-dsrs) :void
   (dsrs periscope-dsrs))
 
+(defcfun ("periscope_argus_filter_compile" %filter-compile) :pointer
+  (filter :string)
+  (optimize :int))
+
+(defcfun ("periscope_argus_filter_free" %filter-free) :void
+  (filter :pointer))
+
+(defcfun ("ArgusFilterRecord" %filter-record) :int
+  (filter-code :pointer)
+  (record :pointer))
+
+(defcstruct argus-nff-program
+  (bf_len :uint)
+  (bf_insns :pointer))
+
 (defmacro with-collector-callbacks (callbacks collector &body body)
   `(with-foreign-slots ((,@callbacks)
 			(foreign-slot-value (get-ptr ,collector) 'periscope-collector 'callbacks)
 			periscope-callbacks)
      ,@body))
+

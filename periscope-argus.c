@@ -445,6 +445,34 @@ periscope_argus_set_filter(struct PeriscopeCollector *collector, char *filter)
    return 0;
 }
 
+struct nff_program *
+periscope_argus_filter_compile(char *filter, int optimize)
+{
+   int i;
+   struct nff_program *prog = (struct nff_program *)malloc(sizeof(struct nff_program));
+   if(prog == NULL)
+      return NULL;
+   /*
+   printf("%p filter\n", filter);
+   for(i = 0; i < strlen(filter); i++)
+      printf("%c ", filter[i]);
+   printf("\n");
+   */
+   if(ArgusFilterCompile(prog, filter, optimize) < 0) {
+      free(prog);
+      return NULL;
+   }
+   
+   return prog;
+}
+
+void
+periscope_argus_free_filter(struct nff_program *filter)
+{
+   free(filter->bf_insns);
+   free(filter);
+}
+
 const char *
 periscope_argus_get_filter(struct PeriscopeCollector *collector)
 {
