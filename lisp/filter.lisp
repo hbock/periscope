@@ -19,12 +19,20 @@
 (in-package :periscope)
 
 (defclass filter ()
-  ((title :initarg :title :type string :reader filter-title)
-   (string :initarg :string :type string :reader filter-string
-	   :initform (error "Must supply filter string!"))
+  ((id :col-type serial
+       :reader filter-id)
+   (title :col-type string
+	  :initarg :title :type string
+	  :reader filter-title)
+   (string :col-type string
+	   :initarg :string :type string
+	   :initform (error "Must supply filter string!")
+	   :reader filter-string)
    (internal-networks :initarg :internal-networks
 		      :initform nil)
-   (program :reader filter-program)))
+   (program :reader filter-program))
+  (:metaclass pomo:dao-class)
+  (:keys id))
 
 (defmethod initialize-instance :after ((object filter) &key optimize)
   (with-slots (string program) object
@@ -33,13 +41,19 @@
       (error "Syntax error in filter: ~a" string))
     (tg:finalize object (lambda () (%filter-free program)))))
 
+(defmethod commit ((object filter))
+  (pomo:save-dao object))
+
+(defun all-filters ()
+  (pomo:select-dao 'filter))
+
 (defmethod filter-match-p ((object filter) record-ptr)
   (plusp (%filter-record (foreign-slot-value
 			  (filter-program object) 'argus-nff-program 'bf_insns) record-ptr)))
 
 (defmethod make-filter ((title string) (filter-string string) &key internal-networks optimize)
   (make-instance 'filter :string filter-string :internal-networks internal-networks
-		 :optimize optimize))
+		 :optimize optimize :title title))
 
 (defmethod print-config-forms ((object filter))
   (with-slots (string title internal-networks) object

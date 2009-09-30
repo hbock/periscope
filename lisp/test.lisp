@@ -21,4 +21,5 @@
 (define-report-handler (db-report-test "/db-test" "Database Report Test") ()
   (with-periscope-page ("Database Test")
     (with-database ("periscope")
-      (print-html (current-report *collector*)))))
+      (dolist (report (reports *collector*))
+	(print-html report)))))

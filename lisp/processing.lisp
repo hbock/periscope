@@ -35,19 +35,22 @@
   (with-slots (timestamp reports) object
     (setf reports (mapcar (lambda (type) (make-instance type :time timestamp)) reports))))
 
-(defmethod process-log ((log argus-log) &key (collector (init-basic-collector))
-			user argus-filter truncate)
-  (when argus-filter
-    (setf (filter collector) argus-filter))
-  (add-file collector (argus-log-pathname log))
+(defmethod commit ((collection report-collection))
+  (dolist (report (report-list collection))
+    (finalize-report report)))
 
-  (setf (current-report collector)
-	(make-instance 'report-collection
-		       :log log
-		       :filter (when user (first (filters user)))
-		       :reports (list 'general-stats 'service-stats))
-	;; TODO: REMOVE ME!
-	*collector* collector)
+(defmethod process-log ((log argus-log) &key (collector (init-basic-collector)) truncate)
+  (add-file collector (argus-log-pathname log))
+  (setf (reports collector)
+  	(mapcar
+	 (lambda (filter)
+	   (make-instance 'report-collection
+			  :log log
+			  :filter filter
+			  :reports (list 'general-stats 'service-stats)))
+	 (all-filters))
+  	;; TODO: REMOVE ME!
+  	*collector* collector)
   
   (with-database ("periscope")
     (when truncate
@@ -55,17 +58,10 @@
       (execute "TRUNCATE TABLE traffic_stats"))
     
     (run collector)
-    (dolist (report (report-list (current-report collector)))
-      (finalize-report report)))
+    (dolist (report (reports collector))
+      (commit report)))
 
-  (current-report collector))
-
-(defmethod process-flow ((collector collector) (flow flow))
-  (with-slots (filter reports) (current-report collector)
-    (when (or (null filter)
-	      (filter-pass-p filter flow))
-      (dolist (report reports)
-	(add-flow report flow)))))
+  (reports collector))
 
 (defun process-log-group (log-list)
   (let (threads)

@@ -21,7 +21,9 @@
 (defclass collector ()
   ((ptr :initform nil :accessor get-ptr)
    (remote :initform nil :accessor remote-sources)
-   (current-report :accessor current-report :initform nil)))
+   (reports :accessor reports :initform nil)
+   (current-report :accessor current-report :initform nil)
+   (current-filter :accessor current-filter :initform nil)))
 
 (defclass source ()
   ((ptr :initarg :ptr :initform nil :accessor get-ptr)
@@ -51,14 +53,17 @@ COLLECTOR object."
 				 (type :uchar)
 				 (record :pointer)
 				 (dsrs periscope-dsrs))
-  (declare (ignore record))
-  (let ((collector (find-collector collector)))
-    (case (foreign-enum-keyword 'argus-flow-types type :errorp nil)
-      (:ipv4
-       (unless (null-pointer-p (get-metrics dsrs))
-	 (let* ((ip (get-ip (get-flow dsrs)))
-		(flow (build-flow dsrs ip)))
-	   (process-flow collector flow)))))))
+  (declare (ignore type))
+  (let (flow
+	(collector (find-collector collector)))
+    (dolist (report (reports collector))
+      (when (filter-match-p (report-filter report) record)
+	;; Only build the flow once, and only if it matches at least one of
+	;; the filters defined.
+	(unless flow
+	  (setf flow (build-flow dsrs (get-ip (get-flow dsrs)))))
+	(dolist (stats (report-list report))
+	  (add-flow stats flow))))))
 
 (defmethod initialize-instance :after ((object collector) &key)
   (let ((ptr (foreign-alloc 'periscope-collector)))
