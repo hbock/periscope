@@ -286,7 +286,10 @@ sent_packets, received_flows, received_bytes, received_packets) FROM '~a' WITH C
 (defmethod busiest-hosts ((report general-stats) &key (limit 20) (type :local))
   (pomo:query-dao
    'host-stat
-   (:limit (:order-by (:select '* :from 'host-stat :where (:= 'host-type (flow-host-type type)))
+   (:limit (:order-by (:select '* :from 'host-stat :where
+			       (:and (:= 'host-type (flow-host-type type))
+				     (:= 'filter-id (filter-id report))
+				     (:= 'timestamp (report-time report))))
 		      (:desc 'sent-bytes)) limit)))
 
 (defun print-scan-hosts (title host-type list &key key)
@@ -347,9 +350,11 @@ sent_packets, received_flows, received_bytes, received_packets) FROM '~a' WITH C
   (if type
       (query (:select (:count 'host-ip) :from 'host-stat
 		      :where (:and (:= 'host-type (flow-host-type type))
-				   (:= 'timestamp (report-time report)))) :single)
+				   (:= 'timestamp (report-time report))
+				   (:= 'filter-id (filter-id report)))) :single)
       (query (:select (:count 'host-ip) :from 'host-stat
-		      :where (:= 'timestamp (report-time report))) :single)))
+		      :where (:and (:= 'timestamp (report-time report))
+				   (:= 'filter-id (filter-id report)))) :single)))
 
 (defmethod print-html ((object traffic-stats) &key (title "General Stats") (with-row t) (flows t))
   (with-html-output (*standard-output*)
@@ -376,12 +381,14 @@ sent_packets, received_flows, received_bytes, received_packets) FROM '~a' WITH C
        (htm (:b "No flows matched this filter.")))
       (t
        (htm
-	(:h3 "Unique Hosts")
 	(:table
 	 (:tr (:th :colspan 4 "Flow Statistics"))
 	 (:tr (:th "") (:th "Packets") (:th "Bytes") (:th "Flows"))
 	 (loop :for stats :in
-	    (pomo:select-dao 'traffic-stats (:= 'timestamp (report-time report)) 'type)
+	    (pomo:select-dao 'traffic-stats
+			     (:and (:= 'filter-id (filter-id report))
+				   (:= 'timestamp (report-time report)))
+			     'type)
 	    :do (print-html stats :title (traffic-stats-type (stats-type stats)))))
 
 	(:table
