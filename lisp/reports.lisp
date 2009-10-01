@@ -23,6 +23,16 @@
    (timestamp :initarg :time :reader report-time :type simple-date:timestamp)
    (format-version :reader report-format-version)))
 
+(defclass report-base ()
+  ((timestamp :col-type timestamp :type simple-date:timestamp
+	      :initarg :timestamp
+	      :reader timestamp)
+   (filter-id :col-type integer
+	      :initarg :filter-id
+	      :reader filter-id))
+  (:metaclass pomo:dao-class)
+  (:keys timestamp))
+
 (defclass stats ()
   ((flows :initarg :flows :accessor flows :initform 0)
    (bytes :initarg :bytes :accessor bytes :initform 0)
