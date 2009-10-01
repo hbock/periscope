@@ -68,12 +68,26 @@
   (with-slots (title string internal-networks) object
     (with-html-output (*standard-output*)
       (:div :class "filter-title"
-	    (:big "Filter " (:b (str (filter-title object))))
+	    (:h1 (str (filter-title object)))
 	    (:br)
 	    (:b "Internal Networks: ")
 	    (fmt "~{~a~^, ~}"
 		 (network-strings (if internal-networks
 				      internal-networks
 				      *internal-networks*)))
-	    (:br) (:br)
-	    (:i "Filter string: ") (str string)))))
+	    (:br)
+	    (:b "Filter string: ") (str string)))))
+
+(define-easy-handler (show-filters :uri "/filters")
+    (fid)
+  (declare (ignore fid))
+  (with-periscope-page ("Filter List" :admin t)
+    (:div
+     :class "stats"
+     (:table
+      (:tr (:th "ID") (:th "Title") (:th "Filter Expression"))
+      (dolist (filter (all-filters))
+	(with-slots (id title string) filter
+	  (htm (:tr (:td (str id))
+		    (:td (str title))
+		    (:td (str string))))))))))
