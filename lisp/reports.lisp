@@ -32,12 +32,15 @@
 	      :initarg :filter-id
 	      :reader filter-id))
   (:metaclass pomo:dao-class)
-  (:keys timestamp))
+  (:keys timestamp filter-id))
 
 (defclass stats ()
   ((flows :initarg :flows :accessor flows :initform 0)
    (bytes :initarg :bytes :accessor bytes :initform 0)
    (packets :initarg :packets :accessor packets :initform 0)))
+
+(defmethod filter-id ((object statistics-report))
+  (filter-id (filter object)))
 
 (defmethod add-stats ((object stats) &key (flows 1) (bytes 0) (packets 0))
   (incf (flows object) flows)
