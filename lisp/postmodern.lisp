@@ -71,16 +71,26 @@ data types, etc."
 (defun database-disconnect (&optional (connection pomo:*database*))
   (pomo:disconnect connection))
 
-(defun create-schema ()
-  "Create the Periscope database schema on the currently connected database. Creates
+(let ((dao-classes '(host-stat traffic-stats filter)))
+  (defun create-schema ()
+    "Create the Periscope database schema on the currently connected database. Creates
 table layouts and their relevant indexes."
-  (with-database ("periscope")
-    (execute (pomo:dao-table-definition 'host-stat))
-    (execute (pomo:dao-table-definition 'traffic-stats))
-    ;(execute (:create-index 'time :on host-stat :fields hour date month))
-    ))
+    (with-database ("periscope")
+      (dolist (class dao-classes)
+	(execute (pomo:dao-table-definition class)))
+      ;;(execute (:create-index 'time :on host-stat :fields hour date month))
+      t))
+
+  (defun drop-schema ()
+    "Convenience function to drop all dao-class related tables. Useful for testing."
+    (with-database ("periscope")
+      (dolist (class dao-classes)
+	(execute (:drop-table class))))
+    t))
 
 (defmacro insert-slots ((&rest slots) object)
+  "Convenience macro to take a list of slots and sequentially insert them to the database
+using INSERT-DAO."
   `(with-slots (,@slots) ,object
      ,@(loop :for slot :in slots
 	  :collect `(pomo:insert-dao ,slot))))
