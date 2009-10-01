@@ -75,6 +75,7 @@ Starts a separate thread to run the collector and handle its callbacks."
 	(:li :class "root"
 	     "Utilities"
 	     (:ul
+	      (:li (:a :href "/filters" "Filter List"))
 	      (:li (:a :href "/service-names" "Service Names"))))
 	(when (configure-p)
 	  (htm
