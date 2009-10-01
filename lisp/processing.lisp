@@ -32,8 +32,10 @@
     (with-slots (timestamp log) object
       (setf timestamp (argus-log-timestamp log))))
 
-  (with-slots (timestamp reports) object
-    (setf reports (mapcar (lambda (type) (make-instance type :time timestamp)) reports))))
+  (with-slots (timestamp reports filter) object
+    (setf reports
+	  (mapcar (lambda (type)
+		    (make-instance type :time timestamp :filter filter)) reports))))
 
 (defmethod commit ((collection report-collection))
   (dolist (report (report-list collection))

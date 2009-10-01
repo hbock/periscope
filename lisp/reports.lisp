@@ -20,7 +20,8 @@
 
 (defclass statistics-report ()
   ((generated :reader generation-time :initform (now))
-   (timestamp :initarg :time :reader report-time :type simple-date:timestamp)
+   (filter :initarg :filter :type filter :reader filter)
+   (timestamp :initarg :time :type simple-date:timestamp :reader report-time)
    (format-version :reader report-format-version)))
 
 (defclass report-base ()

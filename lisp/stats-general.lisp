@@ -64,15 +64,18 @@ supported.")
 
 (defmethod initialize-instance :after ((object general-stats) &key
 				       (cache-size *host-cache-default-size*))
-  (loop :for stats :in '(internal external incoming outgoing total)
-     :for i = 1 :then (1+ i) :do
-     (setf (slot-value object stats)
-	   (make-instance 'traffic-stats :type i :timestamp (report-time object))))
+  (with-slots (filter) object
+    (loop :for stats :in '(internal external incoming outgoing total)
+       :for i = 1 :then (1+ i) :do
+       (setf (slot-value object stats)
+	     (make-instance 'traffic-stats :type i
+			    :filter-id (filter-id filter)
+			    :timestamp (report-time object))))
   
-  (with-slots (format-version host-cache host-on-disk) object
-    (setf host-cache (make-hash-table :test 'eql :size cache-size))
-    (setf host-on-disk (make-hash-table :test 'eql :size (* 10 cache-size)))
-    (setf format-version *general-stats-format-version*)))
+    (with-slots (format-version host-cache host-on-disk) object
+      (setf host-cache (make-hash-table :test 'eql :size cache-size))
+      (setf host-on-disk (make-hash-table :test 'eql :size (* 10 cache-size)))
+      (setf format-version *general-stats-format-version*))))
 
 (defmethod cache-stats ((report general-stats))
   (with-slots (host-cache cache-visit) report
@@ -89,11 +92,12 @@ supported.")
 				:if-exists :supersede
 				:if-does-not-exist :create)
 	 (flet ((insert-host (host)
-		  (with-slots (host-ip host-type timestamp sent-flows sent-bytes sent-packets
-				       received-flows received-bytes received-packets)  host
-		    (format ,stream "~a,~d,~d,~d,~d,~d,~d,~d,~d~%"
+		  (with-slots (host-ip host-type timestamp filter-id
+				       sent-flows sent-bytes sent-packets
+				       received-flows received-bytes received-packets) host
+		    (format ,stream "~a,~d,~a,~d,~d,~d,~d,~d,~d,~d~%"
 			    (ip-string (host-ip host-ip)) host-type (timestamp-string timestamp)
-			    sent-flows sent-bytes sent-packets
+			    filter-id sent-flows sent-bytes sent-packets
 			    received-flows received-bytes received-packets))))
 	   ,@body))
      (copy-host-data ,output-file)))
@@ -118,7 +122,7 @@ supported.")
 (defun copy-host-data (file)
   (execute
    (format nil
-	   "COPY host_stat (host_ip, host_type, timestamp, sent_flows, sent_bytes, 
+	   "COPY host_stat (host_ip, host_type, timestamp, filter_id, sent_flows, sent_bytes, 
 sent_packets, received_flows, received_bytes, received_packets) FROM '~a' WITH CSV"
 	   (truename file))))
 
@@ -185,7 +189,8 @@ sent_packets, received_flows, received_bytes, received_packets) FROM '~a' WITH C
       (flet ((new-entry ()
 	       (make-instance 'host-stat :host-ip host
 			      :host-type (flow-host-type host)
-			      :timestamp (report-time report)))
+			      :timestamp (report-time report)
+			      :filter-id (filter-id (filter report))))
 	     (cache-insert (host host-entry)
 	       (when (= (hash-table-size host-cache)
 			(hash-table-count host-cache))
