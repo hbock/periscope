@@ -48,6 +48,7 @@
    (:file "postmodern")
    (:file "collector")
    (:file "dns")
+   (:file "web")
    ;; Central classes
    (:file "reports")
    (:file "flow")
@@ -55,7 +56,6 @@
    (:file "time")
    (:file "argus-log")
    ;; Web interface
-   (:file "web")
    (:file "web-index")
    (:file "web-config")
    (:file "web-utility")
