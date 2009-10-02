@@ -38,8 +38,7 @@
 		    (make-instance type :time timestamp :filter filter)) reports))))
 
 (defmethod commit ((collection report-collection))
-  (dolist (report (report-list collection))
-    (finalize-report report)))
+  (mapcar #'commit (report-list collection)))
 
 (defmethod process-log ((log argus-log) &key (collector (init-basic-collector)) truncate)
   (add-file collector (argus-log-pathname log))

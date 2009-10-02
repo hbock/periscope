@@ -102,7 +102,7 @@ supported.")
 	   ,@body))
      (copy-host-data ,output-file)))
 
-(defmethod finalize-report ((report general-stats))
+(defmethod commit ((report general-stats))
   ;; TODO: Remove me when done debugging!
   (with-slots (cache-hits cache-misses) report
       (unless (= 0 cache-hits cache-misses)

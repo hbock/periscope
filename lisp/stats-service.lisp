@@ -56,8 +56,8 @@
 	       (add-to-service service flow bytes packets)
 	       (setf (gethash port hash) service)))))))))
 
-(defmethod finalize-report ((report service-stats))
-  (format t "Finalized service report."))
+(defmethod commit ((report service-stats))
+  (format t "TODO: COMMIT SERVICE-STATS"))
 
 (defmethod add-to-service ((object service-traffic-stats) flow bytes packets)
   (with-slots (total incoming outgoing) object
