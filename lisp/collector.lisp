@@ -57,7 +57,7 @@ COLLECTOR object."
   (let (flow
 	(collector (find-collector collector)))
     (dolist (report (reports collector))
-      (when (filter-match-p (report-filter report) record)
+      (when (filter-match-p (filter report) record)
 	;; Only build the flow once, and only if it matches at least one of
 	;; the filters defined.
 	(unless flow
