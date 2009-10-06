@@ -69,7 +69,6 @@
     (with-html-output (*standard-output*)
       (:div :class "filter-title"
 	    (:h1 (str (filter-title object)))
-	    (:br)
 	    (:b "Internal Networks: ")
 	    (fmt "~{~a~^, ~}"
 		 (network-strings (if internal-networks
@@ -82,6 +81,7 @@
     (fid)
   (declare (ignore fid))
   (with-periscope-page ("Filter List" :admin t)
+    (:h2 "Filter List")
     (:div
      :class "stats"
      (:table
