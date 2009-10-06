@@ -275,13 +275,22 @@ sent_packets, received_flows, received_bytes, received_packets) FROM '~a' WITH C
 ;; (defmethod remote-contact-count ((host host-stats))
 ;;   (hash-table-count (slot-value host 'remote-contacts)))
 
-(defun traffic-stats-type (sql-enum)
-  (ecase sql-enum
-    (1 :internal-only)
-    (2 :external-only)
-    (3 :incoming)
-    (4 :outgoing)
-    (5 :total)))
+(defun traffic-stats-type (sql-enum &key (format :keyword))
+  (ecase format
+    (:keyword
+     (ecase sql-enum
+       (1 :internal-only)
+       (2 :external-only)
+       (3 :incoming)
+       (4 :outgoing)
+       (5 :total)))
+    (:string
+     (ecase sql-enum
+       (1 "Internal only")
+       (2 "External only")
+       (3 "Incoming")
+       (4 "Outgoing")
+       (5 "Total")))))
 
 (defmethod busiest-hosts ((report general-stats) &key (limit 20) (type :local))
   (pomo:query-dao
@@ -386,7 +395,7 @@ sent_packets, received_flows, received_bytes, received_packets) FROM '~a' WITH C
 			     (:and (:= 'filter-id (filter-id report))
 				   (:= 'timestamp (report-time report)))
 			     'type)
-	    :do (print-html stats :title (traffic-stats-type (stats-type stats)))))
+	    :do (print-html stats :title (traffic-stats-type (stats-type stats) :format :string))))
 
 	(:table
 	 (:tr (:th :colspan 2 "Unique Hosts"))
