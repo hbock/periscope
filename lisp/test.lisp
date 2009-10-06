@@ -21,5 +21,19 @@
 (define-report-handler (db-report-test "/db-test" "Database Report Test") ()
   (with-periscope-page ("Database Test")
     (with-database ("periscope")
-      (dolist (report (reports *collector*))
-	(print-html report)))))
+      (htm
+       (:div
+	:class "filter-list"
+	(:ul
+	 (:li (:b "Filters"))
+	 (loop
+	    :for id = 0 :then (1+ id)
+	    :for report in (reports *collector*) :do
+	    (htm (:li (:a :href (format nil "javascript:displaySingleReport(~d);" id)
+			  (str (filter-title (filter report))))))))
+	(:div :style "clear:both;")))
+      (loop
+	 :for id = 0 :then (1+ id)
+	 :for hidden = nil :then t
+	 :for report in (reports *collector*)
+	 :do (print-html report :id id :hidden hidden)))))

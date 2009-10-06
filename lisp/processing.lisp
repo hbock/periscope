@@ -21,7 +21,7 @@
 (defclass report-collection ()
   ((log :initarg :log :reader report-log)
    (timestamp :initarg timestamp :reader report-timestamp)
-   (filter :initarg :filter :reader report-filter :initform nil)
+   (filter :initarg :filter :reader filter :initform nil)
    (reports :initarg :reports :reader report-list :initform nil)
    (generated :reader report-generation-time
 	      :initform (simple-date:universal-time-to-timestamp
@@ -73,12 +73,19 @@
     (dolist (thread threads)
       (bt:join-thread thread))))
 
-(defmethod print-html ((object report-collection) &key)
+(defmethod print-html ((object report-collection) &key id hidden)
   (with-html-output (*standard-output*)
-    (with-slots (filter reports) object
-      (when filter (print-html filter))
-      (dolist (report reports)
-	(htm (:div :class "stats" (print-html report)))))))
+    (:div
+     :id (format nil "r~d" id) :class "report" :style (when hidden "display:none")
+     (with-slots (filter reports) object
+       (when filter (print-html filter))
+       (dolist (report reports)
+	 (htm (:div :class "stats" (print-html report))))
+
+       (htm
+	(:p (:small
+	     (fmt "Report generated at ~a."
+		  (date-string (report-generation-time object) :minutes t)))))))))
 
 (defmethod print-object ((object report-collection) stream)
   (print-unreadable-object (object stream :type t)

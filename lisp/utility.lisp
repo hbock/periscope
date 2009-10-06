@@ -190,11 +190,17 @@ digits following the decimal point."
 	 :when (>= bytes boundary) :do
 	 (return (format nil "~v$ ~a" precision (/ bytes boundary) name)))))
 
-(defun date-string (time &key minutes)
+(defgeneric date-string (time &key minutes))
+
+(defmethod date-string ((time local-time:timestamp) &key minutes)
   "Convert a LOCAL-TIME timestamp to a simple date string in the format YYYY-MM-DD."
   (let ((format `((:year 4) #\- (:month 2) #\- (:day 2)
 		  ,@(when minutes '(#\Space (:hour 2) #\: (:min 2))))))
     (format-timestring nil time :format format)))
+
+(defmethod date-string ((time simple-date:timestamp) &key minutes)
+  (multiple-value-bind (year month day hour min) (simple-date:decode-timestamp time)
+    (format nil "~2,'0d-~2,'0d-~4,'0d~:[~; ~2,'0d:~2,'0d~]" day month year minutes hour min)))
 
 (defun long-date-string (time &key (minutes t))
   "Convert a LOCAL-TIME timestamp to a simple date string in the format YYYY-MM-DD."

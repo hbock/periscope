@@ -348,3 +348,27 @@ div.filter-title {
   padding:3px;
   width:20em; */
 }
+
+.filter-list ul {
+  list-style:none;
+  margin:0;
+  padding:0;
+}
+
+.filter-list ul li {
+  float:left;
+  display:block;
+  padding:5px;
+  border:1px solid #aaa;
+  background-color:#9FC3EE;
+  min-width:10em;
+  text-align:center;
+}
+
+.filter-list ul li a {
+  text-decoration:none;
+}
+
+.filter-list ul li a:hover {
+  font-weight:bold;
+}

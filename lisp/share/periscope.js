@@ -1,5 +1,6 @@
 /* Periscope - Network auditing tool
  * Copyright (C) 2009 Sam Alves <samalves@ele.uri.edu>
+ * Copyright (C) 2009 Harry Bock <hbock@ele.uri.edu>
  
  * This file is part of Periscope.
 
@@ -21,4 +22,40 @@
 function loginFocus() 
 {
     document.getElementById("login").focus();
+}
+
+function reportById(index)
+{
+    return document.getElementById("r".concat(index.toString()));
+}
+
+function displaySingleReport(index)
+{
+    i = 0;
+    while(hideReport(i))
+	i++;
+
+    showReport(index);
+}
+
+function showReport(index)
+{
+    report = reportById(index);
+
+    if(report != null) {
+	report.style.display = "block";
+	return true;
+    }
+    return false;
+}
+
+function hideReport(index)
+{
+    report = reportById(index);
+
+    if(report != null) {
+	report.style.display = "none";
+	return true;
+    }
+    return false;
 }
