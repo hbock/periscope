@@ -370,12 +370,9 @@ sent_packets, received_flows, received_bytes, received_packets) FROM '~a' WITH C
 	 (when flows
 	   (htm (:td (fmt "~:d" (flows object)))))))))
 
-(defmethod print-html ((report general-stats) &key title)
+(defmethod print-html ((report general-stats) &key)
   (with-html-output (*standard-output*)
-    (when title (htm (:h3 (str title))))
-    (:h3 "General Statistics")
-    (fmt "Report generated at ~a" (iso8661-date-string (generation-time report)))
-    
+    (:h3 "General Statistics")    
     (cond
       ((zerop (flows (total report)))
        (htm (:b "No flows matched this filter.")))
