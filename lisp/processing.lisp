@@ -48,7 +48,7 @@
 	   (make-instance 'report-collection
 			  :log log
 			  :filter filter
-			  :reports (list 'general-stats 'service-stats)))
+			  :reports (list 'general-stats 'service-report)))
 	 (all-filters))
   	;; TODO: REMOVE ME!
   	*collector* collector)
