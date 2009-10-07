@@ -47,6 +47,9 @@
 (defun all-filters ()
   (pomo:select-dao 'filter))
 
+(defun find-filter (id)
+  (first (pomo:select-dao 'filter (:= 'id id))))
+
 (defmethod filter-match-p ((object filter) record-ptr)
   (plusp (%filter-record (foreign-slot-value
 			  (filter-program object) 'argus-nff-program 'bf_insns) record-ptr)))
