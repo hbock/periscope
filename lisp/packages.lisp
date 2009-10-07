@@ -29,7 +29,10 @@
 		#:sql
 		#:query
 		#:execute
-		#:doquery))
+		#:doquery
+		#:save-dao
+		#:insert-dao
+		#:update-dao))
 
 (in-package :periscope)
 
