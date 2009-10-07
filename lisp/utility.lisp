@@ -173,11 +173,12 @@ order by VLAN ID."
 
 (defun protocol-name (protocol)
   "Returns a string representation of an internet or transport protocol."
-  (ecase protocol
+  (case protocol
     (#.+ip-proto-icmp+ "ICMP")
     (#.+ip-proto-igmp+ "IGMP")
     (#.+ip-proto-tcp+  "TCP")
-    (#.+ip-proto-udp+  "UDP")))
+    (#.+ip-proto-udp+  "UDP")
+    (otherwise protocol)))
 
 (defun byte-string (bytes &optional (precision 2))
   "Convert BYTES from an integer to a size string, optionally specifying the precision in
