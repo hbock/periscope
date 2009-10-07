@@ -171,7 +171,7 @@ order by VLAN ID."
    (loop :for vid :being :the :hash-keys :in *vlan-names* :using (:hash-value name)
       :collect (list vid name)) #'< :key #'first))
 
-(defun name-protocol (protocol)
+(defun protocol-name (protocol)
   "Returns a string representation of an internet or transport protocol."
   (ecase protocol
     (#.+ip-proto-icmp+ "ICMP")
