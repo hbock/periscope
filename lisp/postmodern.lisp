@@ -71,7 +71,7 @@ data types, etc."
 (defun database-disconnect (&optional (connection pomo:*database*))
   (pomo:disconnect connection))
 
-(let ((dao-classes '(host-stat traffic-stats filter)))
+(let ((dao-classes '(host-stat traffic-stats service-traffic-stats filter)))
   (defun create-schema ()
     "Create the Periscope database schema on the currently connected database. Creates
 table layouts and their relevant indexes."
