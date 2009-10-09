@@ -27,7 +27,8 @@
 	       :cl-fad
 	       :cl-who
 	       :cl-ppcre
-	       :md5
+	       #+sbcl :sb-md5
+	       #-sbcl :md5
 	       :postmodern
 	       :simple-date ; For PostgreSQL date compatibility
 	       :local-time  ; DEPRECATED

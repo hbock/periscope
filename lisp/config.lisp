@@ -36,7 +36,9 @@
 (defun load-config (&optional (pathname *configuration-file-pathnames*))
   "Load the configuration Lisp file directly."
   (clrhash *web-user-db*)
-  (load (find-config-file pathname)))
+  (load (find-config-file pathname))
+  (with-database ("periscope")
+    (load-users)))
 
 (defun save-config (&optional (pathname *configuration-file-pathnames*))
   "Save configuration data to a suitable file as found by FIND-CONFIG-FILE."

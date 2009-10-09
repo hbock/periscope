@@ -32,7 +32,10 @@
 		#:doquery
 		#:save-dao
 		#:insert-dao
-		#:update-dao))
+		#:update-dao)
+  #+sbcl
+  (:import-from #:sb-md5
+		#:md5sum-string))
 
 (in-package :periscope)
 

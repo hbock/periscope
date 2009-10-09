@@ -19,44 +19,81 @@
 (in-package :periscope)
 
 (deftype md5sum ()
-  '(simple-vector 16))
+  '(simple-array (unsigned-byte 8) (16)))
 
 (defclass web-user ()
-  ((username :initarg :username :accessor username)
-   (display-name :initarg :display-name :accessor display-name)
+  ((id :col-type serial
+       :reader user-id)
+   (username :col-type string :initarg :username :type string
+	     :accessor username)
+   (display-name :col-type string :initarg :display-name
+		 :accessor display-name)
    (title :initarg :title :accessor title)
-   (password-hash :initarg :password-hash :accessor password-hash :initform nil)
-   (admin :initarg :admin-p :accessor admin-p :initform nil)
+   (password-hash :col-type string :initarg :password-hash
+		  :accessor password-hash :initform nil)
+   (admin :col-type boolean :initarg :admin-p
+	  :accessor admin-p
+	  :initform nil)
    (filters :accessor filters :initform nil)
-   (session :accessor session :initform nil)))
+   (session :accessor session :initform nil))
+  (:metaclass pomo:dao-class)
+  (:keys id username))
 
+(defun load-users ()
+  (clrhash *web-user-db*)
+  (dolist (user (pomo:select-dao 'web-user))
+    (setf (gethash (username user) *web-user-db*) user))
+  t)
+
+(defun save-users ()
+  (maphash (lambda (un user)
+	     (declare (ignore un))
+	     (commit user)) *web-user-db*)
+  t)
+
+(defmethod commit ((user web-user))
+  (save-dao user))
+
+;;; Deprecated
 (defmethod filter-predicates ((user web-user))
   "Return all filter predicates defined for user."
   (mapcar #'filter-predicate (filters user)))
 
-(defun hash-sequence (sequence)
-  "Return the 16-byte MD5 sum of sequence.  Essentially a wrapper around MD5:MD5SUM-SEQUENCE."
-  (md5:md5sum-sequence sequence))
+;;; Not sure if this is needed on non-SBCL...
+;;; Postmodern returns text fields as a string type that
+;;; Lisp recognizes as a string, but MD5:MD5SUM-SEQUENCE
+;;; does not, throwing a type error.
+;;; To get around this, we import SB-MD5:MD5SUM-STRING on SBCL,
+;;; and use MD5:MD5SUM-STREAM in combination with WITH-INPUT-FROM-STRING
+;;; on other implementations.
+;;; TODO: Test me on other implementations supported by MD5!
+#-sbcl
+(defun md5sum-string (string)
+  (declare (type string string))
+  (with-input-from-string (string-stream string)
+      (md5:md5sum-stream string-stream)))
+
+(defun hash-string (string)
+  "Return the string representation of the 16-byte MD5 sum of string."
+  (let ((sum (md5sum-string string)))
+    (with-output-to-string (hash)
+      (dotimes (i 16) (format hash "~2,'0x" (aref sum i))))))
 
 (defun create-login (username password display-name &key (title "User") admin)
   "Create a web-user login.  The password may be a string or an array containing an
 MD5 sum of a password.  If passed as a string, the password will be hashed and stored
 as an MD5 sum."
-  (multiple-value-bind (user existsp)
-      (gethash username *web-user-db*)
-    (declare (ignore user))
-    (if existsp
-	(periscope-config-error "Username ~a already exists." username)
-	(let ((user (make-instance 'web-user
-				   :username username
-				   :display-name display-name
-				   :password-hash
-				   (etypecase password
-				     (string (hash-sequence password))
-				     (md5sum password))
-				   :title title
-				   :admin-p admin)))
-	  (setf (gethash username *web-user-db*) user)))))
+  (handler-case
+      (let ((user (make-instance 'web-user
+				 :username username
+				 :display-name display-name
+				 :password-hash (hash-string password)
+				 :title title
+				 :admin-p admin)))
+	(insert-dao user)
+	(setf (gethash username *web-user-db*) user))
+    (cl-postgres-error:unique-violation ()
+      (periscope-config-error "Username ~a already exists." username))))
 
 (defun user (&optional username)
   "Return the user with the given username, or if no parameter is provided, returns the currently
@@ -84,7 +121,7 @@ logged-in user.  If no user is logged in, returns NIL."
   "Return true if the current Periscope login session exists and is valid."
   (let ((username (hunchentoot:session-value 'username))
 	(userhash (hunchentoot:session-value 'userhash)))
-    (when (and username userhash (equalp userhash (hash-sequence username)))
+    (when (and username userhash (string= userhash (hash-string username)))
       (multiple-value-bind (user existsp)
 	  (gethash username *web-user-db*)
 	(and existsp (not (null (session user))) (or (not admin) (admin-p user)))))))
@@ -389,9 +426,9 @@ account." :table nil))
 
 (defun process-login (user password)
   (let ((username (username user)))
-    (when (equalp (hash-sequence password) (password-hash user))
-      (setf (session user) (hunchentoot:start-session))
-      (setf (hunchentoot:session-value 'userhash) (hash-sequence username)
+    (when (string= (hash-string password) (password-hash user))
+      (setf (session user) (hunchentoot:start-session)
+	    (hunchentoot:session-value 'userhash) (hash-string username)
 	    (hunchentoot:session-value 'username) username))))
 
 (define-easy-handler (do-login :uri "/do-login")
@@ -574,7 +611,7 @@ IDs will signal a PARSE-ERROR."
 	   (setf (admin-p user) (not (null configp))))
 
        (when (not (empty-string-p password1 password2))
-	 (setf (password-hash user) (hash-sequence password1)))
+	 (setf (password-hash user) (hash-string password1)))
       
        (setf (display-name user) (escape-string displayname))
        (setf (filters user)
