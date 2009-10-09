@@ -40,13 +40,13 @@
   ((:file "packages")
    (:file "specials")
    (:file "conditions")
+   ;; Core database support
+   (:file "postmodern")
    (:file "config")
    ;; Foreign function interface for libperiscope/Argus
    (:file "periscope-cffi")
    (:file "argus-cffi")
    (:file "utility")
-   ;; Core database support
-   (:file "postmodern")
    (:file "collector")
    (:file "dns")
    (:file "web")
