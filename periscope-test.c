@@ -294,7 +294,6 @@ main (int argc, char **argv)
       printf("Compile filter ok!\n");
       nff_dump(fprg, 1);
    }
-   exit(0);
 
    if(argc >= 2 && strcmp(argv[1], "unittest") == 0) {
       int tests, fail;
