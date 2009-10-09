@@ -46,6 +46,11 @@ Starts a separate thread to run the collector and handle its callbacks."
    (lambda ()
      (run collector)) :name "Periscope Collector"))
 
+(defmacro session-value-bind ((&rest session-values) &body body)
+  `(symbol-macrolet (,@(loop :for symbol :in session-values :collect
+			  `(,symbol (session-value (quote ,symbol)))))
+     ,@body))
+
 ;;; HTML generation helper functions and macros.
 (defmacro with-html ((&key prologue) &body body)
   `(who:with-html-output-to-string (*standard-output* nil :prologue ,prologue :indent t)
