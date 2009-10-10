@@ -144,6 +144,7 @@ COLLECTOR object."
       (setf process_flow (callback receive-flow)))
     (when default-filter
       (setf (filter collector) default-filter))
+    (setf *collector-init-p* t)
     collector))
 
 ;;; Collector stuff for racollector script.

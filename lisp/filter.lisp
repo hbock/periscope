@@ -44,6 +44,11 @@
 (defmethod compile-filter ((object filter) &key optimize)
   "Compile the given Argus filter object and optionally optimize the resulting
 filter program."
+  ;; Hack (for now): ArgusFilterCompile crashes unless a global ArgusParserStruct
+  ;; object has been set.  For now, before compiling, ensure we have initialized
+  ;; a collector at least once.
+  (unless *collector-init-p*
+    (init-basic-collector))
   (with-slots (string program) object
     (let ((fprogram (%filter-compile string (if optimize 1 0))))
       (when (null-pointer-p fprogram)

@@ -49,6 +49,7 @@
 (defvar *rastream-binary* "rastream")
 
 (defvar *collector* nil)
+(defvar *collector-init-p* nil)
 (defvar *collector-error-p* nil)
 (defvar *collector-script* (truename #P"rastream-post.sh"))
 (defvar *collector-process* nil)
