@@ -23,7 +23,7 @@
        :reader filter-id)
    (title :col-type string
 	  :initarg :title :type string
-	  :reader filter-title)
+	  :reader title)
    (string :col-type string
 	   :initarg :string :type string
 	   :initform (error "Must supply filter string!")
@@ -34,18 +34,44 @@
   (:metaclass pomo:dao-class)
   (:keys id))
 
-(defmethod initialize-instance :after ((object filter) &key optimize)
+(defmethod initialize-instance :after ((object filter) &key compile optimize)
+  (when compile
+    (compile-filter object optimize)))
+
+(defmethod filter-title ((object filter))
+  (title object))
+
+(defmethod compile-filter ((object filter) &key optimize)
+  "Compile the given Argus filter object and optionally optimize the resulting
+filter program."
   (with-slots (string program) object
-    (setf program (%filter-compile string (if optimize 1 0)))
-    (when (null-pointer-p program)
-      (error "Syntax error in filter: ~a" string))
-    (tg:finalize object (lambda () (%filter-free program)))))
+    (let ((fprogram (%filter-compile string (if optimize 1 0))))
+      (when (null-pointer-p fprogram)
+	(error "Syntax error in filter: ~a" string))
+      (setf program fprogram)
+      (tg:finalize object (lambda () (%filter-free fprogram))))))
 
-(defmethod commit ((object filter))
-  (pomo:save-dao object))
+(defmethod compiled-p ((object filter))
+  "Returns true if the filter has been compiled."
+  (and (slot-boundp object 'program) (pointerp (filter-program object))))
 
-(defun all-filters ()
-  (pomo:select-dao 'filter))
+(defmethod print-object ((object filter) stream)
+  (print-unreadable-object (object stream :type t)
+    (format stream "\"~a\" (~:[not ~;~]compiled)"
+	    (title object)
+	    (compiled-p object))))
+
+(defmethod filter= ((f1 filter) (f2 filter))
+  "Compares two filters based on their database ID."
+  (= (filter-id f1) (filter-id f2)))
+
+(defun all-filters (&key compile)
+  "Returns all available filters."
+  (let ((filters (pomo:select-dao 'filter)))
+    (when compile
+      (dolist (filter filters)
+	(compile-filter filter)))
+    filters))
 
 (defun find-filter (id)
   (first (pomo:select-dao 'filter (:= 'id id))))
@@ -58,20 +84,11 @@
   (make-instance 'filter :string filter-string :internal-networks internal-networks
 		 :optimize optimize :title title))
 
-(defmethod print-config-forms ((object filter))
-  (with-slots (string title internal-networks) object
-    `(make-filter ,title ,string :internal-networks ,(network-list-forms internal-networks))))
-
-;; (defun apply-filters (sequence predicate-list &key key)
-;;   "Apply each predicate in predicate-list once to each element in sequence, returning
-;; one filtered list per predicate."
-;;   (mapcar (lambda (predicate) (remove-if-not predicate sequence :key key)) predicate-list))
-
 (defmethod print-html ((object filter) &key)
   (with-slots (title string internal-networks) object
     (with-html-output (*standard-output*)
       (:div :class "filter-title"
-	    (:h1 (str (filter-title object)))
+	    (:h1 (str title))
 	    (:b "Internal Networks: ")
 	    (fmt "~{~a~^, ~}"
 		 (network-strings (if internal-networks
@@ -83,7 +100,7 @@
 (define-easy-handler (show-filters :uri "/filters")
     (fid)
   (declare (ignore fid))
-  (with-periscope-page ("Filter List" :admin t)
+  (with-periscope-page ("Filter List" :admin t :database t)
     (:h2 "Filter List")
     (:div
      :class "stats"
