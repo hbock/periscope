@@ -218,7 +218,7 @@ solely of whitespace."
 		       (setf string rest)))
     (nreverse tokens)))
 
-(defun parse-integer-list (string regex bad-predicate)
+(defun parse-integer-list (string regex &optional bad-predicate)
   "Parse string into a list of integers, separated by commas and/or spaces, removing duplicates.
 If string is not matched by regex, or any entry matches bad-predicate, this function signals a
 PARSE-ERROR."
@@ -227,6 +227,6 @@ PARSE-ERROR."
   (let ((integers
 	 (mapcar (lambda (integer) (parse-integer integer :junk-allowed t))
 		 (tokenize string '(#\Space #\, #\Tab #\Newline)))))
-    (when (some bad-predicate integers)
+    (when (and bad-predicate (some bad-predicate integers))
       (error 'parse-error))
     (sort (remove-duplicates integers) #'<)))
