@@ -94,8 +94,16 @@ Starts a separate thread to run the collector and handle its callbacks."
 		 (when *web-show-diag*
 		   (htm (:li (:a :href "/uuddlrlrbastart" "Diagnostics Panel")))))))))))))
 
-(defmacro with-periscope-page ((title &key login admin onload) &body body)
-  "Generate a Periscope-template page."
+(defmacro with-periscope-page ((title &key login admin database onload) &body body)
+  "Generate a Periscope-template page. 
+  If login is T, a valid login session must be established or the client will be redirected
+to the login page. 
+  If admin is T, a valid administrative login session must be established, or the client
+will be redirected to an access denied page.
+  If database is T, a PostgreSQL database connection will be established for the duration
+of the execution of all forms in body.
+  If onload is specified, it will be evaluated and used as the onload=\"...\" paramater for
+the BODY tag of the page."
   `(progn
      ,(if (or admin login)
 	  `(valid-session-or-lose :admin ,admin)
@@ -120,7 +128,10 @@ Starts a separate thread to run the collector and handle its callbacks."
 	  (:tr :id "body"
 	       (:td :id "sidebar" (who:str (generate-navigation)))
 	       (:td :id "wrapper"
-		    ,@body))
+		    ,@(if database
+			  `((with-database ("periscope")
+			      (htm ,@body)))
+			  body)))
 	  (:tr
 	   (:td :colspan "2"
 		(:div :id "footer"
