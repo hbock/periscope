@@ -94,3 +94,8 @@ using INSERT-DAO."
   `(with-slots (,@slots) ,object
      ,@(loop :for slot :in slots
 	  :collect `(pomo:insert-dao ,slot))))
+
+(defgeneric commit (object &key))
+
+(defmethod commit ((object pomo:dao-class) &key (save-method #'save-dao))
+  (funcall save-method object))

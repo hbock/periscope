@@ -76,7 +76,7 @@
        (:port     0)
        (:protocol 1)))))
 
-(defmethod commit ((object service-traffic-stats))
+(defmethod commit ((object service-traffic-stats) &key)
   (let ((type (service-type object)))
     (unwind-protect
 	 (progn
@@ -84,7 +84,7 @@
 	   (pomo:save-dao object)
 	   (setf (service-type object) type)))))
 
-(defmethod commit ((report service-report))
+(defmethod commit ((report service-report) &key)
   (maphash (lambda (identifier service-stats)
 	     (with-slots (incoming outgoing total) service-stats
 	       (commit incoming)

@@ -37,7 +37,7 @@
 	  (mapcar (lambda (type)
 		    (make-instance type :time timestamp :filter filter)) reports))))
 
-(defmethod commit ((collection report-collection))
+(defmethod commit ((collection report-collection) &key)
   (mapcar #'commit (report-list collection)))
 
 (defmethod process-log ((log argus-log) &key (collector (init-basic-collector)) truncate)
