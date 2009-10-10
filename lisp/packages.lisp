@@ -20,12 +20,12 @@
 
 (defpackage :periscope
   (:use #:common-lisp #:cffi #:cl-who #:local-time)
-  (:import-from #:hunchentoot
+  (:import-from :hunchentoot
 		#:url-encode
 		#:define-easy-handler
 		#:session-value
 		#:delete-session-value)
-  (:import-from #:postmodern
+  (:import-from :postmodern
 		#:sql
 		#:query
 		#:execute
@@ -33,6 +33,7 @@
 		#:save-dao
 		#:insert-dao
 		#:update-dao)
+  (:import-from :s-sql #:db-null)
   #+sbcl
   (:import-from #:sb-md5
 		#:md5sum-string))
