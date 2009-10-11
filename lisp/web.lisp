@@ -89,6 +89,7 @@ Starts a separate thread to run the collector and handle its callbacks."
 		(:ul
 		 (:li (:a :href "/periscope-config" "Periscope Settings"))
 		 (:li (:a :href "/network-config" "Network Settings"))
+		 (:li (:a :href "/filter-config" "Manage Argus Filters"))
 		 (:li (:a :href "/users" "Manage User Logins"))
 
 		 (when *web-show-diag*

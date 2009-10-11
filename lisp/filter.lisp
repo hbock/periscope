@@ -116,3 +116,25 @@ filter program."
 	  (htm (:tr (:td (str id))
 		    (:td (str title))
 		    (:td (str string))))))))))
+
+(define-easy-handler (edit-filters :uri "/filter-config") ()
+  (with-periscope-page ("Filter Configuration" :admin t :database t)
+    (with-config-form ("/do-edit-filters")
+      (with-config-section ("Create New Filter")
+	(:table
+	 (:tr (:td "Filter title")
+	      (:td (input "title" "")))
+	 (:tr (:td "Filter expression")
+	      (:td (input "expr" "")))))
+      
+      (with-config-section ("Available Filters" "")
+	(:div
+	 :class "stats"
+	 (:table
+	  (:tr (:th "Remove") (:th "Title") (:th "Filter Expression"))
+	  (loop :for filter :in (all-filters)
+	     :for i = 0 :then (1+ i) :do
+	     (with-slots (id title string) filter
+	       (htm (:tr (:td (checkbox "remove" :value id :index i))
+			 (:td (input "edit-title" title :index i))
+			 (:td (input "edit-expr" string :index i :size 50))))))))))))
