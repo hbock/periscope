@@ -105,10 +105,15 @@ using INSERT-DAO."
 Previous values are restored upon completion of body, or before a non-local exit."
   (let ((old-values (loop :repeat (length bindings) :collect (gensym))))
     `(with-slots (,@(mapcar #'first bindings)) ,object
-       (let (,@(loop :for (slot-name new-binding) :in bindings
+       (let (,@(loop :for (slot-name) :in bindings
 		  :for old-value :in old-values :collect
 		  `(,old-value ,slot-name)))
-	 (unwind-protect (progn ,@body)
+	 (unwind-protect
+	      (progn
+		(setf
+		 ,@(loop :for (slot-name new-binding) :in bindings
+		      :collect slot-name :collect new-binding))
+		,@body)
 	   (setf
 	    ,@(loop :for (slot-name) :in bindings
 		 :for old-value in old-values
