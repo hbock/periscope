@@ -99,3 +99,18 @@ using INSERT-DAO."
 
 (defmethod commit ((object pomo:dao-class) &key (save-method #'save-dao))
   (funcall save-method object))
+
+(defmacro slot-let ((&rest bindings) object &body body)
+  "Convenience LET-like macro for \"shadowing\" slots in an object during the execution of body.
+Previous values are restored upon completion of body, or before a non-local exit."
+  (let ((old-values (loop :repeat (length bindings) :collect (gensym))))
+    `(with-slots (,@(mapcar #'first bindings)) ,object
+       (let (,@(loop :for (slot-name new-binding) :in bindings
+		  :for old-value :in old-values :collect
+		  `(,old-value ,slot-name)))
+	 (unwind-protect (progn ,@body)
+	   (setf
+	    ,@(loop :for (slot-name) :in bindings
+		 :for old-value in old-values
+		 :collect slot-name
+		 :collect old-value)))))))
