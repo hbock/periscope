@@ -34,10 +34,19 @@
    (admin :col-type boolean :initarg :admin-p
 	  :accessor admin-p
 	  :initform nil)
-   (filters :accessor filters :initform nil)
+   (filters :col-type string :col-default "" :initarg :filters :initform ""
+	    :accessor filters)
    (session :accessor session :initform nil))
   (:metaclass pomo:dao-class)
-  (:keys id username))
+  (:keys username))
+
+(defmethod initialize-instance :after ((user web-user) &key)
+  (with-slots (filters) user
+    ;; FIXME: This is a hack!
+    ;; We explicitly establish another connection so we can query filter parameters
+    ;; while querying user data.
+    (with-database ("periscope")
+      (setf filters (parse-integer-list filters "^(\\d,?)*$")))))
 
 (defun load-users ()
   (clrhash *web-user-db*)
@@ -51,13 +60,9 @@
 	     (commit user)) *web-user-db*)
   t)
 
-(defmethod commit ((user web-user))
-  (save-dao user))
-
-;;; Deprecated
-(defmethod filter-predicates ((user web-user))
-  "Return all filter predicates defined for user."
-  (mapcar #'filter-predicate (filters user)))
+(defmethod commit ((user web-user) &key (save-method #'save-dao))
+  (slot-let ((filters (format nil "~{~d~^,~}" filters))) user
+    (funcall save-method user)))
 
 ;;; Not sure if this is needed on non-SBCL...
 ;;; Postmodern returns text fields as a string type that
@@ -90,7 +95,7 @@ as an MD5 sum."
 				 :password-hash (hash-string password)
 				 :title title
 				 :admin-p admin)))
-	(insert-dao user)
+	(commit user :save-method #'insert-dao)
 	(setf (gethash username *web-user-db*) user))
     (cl-postgres-error:unique-violation ()
       (periscope-config-error "Username ~a already exists." username))))
@@ -197,34 +202,31 @@ are no users defined (anyone can edit) OR an administrator is currently logged i
 	  (hidden "redirect" (escape-string redirect)))
 	(:input :type "submit" :value "Login")))))
 
-(defun bad-filter-message ()
-  (let ((reason (session-value 'conf-filter-bad-reason))
-	(baddata (session-value 'conf-filter-bad-data)))
-    (unless (or (null reason) (null baddata))
-      (error-message
-       (string-case reason
-	 ("INTERNAL" (format nil "'~a' is not a valid internal subnet list." baddata)) 
-	 ("SUBNET" (format nil "'~a' is not a valid subnet filter list." baddata))
-	 ("VLAN" (format nil "'~a' is not a valid VLAN ID list." baddata))
-	 (t
-	  (format nil "Unknown error '~a', bad data '~a'. Report this as a bug."
-		  reason baddata)))))))
+(defun filter-selection (filters &key checked (start 0))
+  (let ((i start))
+    (with-html-output (*standard-output*)
+      (:div
+       :class "stats"
+       (:table
+	(:tr (:th :style "width:1em;" "Use") (:th "Title") (:th "Filter String"))
+	(dolist (filter filters)
+	  (htm
+	   (:tr (:td (checkbox "filters" :value (filter-id filter) :checked checked :index i))
+		(:td (str (filter-title filter)))
+		(:td (str (filter-string filter)))))
+	  (incf i)))))
+    i))
 
-(defun edit-user-form (title action &key user error new bad-filter)
+(defun edit-user-form (title action &key user error new)
   (with-config-section (title action)
     (when new
       (htm (:span :class "success"
-		  (fmt "User ~a added successfully! You may add traffic filters for this user
-below." (username user)))
+		  (fmt "User ~a added successfully!" (username user)))
 	   (:br) (:br)))
     ;; Recover saved information, if available.
     (let ((username    (session-value 'conf-username))
 	  (displayname (session-value 'conf-dispname))
-	  (configp     (session-value 'conf-configp))
-	  (title    (session-value 'conf-title))
-	  (internal (session-value 'conf-internal))
-	  (subnet   (session-value 'conf-subnet))
-	  (vlan     (session-value 'conf-vlan)))
+	  (configp     (session-value 'conf-configp)))
       (htm
        (:table
 	(:tr (:th :colspan 2 "Login Information") (:th))
@@ -259,70 +261,35 @@ alphanumeric characters and underscores."))
 	  (error-message "You can not remove administrator privileges from your own account!"))
 	(:tr
 	 (:td "Administrator privileges")
-	 (:td (checkbox "configp" :checked (if user (admin-p user) configp))))
+	 (:td (checkbox "configp" :checked (if user (admin-p user) configp)))))
 
-	;; Filter configuration
-	(:tr (:th :colspan 2 (str (if user "Add new filter" "Initial traffic filter"))))
-	;; Bad filter message specifically for new filter.
-	(when (and (string= error "badfilter") (zerop bad-filter))
-	  (bad-filter-message))
-	(:tr
-	 (:td "Filter Title")
-	 (:td (input "title[0]" title :size 30)))
-	(:tr
-	 (:td "Internal networks (CIDR notation)")
-	 (:td (input "internal[0]" internal :size 30)))
-	(:tr
-	 (:td "Included subnets (CIDR notation)")
-	 (:td (input "subnet[0]" subnet :size 30)))
-	(:tr
-	 (:td "Included VLAN IDs")
-	 (:td (input "vlan[0]" vlan :size 30)))
-     
-	(when (and user (filters user))
-	  (flet ((print-vlans (filter)
-		   (format nil "~{~a~^, ~}" (slot-value filter 'vlans)))
-		 (print-subnets (filter)
-		   (format nil "~{~a~^, ~}" (network-strings (slot-value filter 'subnets))))
-		 (print-networks (filter)
-		   (format nil "~{~a~^, ~}" (network-strings (slot-value filter 'internal-networks)))))
-	    (htm
-	     (:tr (:th :colspan 2 "Edit Filters"))
-	     (:tr
-	      (:td
-	       :colspan 3
-	       (:table
-		:class "input"
-		(:tr (:th "#")
-		     (:th "Title")
-		     (:th "Internal Networks")
-		     (:th "Subnets")
-		     (:th "VLANs")
-		     (:th "Delete"))
-		(loop :for i = 1 :then (1+ i)
-		   :for filter :in (filters user) :do
-		   (when (and (string= error "badfilter") (= bad-filter i))
-		     (bad-filter-message))
-		   (htm
-		    (:tr
-		     (:td (str i))
-		     (:td (input "title" (filter-title filter) :index i :size 20))
-		     (:td (input "internal" (print-networks filter) :index i :size 20))
-		     (:td (input "subnet" (print-subnets filter) :index i :size 20))
-		     (:td (input "vlan" (print-vlans filter) :index i :size 20))
-		     (:td (checkbox "delete" :index i :value "true"))))))))))))))
+       (let ((filters (when user
+			(mapcar #'find-filter (filters user))))
+	     (start 0))
+	 (when (and user filters)
+	   (htm (:h3 "Current Filters"))
+	   (setf start (filter-selection filters :checked t)))
+
+	 (with-database ("periscope")
+	   (let ((available-filters
+		  (remove-if (lambda (filter) (member filter filters :test #'filter=))
+			     (all-filters))))
+	     (when available-filters
+	       (htm (:h3 "Available Filters"))
+	       (filter-selection available-filters :start start)))))))
+    
     (:br)
     (submit "Apply Configuration")))
 
 (define-easy-handler (edit-user :uri "/edit-user")
-    (error user new add (filter :parameter-type 'integer))
+    (error user new add)
   (with-periscope-page ("Edit User" :admin t)
     (:p (:b (:a :href "/users" "Return to user login configuration")))
     (with-config-form ("/do-edit-user")
       (cond
 	((and add (string= add "true"))
 	 (hidden "action" "new")
-	 (edit-user-form "Add New User" "newuser" :error error :bad-filter filter))
+	 (edit-user-form "Add New User" "newuser" :error error))
 
 	(t
 	 (hidden "action" "edit")
@@ -330,8 +297,7 @@ alphanumeric characters and underscores."))
 	   (if user
 	       (edit-user-form (format nil "Edit User (~a)" (username user)) "edituser"
 			       :user user  :error error
-			       :new (string= new "true")
-			       :bad-filter filter)
+			       :new (string= new "true"))
 	       (hunchentoot:redirect "/users")))))
       
       ;; Delete no-longer-needed session values.
@@ -341,9 +307,7 @@ alphanumeric characters and underscores."))
       (delete-session-value 'conf-title)
       (delete-session-value 'conf-internal)
       (delete-session-value 'conf-subnet)
-      (delete-session-value 'conf-vlan)
-      (delete-session-value 'conf-filter-bad-reason)
-      (delete-session-value 'conf-filter-bad-data))))
+      (delete-session-value 'conf-vlan))))
 
 ;;; Errors:
 ;;;  - "username": Empty username.
@@ -441,35 +405,6 @@ of integers corresponding to these numbers.  Duplicate VLAN IDs are removed, and
 IDs will signal a PARSE-ERROR."
   (parse-integer-list vlan-string "^(\\d{1,4}( *|(, *)))+$" (complement #'vlan-p)))
 
-(defun parse-filter (title internal subnet vlan delete &key (index 0))
-  (declare (type array internal title subnet vlan delete))
-  (let ((title (aref title index))
-	(internals (aref internal index))
-	(vlans   (aref vlan index))
-	(subnets (aref subnet index))
-	(delete-p (and (plusp index) (< index (length delete))
-		       (string= "true" (aref delete index)))))
-    (unless (or delete-p (empty-string-p title vlans subnets))
-      (let ((internals (unless (empty-string-p internals)
-			 (handler-case (subnets-from-string internals)
-			   (parse-error () (filter-parse-error :internal internals)))))
-	    
-	    (vlans (unless (empty-string-p vlans)
-		     (handler-case (vlans-from-string vlans)
-		       (parse-error () (filter-parse-error :vlan vlans)))))
-	    
-	    (subnets (unless (empty-string-p subnets)
-		       (handler-case (subnets-from-string subnets)
-			 (parse-error () (filter-parse-error :subnet subnets))))))
-	
-	(make-generic-filter (escape-string title)
-			     :vlans vlans :subnets subnets
-			     :internal-networks internals)))))
-
-(defun parse-generic-filters (title internal subnet vlan delete)
-  (declare (ignore title internal subnet vlan delete))
-  (not-implemented 'old-filters))
-
 (define-easy-handler (set-user-config :uri "/set-user-config")
     (required
      (sessiontime :parameter-type 'integer)
@@ -492,31 +427,25 @@ IDs will signal a PARSE-ERROR."
 	 (cond
 	   ((and (> (length delete) i) (aref delete i))
 	    ;; If the user deletes a logged-in user, he must be logged off,
-	    ;; so remove session.
+	    ;; so remove session before removing from the user cache
+	    ;; and from the database.
 	    (logout u)
-	    (remhash (username u) *web-user-db*))))))
+	    (remhash (username u) *web-user-db*)
+	    (pomo:delete-dao u))))))
     
   (save-config)
   (hunchentoot:redirect "/users?error=success"))
 
 (define-easy-handler (do-edit-user :uri "/do-edit-user")
     (action username displayname password1 password2 configp
-	    (delete   :parameter-type 'array)
-	    (title    :parameter-type 'array)
 	    (internal :parameter-type 'array)
-	    (subnet   :parameter-type 'array)
-	    (vlan     :parameter-type 'array))
+	    (filters :parameter-type 'array))
+  (declare (ignore internal))
   (valid-session-or-lose :admin t)
   
   (let ((*redirect-page* "/edit-user")
 	(user (user username)))
 
-    ;; save initial/new filter information.
-    (setf (session-value 'conf-title) (aref title 0)
-	  (session-value 'conf-internal) (aref internal 0)
-	  (session-value 'conf-subnet) (aref subnet 0)
-	  (session-value 'conf-vlan) (aref vlan 0))
-    
     (string-case action
       ;; Create a new login.
       ("new"
@@ -547,30 +476,17 @@ IDs will signal a PARSE-ERROR."
 	    (error-redirect "passmatch")))
 
 	 (handler-case
-	     (let ((filter
-		    (handler-case
-			(parse-filter title internal subnet vlan delete)
-		      (filter-parse-error (pe)
-			(setf (session-value 'conf-filter-bad-reason)
-			      (filter-parse-error-type pe)
-
-			      (session-value 'conf-filter-bad-data)
-			      (filter-parse-error-data pe))
-			 
-			(error-redirect "badfilter" :filter 0))))
-		   (user
+	     (let ((user
+		    ;; If no users have been defined yet, the first user is automatically
+		    ;; granted administrative privileges.
 		    (create-login username password1 (escape-string displayname)
 				  :admin (or (not (login-available-p))
 					     (not (null configp))))))
-
-	       (when filter
-		 (setf (filters user) (list filter)))
-	       
 	       ;; If this is the first user created - automatically log them in for convenience.
 	       (when (= 1 (user-count))
 		 (process-login user password1)))
 	   (periscope-config-error () (error-redirect "userexists"))))
-       (hunchentoot:redirect (format nil "/edit-user?user=~a&new=true" username))) 
+       (hunchentoot:redirect (format nil "/edit-user?user=~a&new=true" username)))
       
       ;; Edit an existing login.
       ("edit"
@@ -582,13 +498,17 @@ IDs will signal a PARSE-ERROR."
 	  (error-redirect "dispname" :user username))
 
 	 ((and (not (empty-string-p password1 password2)) (string/= password1 password2))
-	  (error-redirect "passmatch" :user username))
+	  (error-redirect "passmatch" :user username)))
 
-	 ((/= (length title) (length subnet) (length vlan))
-	  (hunchentoot:redirect (format nil "/edit-user?user=~a" username)))
-
-	 ((find-if #'empty-string-p title :start 1)
-	  (error-redirect "badtitle" :filter (position-if #'empty-string-p title :start 1))))
+       (handler-case
+	   ;; Yo dawg, I herd you like map, so we put a MAPCAR in your MAPCAR
+	   ;; in your MAP, so you can holy shit this is ridiculous.
+	   (setf (filters user)
+		 (mapcar #'filter-id
+			 (remove nil
+				 (mapcar #'find-filter
+					 (map 'list #'parse-integer filters)))))
+	 (parse-error () (hunchentoot:redirect "/users")))
 
        (if (and (null configp) (string= username (username (user))))
 	   (error-redirect "unadminself")
@@ -597,20 +517,7 @@ IDs will signal a PARSE-ERROR."
        (when (not (empty-string-p password1 password2))
 	 (setf (password-hash user) (hash-string password1)))
       
-       (setf (display-name user) (escape-string displayname))
-       (setf (filters user)
-	     (remove nil
-		     (loop :for i :from 0 :below (length title) :collect
-			(handler-case
-			    (parse-filter title internal subnet vlan delete :index i)
-			  (filter-parse-error (pe)
-			    (setf (session-value 'conf-filter-bad-reason)
-				  (filter-parse-error-type pe)
-
-				  (session-value 'conf-filter-bad-data)
-				  (filter-parse-error-data pe))
-			 
-			    (error-redirect "badfilter" :user username :filter i))))))))
+       (setf (display-name user) (escape-string displayname))))
       
     (save-config)
     (let ((*redirect-page* "/edit-user"))
