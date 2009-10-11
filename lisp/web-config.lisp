@@ -50,7 +50,7 @@
 	   (error-message (format nil "Syntax error found in Argus filter '~a'." filter))
 	   (error-message "Please refer to the ra(1) manual page for Argus filter syntax."))
 	 (:tr
-	  (:td "Traffic Filter")
+	  (:td "Base Traffic Filter")
 	  (:td (input "filter" *collector-default-filter* :size 30)))
 	 (cond
 	   ((string= error "nocidrsuffix")
