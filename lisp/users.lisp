@@ -64,6 +64,12 @@
   (slot-let ((filters (format nil "~{~d~^,~}" filters))) user
     (funcall save-method user)))
 
+(defmethod user-filters ((user web-user))
+  "Returns a list of the filters assigned to user.  Unlike FILTERS, this function pulls
+relevant information from the database."
+  (when (filters user)
+    (remove nil (mapcar #'find-filter (filters user)))))
+
 ;;; Not sure if this is needed on non-SBCL...
 ;;; Postmodern returns text fields as a string type that
 ;;; Lisp recognizes as a string, but MD5:MD5SUM-SEQUENCE
@@ -263,8 +269,7 @@ alphanumeric characters and underscores."))
 	 (:td "Administrator privileges")
 	 (:td (checkbox "configp" :checked (if user (admin-p user) configp)))))
 
-       (let ((filters (when user
-			(mapcar #'find-filter (filters user))))
+       (let ((filters (when user (user-filters user)))
 	     (start 0))
 	 (when (and user filters)
 	   (htm (:h3 "Current Filters"))
