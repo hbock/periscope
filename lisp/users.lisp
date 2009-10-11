@@ -522,7 +522,8 @@ IDs will signal a PARSE-ERROR."
        (when (not (empty-string-p password1 password2))
 	 (setf (password-hash user) (hash-string password1)))
       
-       (setf (display-name user) (escape-string displayname))))
+       (setf (display-name user) (escape-string displayname))
+       (commit user)))
       
     (save-config)
     (let ((*redirect-page* "/edit-user"))
