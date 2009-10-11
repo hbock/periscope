@@ -77,11 +77,11 @@ Starts a separate thread to run the collector and handle its callbacks."
 	      (loop :for (type uri description) :in
 		 (sort (copy-seq *report-handler-list*) #'string< :key #'third) :do
 		 (htm (:li (:a :href uri (str description)))))))
-	(:li :class "root"
-	     "Utilities"
-	     (:ul
-	      (:li (:a :href "/filters" "Filter List"))
-	      (:li (:a :href "/service-names" "Service Names"))))
+	;; (:li :class "root"
+	;;      "Utilities"
+	;;      (:ul
+	;;       (:li (:a :href "/filters" "Filter List"))
+	;;       (:li (:a :href "/service-names" "Service Names"))))
 	(when (configure-p)
 	  (htm
 	   (:li :class "root"
@@ -93,7 +93,11 @@ Starts a separate thread to run the collector and handle its callbacks."
 		 (:li (:a :href "/users" "Manage User Logins"))
 
 		 (when *web-show-diag*
-		   (htm (:li (:a :href "/uuddlrlrbastart" "Diagnostics Panel")))))))))))))
+		   (htm (:li (:a :href "/uuddlrlrbastart" "Diagnostics Panel"))))))))
+	(:li :class "root"
+	     "Documentation"
+	     (:ul
+	      (:li (:a :href "/help-filter" "Argus Filters")))))))))
 
 (defmacro with-periscope-page ((title &key login admin database onload) &body body)
   "Generate a Periscope-template page. 

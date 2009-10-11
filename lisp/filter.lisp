@@ -138,3 +138,11 @@ filter program."
 	       (htm (:tr (:td (checkbox "remove" :value id :index i))
 			 (:td (input "edit-title" title :index i))
 			 (:td (input "edit-expr" string :index i :size 50))))))))))))
+
+(define-easy-handler (filter-help :uri "/help-filter") ()
+  (with-periscope-page ("Filter Syntax Help")
+    (with-open-file (filter-syntax "filter.html" :direction :input)
+      (loop
+	 :for line = (read-line filter-syntax nil nil)
+	 :while line :do
+	 (write-line line *standard-output*)))))
