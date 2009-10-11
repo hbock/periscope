@@ -225,9 +225,11 @@ are no users defined (anyone can edit) OR an administrator is currently logged i
 
 (defun edit-user-form (title action &key user error new)
   (with-config-section (title action)
-    (when new
+    (when (string= error "success")
       (htm (:span :class "success"
-		  (fmt "User ~a added successfully!" (username user)))
+		  (if new
+		      (fmt "User ~a added successfully!" (username user))
+		      (fmt "User ~a edited successfully!" (username user))))
 	   (:br) (:br)))
     ;; Recover saved information, if available.
     (let ((username    (session-value 'conf-username))
@@ -491,7 +493,7 @@ IDs will signal a PARSE-ERROR."
 	       (when (= 1 (user-count))
 		 (process-login user password1)))
 	   (periscope-config-error () (error-redirect "userexists"))))
-       (hunchentoot:redirect (format nil "/edit-user?user=~a&new=true" username)))
+       (error-redirect "success" :user username :new "true"))
       
       ;; Edit an existing login.
       ("edit"
