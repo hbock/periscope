@@ -32,7 +32,7 @@
 		      :initform nil)
    (program :reader filter-program))
   (:metaclass pomo:dao-class)
-  (:keys id))
+  (:keys title))
 
 (defmethod initialize-instance :after ((object filter) &key compile optimize)
   (when compile
@@ -52,9 +52,10 @@ filter program."
   (with-slots (string program) object
     (let ((fprogram (%filter-compile string (if optimize 1 0))))
       (when (null-pointer-p fprogram)
-	(error "Syntax error in filter: ~a" string))
+	(filter-parse-error string))
       (setf program fprogram)
-      (tg:finalize object (lambda () (%filter-free fprogram))))))
+      (tg:finalize object (lambda () (%filter-free fprogram)))))
+  object)
 
 (defmethod compiled-p ((object filter))
   "Returns true if the filter has been compiled."
@@ -117,15 +118,22 @@ filter program."
 		    (:td (str title))
 		    (:td (str string))))))))))
 
-(define-easy-handler (edit-filters :uri "/filter-config") ()
+(define-easy-handler (edit-filters :uri "/filter-config") (error)
   (with-periscope-page ("Filter Configuration" :admin t :database t)
     (with-config-form ("/do-edit-filters")
-      (with-config-section ("Create New Filter")
-	(:table
-	 (:tr (:td "Filter title")
-	      (:td (input "title" "")))
-	 (:tr (:td "Filter expression")
-	      (:td (input "expr" "")))))
+      (session-value-bind (new-title new-expr)
+	(with-config-section ("Create New Filter")
+	  (:table
+	   (when (string= error "filter-exists")
+	     (error-message
+	      (format nil "A filter with the title ~a already exists!" new-title)))
+	   (:tr (:td "Filter title")
+		(:td (input "title" new-title)))
+	   (when (string= error "bad-new-filter")
+	     (error-message
+	      (format nil "Syntax error in filter expression \"~a\"!" new-expr)))
+	   (:tr (:td "Filter expression")
+		(:td (input "expr" new-expr))))))
       
       (with-config-section ("Available Filters" "")
 	(:div
@@ -137,7 +145,39 @@ filter program."
 	     (with-slots (id title string) filter
 	       (htm (:tr (:td (checkbox "remove" :value id :index i))
 			 (:td (input "edit-title" title :index i))
-			 (:td (input "edit-expr" string :index i :size 50))))))))))))
+			 (:td (input "edit-expr" string :index i :size 50))))))))
+	(:br)
+	(delete-session-value 'new-title)
+	(delete-session-value 'new-expr)
+	(submit "Apply Configuration")))))
+
+(define-easy-handler (do-edit-filters :uri "/do-edit-filters")
+    (title expr
+	   (remove :parameter-type 'array)
+	   (edit-title :parameter-type 'array)
+	   (edit-expr  :parameter-type 'array))
+  (declare (ignore edit-title edit-expr))
+  (valid-session-or-lose :admin t)
+
+  (let ((*redirect-page* "/filter-config"))
+    (session-value-bind (new-expr new-title)
+      (setf new-expr expr
+	    new-title title)
+      (unless (empty-string-p title)
+	(handler-case
+	    (insert-dao (compile-filter (make-filter title expr)))
+	  (parse-error ()
+	    (error-redirect "bad-new-filter"))
+	  (cl-postgres-error:unique-violation ()
+	    (error-redirect "filter-exists")))))
+
+    (mapcar (lambda (id)
+	      (when id (pomo:delete-dao (find-filter id))))
+	    (map 'list #'parse-integer (remove nil remove)))
+    
+    (delete-session-value 'new-expr)
+    (delete-session-value 'new-title)
+    (error-redirect "success")))
 
 (define-easy-handler (filter-help :uri "/help-filter") ()
   (with-periscope-page ("Filter Syntax Help")
