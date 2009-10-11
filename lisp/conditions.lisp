@@ -52,17 +52,15 @@
   (error 'periscope-file-error :format-control control :format-arguments args))
 
 (define-condition filter-parse-error (periscope-simple-error parse-error)
-  ((error-type :initarg :error-type :reader filter-parse-error-type)
-   (bad-data :initarg :bad-data :reader filter-parse-error-data))
-  (:documentation "Specific error information about bad filter specifications.")
+  ((bad-expression :initarg :bad-expression :reader filter-parse-error-expression))
+  (:documentation "Error compiling an Argus filter.")
   (:report
    (lambda (condition stream)
-     (format stream "Error parsing filter with bad ~a data: '~a' is not valid."
-	     (filter-parse-error-type condition)
-	     (filter-parse-error-data condition)))))
+     (format stream "Syntax error parsing Argus filter: ~a"
+	     (filter-parse-error-expression condition)))))
 
-(defun filter-parse-error (type data)
-  (error 'filter-parse-error :error-type type :bad-data data))
+(defun filter-parse-error (expression)
+  (error 'filter-parse-error :bad-expression expression))
 
 (define-condition operation-not-implemented (periscope-error)
   ((operation :initarg :operation
