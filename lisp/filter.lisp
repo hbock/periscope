@@ -24,6 +24,8 @@
    (title :col-type string
 	  :initarg :title :type string
 	  :reader title)
+   (active :col-type boolean :initarg :active :initform t
+	   :accessor active-p)
    (string :col-type string
 	   :initarg :string :type string
 	   :initform (error "Must supply filter string!")
@@ -61,6 +63,11 @@ filter program."
   "Returns true if the filter has been compiled."
   (and (slot-boundp object 'program) (pointerp (filter-program object))))
 
+(defmethod delete-filter ((object filter))
+  (dolist (class '(host-stat traffic-stats service-traffic-stats))
+    (execute (:delete-from (pomo:dao-table-name class)
+			   :where (:= 'filter-id (filter-id object))))))
+
 (defmethod print-object ((object filter) stream)
   (print-unreadable-object (object stream :type t)
     (format stream "\"~a\" (~:[not ~;~]compiled)"
@@ -71,9 +78,11 @@ filter program."
   "Compares two filters based on their database ID."
   (= (filter-id f1) (filter-id f2)))
 
-(defun all-filters (&key compile)
+(defun all-filters (&key compile (active-only t))
   "Returns all available filters."
-  (let ((filters (pomo:select-dao 'filter)))
+  (let ((filters (if active-only
+		     (pomo:select-dao 'filter (:= 'active t) 'title)
+		     (pomo:select-dao 'filter t 'title))))
     (when compile
       (dolist (filter filters)
 	(compile-filter filter)))
@@ -103,21 +112,6 @@ filter program."
 	    (:br)
 	    (:b "Filter string: ") (str string)))))
 
-(define-easy-handler (show-filters :uri "/filters")
-    (fid)
-  (declare (ignore fid))
-  (with-periscope-page ("Filter List" :admin t :database t)
-    (:h2 "Filter List")
-    (:div
-     :class "stats"
-     (:table
-      (:tr (:th "ID") (:th "Title") (:th "Filter Expression"))
-      (dolist (filter (all-filters))
-	(with-slots (id title string) filter
-	  (htm (:tr (:td (str id))
-		    (:td (str title))
-		    (:td (str string))))))))))
-
 (define-easy-handler (edit-filters :uri "/filter-config") (error)
   (with-periscope-page ("Filter Configuration" :admin t :database t)
     (with-config-form ("/do-edit-filters")
@@ -135,17 +129,21 @@ filter program."
 	   (:tr (:td "Filter expression")
 		(:td (input "expr" new-expr))))))
       
-      (with-config-section ("Available Filters" "")
+      (with-config-section ("Edit Available Filters")
+	"Reports will not be generated for filters that are set to be <i>inactive</i>, but old data "
+	"will remain available." (:br)
+	(:i "Removing") " a filter will delete all reports associated with that filter!"
 	(:div
 	 :class "stats"
 	 (:table
-	  (:tr (:th "Remove") (:th "Title") (:th "Filter Expression"))
-	  (loop :for filter :in (all-filters)
+	  (:tr (:th "Active") (:th "Title") (:th "Filter Expression") (:th "Remove"))
+	  (loop :for filter :in (all-filters :active-only nil)
 	     :for i = 0 :then (1+ i) :do
 	     (with-slots (id title string) filter
-	       (htm (:tr (:td (checkbox "remove" :value id :index i))
+	       (htm (:tr (:td (checkbox "active" :value id :checked (active-p filter) :index i))
 			 (:td (input "edit-title" title :index i))
-			 (:td (input "edit-expr" string :index i :size 50))))))))
+			 (:td (input "edit-expr" string :index i :size 50))
+			 (:td (checkbox "remove" :value id :index i))))))))
 	(:br)
 	(delete-session-value 'new-title)
 	(delete-session-value 'new-expr)
@@ -154,6 +152,7 @@ filter program."
 (define-easy-handler (do-edit-filters :uri "/do-edit-filters")
     (title expr
 	   (remove :parameter-type 'array)
+	   (active :parameter-type 'array)
 	   (edit-title :parameter-type 'array)
 	   (edit-expr  :parameter-type 'array))
   (declare (ignore edit-title edit-expr))
@@ -166,14 +165,29 @@ filter program."
       (unless (empty-string-p title)
 	(handler-case
 	    (insert-dao (compile-filter (make-filter title expr)))
+	  ;; Syntax error.
 	  (parse-error ()
 	    (error-redirect "bad-new-filter"))
+	  ;; Filter with title exists.
 	  (cl-postgres-error:unique-violation ()
 	    (error-redirect "filter-exists")))))
 
+    ;; TODO: This can be reduced from O(n^2) to O(n) with some work.
+    (let ((all-filters (all-filters :active-only nil))
+	  (active-filters (map 'list #'parse-integer (remove nil active))))
+      (dolist (filter all-filters)
+	;; If the filter is in the new "active list", it is supposed to be active.
+	(let ((active-p
+	       (not (null (find (filter-id filter) active-filters)))))
+	  ;; Don't set and commit the active column to the database unless it has
+	  ;; changed.
+	  (unless (eq active-p (active-p filter))
+	    (setf (active-p filter) active-p)
+	    (update-dao filter)))))
+
     (mapcar (lambda (id)
-	      (when id (pomo:delete-dao (find-filter id))))
-	    (map 'list #'parse-integer (remove nil remove)))
+    	      (when id (pomo:delete-dao (find-filter id))))
+    	    (map 'list #'parse-integer (remove nil remove)))
     
     (delete-session-value 'new-expr)
     (delete-session-value 'new-title)
