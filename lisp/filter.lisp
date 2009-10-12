@@ -164,7 +164,7 @@ filter program."
 	    new-title title)
       (unless (empty-string-p title)
 	(handler-case
-	    (insert-dao (compile-filter (make-filter title expr)))
+	    (insert-dao (compile-filter (make-filter (escape-string title) expr)))
 	  ;; Syntax error.
 	  (parse-error ()
 	    (error-redirect "bad-new-filter"))
