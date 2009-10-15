@@ -82,6 +82,9 @@
 (defconstant +min-session-time+ 300
   "Minimum time (in seconds) a user can set HUNCHENTOOT:*MAX-SESSION-TIME*")
 
+(defvar *host-cache-default-size* 30000)
+(defconstant +min-host-cache-size+ 30000)
+
 (defconstant +lowest-multicast-address+ #xe0000000)
 (defconstant +highest-multicast-address+ #xefffffff)
 (defconstant +highest-port-number+ #xffff)

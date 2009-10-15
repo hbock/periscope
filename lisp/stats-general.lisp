@@ -22,8 +22,6 @@
   "Current version of the PERIOD-REPORT file/class format. Used to ensure older report formats
 are processed correctly, or a proper error is signalled when a report format is no longer
 supported.")
-(defvar *host-cache-default-size* 30000)
-(defconstant +min-host-cache-size+ 30000)
 
 (defclass traffic-stats (report-base)
   ((bytes   :col-type bigint  :initarg :bytes   :initform 0 :accessor bytes)
