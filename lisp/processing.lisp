@@ -20,7 +20,7 @@
 
 (defclass report-collection ()
   ((log :initarg :log :reader report-log)
-   (timestamp :initarg timestamp :reader report-timestamp)
+   (timestamp :initarg :timestamp :reader report-timestamp)
    (filter :initarg :filter :reader filter :initform nil)
    (reports :initarg :reports :reader report-list :initform nil)
    (generated :reader report-generation-time
