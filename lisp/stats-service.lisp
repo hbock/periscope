@@ -166,6 +166,7 @@ of the service with label-fun."
 	   ;; Return as a list of single values instead of a list of lists with a single value.
 	   (query (:select (:distinct 'identifier) :from 'service-traffic-stats
 			   :where (:and (:= 'filter-id (filter-id object))
+					(:= 'timestamp (report-time object))
 					(:= 'service-type (service-stats-type->sql-enum type))))
 		  :column)))
     (with-html-output (*standard-output*)
@@ -188,6 +189,7 @@ of the service with label-fun."
 	    ;; ORDER BY type - Incoming, Outgoing, Total, in that order.
 	    (dolist (stat (pomo:select-dao 'service-traffic-stats
 					   (:and (:= 'filter-id (filter-id object))
+						 (:= 'timestamp (report-time object))
 						 (:= 'service-type (service-stats-type->sql-enum type))
 						 (:= 'identifier identifier)) 'type))
 	      (print-html stat))))))))))
