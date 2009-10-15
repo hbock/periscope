@@ -18,26 +18,21 @@
 ;;;; Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 (in-package :periscope)
 
-(defun make-filtered-reports (flow-list &optional time user)
-  "Return a list of report structures in the form (time filter &rest reports)
-corresponding to user's filters, as applied to the flows in flow-list. If no
-filters are defined, a list with the form (time nil &rest reports) is returned."
-  (if (and user (filters user))
-      (loop :for flows :in (apply-filters flow-list (filter-predicates user))
-	 :for filter :in (filters user) :collect
-	 (with-slots (internal-networks) filter
-	   ;; This is rather inelegant, shadowing *internal-networks*, but it works well
-	   ;; without touching anything else.
-	   (let ((*internal-networks* (if internal-networks internal-networks *internal-networks*)))
-	     (list time
-		   filter
-		   (make-general-stats flows)
-		   (make-service-stats flows)))))
-      (list
-       (list time
-	     nil
-	     (make-general-stats flow-list)
-	     (make-service-stats flow-list)))))
+(defmethod load-reports ((type symbol) (time simple-date:timestamp) &optional (user (user)))
+  (declare (ignore type))
+  (mapcar (lambda (filter)
+	    (make-instance 'report-collection
+			   :filter filter
+			   :reports (list 'general-stats 'service-report)
+			   :timestamp time))
+	  (if user (user-filters user) (all-filters :active-only nil))))
+
+(defun report-time-list (type &optional (user (user)))
+  (declare (ignore type))
+  (if user
+      (query (:select (:distinct 'timestamp) :from 'traffic-stats :where
+		      (:in 'filter-id (:set (filters user)))) :column)
+      (query (:select (:distinct 'timestamp) :from 'traffic-stats) :column)))
 
 (defun in-report-directory (filespec &optional (directory *report-directory*))
   (merge-pathnames filespec (truename (ensure-directories-exist directory))))
@@ -91,6 +86,17 @@ the pathname of the log itself."
 	(push (nreverse day-logs) log-list))
       log-list)))
 
+(defun print-report-list (type)
+  (with-html-output (*standard-output*)
+    (:div
+     :class "report-listing"
+     (:h2 "Report Listing")
+     (let ((reports (report-time-list type)))
+       (dolist (report reports)
+	 (htm (:a :href (format nil "/~a?time=~d" (string-downcase type)
+				(simple-date:timestamp-to-universal-time report))
+		  (str (date-string report :minutes t))) (:br)))))))
+
 (defun print-hourly-list ()
   "Print out the hourly log list HTML, with newest logs first."
   (with-html-output (*standard-output*)
@@ -127,42 +133,80 @@ the pathname of the log itself."
 
 (define-report-handler (hourly "/hourly" "Hourly Traffic")
     ((time :parameter-type 'integer))
-  (with-periscope-page ("Hourly Traffic Reports")
+  (with-periscope-page ("Hourly Traffic Reports" :database t)
     (if time
-	(not-implemented 'show-reports)
-	;; (handler-case
-	;;     (let* ((flows (process-local-file (hourly-log time)))
-	;; 	   (report-lists (make-filtered-reports flows time (user)))
-	;; 	   (logs (mapcar #'car (hourly-logs)))
-	;; 	   (position (position time logs))
-	;; 	   (previous-time
-	;; 	    (when (plusp position)
-	;; 	      (nth (1- position) logs)))
-	;; 	   (next-time (nth (1+ position) logs)))
-	;;       (htm
-	;;        (:h2 "Hourly Report")
-	;;        (if previous-time
-	;; 	   (htm (:a :href (format nil "/hourly?time=~d" previous-time) "Previous Report"))
-	;; 	   (htm "Previous Report"))
-	;;        " | "
-	;;        (:a :href "/hourly" "Back to all hourly reports")
-	;;        " | "
-	;;        (if next-time
-	;; 	   (htm (:a :href (format nil "/hourly?time=~d" next-time) "Next Report"))
-	;; 	   (htm "Next Report"))
-	;;        (:div :class "stats"
-	;; 	     (dolist (report-list report-lists)
-	;; 	       (destructuring-bind (time filter &rest reports) report-list
-	;; 		 (htm
-	;; 		  (:h3 (str (long-date-string (universal-to-timestamp time))))
-	;; 		  (when filter (print-html filter)))
-			 
-	;; 		 (dolist (report reports)
-	;; 		   (print-html report)))
-	;; 	       (htm (:hr))))))
-	;;   ;; PROCESS-LOCAL-FILE and HOURLY-LOG can throw PERISCOPE-FILE-ERROR
-	;;   ;; to indicate file-not-found
-	;;   (file-error () (hunchentoot:redirect "/nothingtoseehere")))
+	(handler-case
+	    (let (previous-time next-time)
+	      (htm
+	       (:h2 "Hourly Report")
+	       (if previous-time
+		   (htm (:a :href (format nil "/hourly?time=~d" previous-time) "Previous Report"))
+		   (htm "Previous Report"))
+	       " | "
+	       (:a :href "/hourly" "Back to all hourly reports")
+	       " | "
+	       (if next-time
+		   (htm (:a :href (format nil "/hourly?time=~d" next-time) "Next Report"))
+		   (htm "Next Report"))
+	       (htm
+		(:div
+		 :class "filter-list"
+		 (:ul
+		  (:li (:b "Filters"))
+		  (loop
+		     :for id = 0 :then (1+ id)
+		     :for report in (reports *collector*) :do
+		     (htm (:li (:a :href (format nil "javascript:displaySingleReport(~d);" id)
+				   (str (filter-title (filter report))))))))
+		 (:div :style "clear:both;")))
+	       (loop
+		  :for id = 0 :then (1+ id)
+		  :for hidden = nil :then t
+		  :for report in (reports *collector*)
+		  :do (print-html report :id id :hidden hidden))))
+	  
+	  ;; PROCESS-LOCAL-FILE and HOURLY-LOG can throw PERISCOPE-FILE-ERROR
+	  ;; to indicate file-not-found
+	  (file-error () (hunchentoot:redirect "/nothingtoseehere")))
 	;; When 'time' GET parameter is not specified, print the list of all available
 	;; reports.
 	(print-hourly-list))))
+
+(define-report-handler (five-minute "/five-minute" "Five Minute Traffic")
+    ((time :parameter-type 'integer))
+  (with-periscope-page ("Five Minute Traffic Reports" :database t)
+    (if time
+	(let ((reports (load-reports :five-minute (simple-date:universal-time-to-timestamp time)))
+	      previous-time next-time)
+	  (htm
+	   (:h2 "Five-Minute Report")
+	   (if previous-time
+	       (htm (:a :href (format nil "/hourly?time=~d" previous-time) "Previous Report"))
+	       (htm "Previous Report"))
+	   " | "
+	   (:a :href "/hourly" "Back to all hourly reports")
+	   " | "
+	   (if next-time
+	       (htm (:a :href (format nil "/hourly?time=~d" next-time) "Next Report"))
+	       (htm "Next Report"))
+	   (htm
+	    (:div
+	     :class "filter-list"
+	     (:ul
+	      (:li (:b "Filters"))
+	      (loop
+		 :for id = 0 :then (1+ id)
+		 :for report in reports :do
+		 (htm (:li (:a :href (format nil "javascript:displaySingleReport(~d);" id)
+			       (str (filter-title (filter report))))))))
+	     (:div :style "clear:both;")))
+	   (loop
+	      :for id = 0 :then (1+ id)
+	      :for hidden = nil :then t
+	      :for report in reports
+	      :do (print-html report :id id :hidden hidden))))
+	;; When 'time' GET parameter is not specified, print the list of all available
+	;; reports.
+	(print-report-list :five-minute))))
+
+
