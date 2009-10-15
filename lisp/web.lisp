@@ -156,10 +156,11 @@ the BODY tag of the page."
      (:div :class "config-header" (str ,title))
      (:div :class "config-section" ,@body)))
 
-(defmacro with-config-form ((uri &key (method :post)) &body body)
+(defmacro with-config-form ((uri &key (method :post) onsubmit) &body body)
   `(with-html-output (*standard-output*)
      (:form
       :action ,uri :method ,(ecase method (:post "post") (:get "get"))
+      ,@(when onsubmit `(:onsubmit ,onsubmit))
       ,@body)))
 
 (defun error-redirect (type &rest more-params)
