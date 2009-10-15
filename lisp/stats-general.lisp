@@ -351,10 +351,6 @@ sent_packets, received_flows, received_bytes, received_packets) FROM '~a' WITH C
   (print-unreadable-object (report stream :type t)
     (format stream "version ~d" (report-format-version report))))
 
-(defmethod load-report (file)
-  (with-open-file (stream file :direction :input)
-    (eval (read stream))))
-
 (defmethod unique-hosts ((report general-stats) &key type)
   (if type
       (query (:select (:count 'host-ip) :from 'host-stat
@@ -422,6 +418,3 @@ sent_packets, received_flows, received_bytes, received_packets) FROM '~a' WITH C
 		 :flows (flows (first stats));(reduce #'+ stats :key #'flows)
 		 :bytes (reduce #'+ stats :key #'bytes)
 		 :packets (reduce #'+ stats :key #'packets)))
-
-(defun make-general-stats (time)
-  (make-instance 'general-stats :time time))
