@@ -59,3 +59,28 @@ function hideReport(index)
     }
     return false;
 }
+
+function checkFilters()
+{
+    rows = document.getElementById("available-filters").getElementsByTagName("tr");
+    removing = "";
+    
+    /* Locate filters to be removed, if any. */
+    for(i = 1; i < rows.length; i++) {
+	inputs = rows[i].getElementsByTagName("input");
+	removeCheck = inputs[3];
+
+	if(removeCheck.checked) {
+	    title = inputs[1].value;
+	    removing += "\t" + title + "\n";
+	}
+    }
+    /* Confirm if removing... */
+    if(removing != "") {
+	return confirm("Deleting the following filters:\n" +
+		       removing + "\n" +
+		       "Removing these filters will recursively delete all reports associated " +
+		       "with them. Are you sure you wish to do this?");
+    }
+    return true;
+}

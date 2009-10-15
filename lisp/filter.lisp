@@ -66,7 +66,8 @@ filter program."
 (defmethod delete-filter ((object filter))
   (dolist (class '(host-stat traffic-stats service-traffic-stats))
     (execute (:delete-from (pomo:dao-table-name class)
-			   :where (:= 'filter-id (filter-id object))))))
+			   :where (:= 'filter-id (filter-id object)))))
+  (pomo:delete-dao object))
 
 (defmethod print-object ((object filter) stream)
   (print-unreadable-object (object stream :type t)
@@ -114,7 +115,7 @@ filter program."
 
 (define-easy-handler (edit-filters :uri "/filter-config") (error)
   (with-periscope-page ("Filter Configuration" :admin t :database t)
-    (with-config-form ("/do-edit-filters")
+    (with-config-form ("/do-edit-filters" :onsubmit "return checkFilters()")
       (session-value-bind (new-title new-expr)
 	(with-config-section ("Create New Filter")
 	  (:table
@@ -136,6 +137,7 @@ filter program."
 	(:div
 	 :class "stats"
 	 (:table
+	  :id "available-filters"
 	  (:tr (:th "Active") (:th "Title") (:th "Filter Expression") (:th "Remove"))
 	  (loop :for filter :in (all-filters :active-only nil)
 	     :for i = 0 :then (1+ i) :do
@@ -159,35 +161,36 @@ filter program."
   (valid-session-or-lose :admin t)
 
   (let ((*redirect-page* "/filter-config"))
-    (session-value-bind (new-expr new-title)
-      (setf new-expr expr
-	    new-title title)
-      (unless (empty-string-p title)
-	(handler-case
-	    (insert-dao (compile-filter (make-filter (escape-string title) expr)))
-	  ;; Syntax error.
-	  (parse-error ()
-	    (error-redirect "bad-new-filter"))
-	  ;; Filter with title exists.
-	  (cl-postgres-error:unique-violation ()
-	    (error-redirect "filter-exists")))))
+    (with-database ("periscope")
+      (session-value-bind (new-expr new-title)
+	(setf new-expr expr
+	      new-title title)
+	(unless (empty-string-p title)
+	  (handler-case
+	      (insert-dao (compile-filter (make-filter (escape-string title) expr)))
+	    ;; Syntax error.
+	    (parse-error ()
+	      (error-redirect "bad-new-filter"))
+	    ;; Filter with title exists.
+	    (cl-postgres-error:unique-violation ()
+	      (error-redirect "filter-exists")))))
 
     ;; TODO: This can be reduced from O(n^2) to O(n) with some work.
-    (let ((all-filters (all-filters :active-only nil))
-	  (active-filters (map 'list #'parse-integer (remove nil active))))
-      (dolist (filter all-filters)
-	;; If the filter is in the new "active list", it is supposed to be active.
-	(let ((active-p
-	       (not (null (find (filter-id filter) active-filters)))))
-	  ;; Don't set and commit the active column to the database unless it has
-	  ;; changed.
-	  (unless (eq active-p (active-p filter))
-	    (setf (active-p filter) active-p)
-	    (update-dao filter)))))
+      (let ((all-filters (all-filters :active-only nil))
+	    (active-filters (map 'list #'parse-integer (remove nil active))))
+	(dolist (filter all-filters)
+	  ;; If the filter is in the new "active list", it is supposed to be active.
+	  (let ((active-p
+		 (not (null (find (filter-id filter) active-filters)))))
+	    ;; Don't set and commit the active column to the database unless it has
+	    ;; changed.
+	    (unless (eq active-p (active-p filter))
+	      (setf (active-p filter) active-p)
+	      (update-dao filter)))))
 
-    (mapcar (lambda (id)
-    	      (when id (pomo:delete-dao (find-filter id))))
-    	    (map 'list #'parse-integer (remove nil remove)))
+      (mapcar (lambda (id)
+		(when id (delete-filter (find-filter id))))
+	      (map 'list #'parse-integer (remove nil remove))))
     
     (delete-session-value 'new-expr)
     (delete-session-value 'new-title)
