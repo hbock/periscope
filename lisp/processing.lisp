@@ -49,7 +49,7 @@
 			  :log log
 			  :filter filter
 			  :reports (list 'general-stats 'service-report)))
-	 (all-filters))
+	 (all-filters :compile t))
   	;; TODO: REMOVE ME!
   	*collector* collector)
   
