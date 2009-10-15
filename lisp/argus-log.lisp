@@ -24,6 +24,10 @@
    (timestamp :initarg :timestamp :reader argus-log-timestamp :type simple-date:timestamp)
    (gzip-p :initarg :gzip-p :reader argus-log-gzip-p :type boolean)))
 
+(defmethod delete-log ((log argus-log))
+  "Delete a log file from disk."
+  (delete-file (argus-log-pathname log)))
+
 (defmethod parse-log-pathname ((file pathname))
   (ppcre:register-groups-bind (type (#'parse-integer year month date hour minute))
       ("([a-z]+)-(\\d{4})(\\d{2})(\\d{2})-(\\d{2}):?(\\d{2})?" (pathname-name file))
