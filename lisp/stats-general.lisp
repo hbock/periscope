@@ -376,40 +376,35 @@ sent_packets, received_flows, received_bytes, received_packets) FROM '~a' WITH C
 (defmethod print-html ((report general-stats) &key)
   (with-html-output (*standard-output*)
     (:h3 "General Statistics")    
-    (cond
-      ((zerop (flows (total report)))
-       (htm (:b "No flows matched this filter.")))
-      (t
-       (htm
-	(:table
-	 (:tr (:th :colspan 4 "Flow Statistics"))
-	 (:tr (:th "") (:th "Packets") (:th "Bytes") (:th "Flows"))
-	 (loop :for stats :in
-	    (pomo:select-dao 'traffic-stats
-			     (:and (:= 'filter-id (filter-id report))
-				   (:= 'timestamp (report-time report)))
-			     'type)
-	    :do (print-html stats :title (traffic-stats-type (stats-type stats) :format :string))))
+    (:table
+     (:tr (:th :colspan 4 "Flow Statistics"))
+     (:tr (:th "") (:th "Packets") (:th "Bytes") (:th "Flows"))
+     (loop :for stats :in
+	(pomo:select-dao 'traffic-stats
+			 (:and (:= 'filter-id (filter-id report))
+			       (:= 'timestamp (report-time report)))
+			 'type)
+	:do (print-html stats :title (traffic-stats-type (stats-type stats) :format :string))))
 
-	(:table
-	 (:tr (:th :colspan 2 "Unique Hosts"))
-	 (:tr (:th "Type") (:th "Count"))
-	 (loop :for (desc type) :in '(("Local" :local)
-				      ("Remote" :remote)
-				      ("Broadcast" :broadcast)
-				      ("Multicast" :multicast)
-				      ("Total" nil)) :do
-	    (htm
-	     (:tr (:td (:b (str desc)))
-		  (:td (fmt "~:d" (unique-hosts report :type type))))))))
+    (:table
+     (:tr (:th :colspan 2 "Unique Hosts"))
+     (:tr (:th "Type") (:th "Count"))
+     (loop :for (desc type) :in '(("Local" :local)
+				  ("Remote" :remote)
+				  ("Broadcast" :broadcast)
+				  ("Multicast" :multicast)
+				  ("Total" nil)) :do
+	(htm
+	 (:tr (:td (:b (str desc)))
+	      (:td (fmt "~:d" (unique-hosts report :type type)))))))
 
-       (print-busiest-hosts report "Busiest Local Hosts" :type :local)
-       (print-busiest-hosts report "Busiest Remote Hosts" :type :remote)
+    (print-busiest-hosts report "Busiest Local Hosts" :type :local)
+    (print-busiest-hosts report "Busiest Remote Hosts" :type :remote)
        ;; (print-scan-hosts "Possible Incoming Scan Hosts" "Local"
        ;; 			 (incoming-scan-hosts report) :key #'local-contact-count)
        ;; (print-scan-hosts "Possible Outgoing Scan Hosts" "Remote"
        ;; 			 (outgoing-scan-hosts report) :key #'remote-contact-count)
-       ))))
+       ))
 
 (defun combine-stats (&rest stats)
   (make-instance 'stats
