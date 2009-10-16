@@ -514,7 +514,7 @@ IDs will signal a PARSE-ERROR."
 		 (mapcar #'filter-id
 			 (remove nil
 				 (mapcar #'find-filter
-					 (map 'list #'parse-integer filters)))))
+					 (map 'list #'parse-integer (remove nil filters))))))
 	 (parse-error () (hunchentoot:redirect "/users")))
 
        (if (and (null configp) (string= username (username (user))))
