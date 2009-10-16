@@ -412,6 +412,15 @@ of integers corresponding to these numbers.  Duplicate VLAN IDs are removed, and
 IDs will signal a PARSE-ERROR."
   (parse-integer-list vlan-string "^(\\d{1,4}( *|(, *)))+$" (complement #'vlan-p)))
 
+(defmethod delete-user ((user web-user))
+  "Deletes a web interface user."
+  ;; If the user deletes a logged-in user, he must be logged off,
+  ;; so remove session before removing from the user cache
+  ;; and from the database.
+  (logout user)
+  (remhash (username user) *web-user-db*)
+  (pomo:delete-dao user))
+
 (define-easy-handler (set-user-config :uri "/set-user-config")
     (required
      (sessiontime :parameter-type 'integer)
@@ -433,12 +442,7 @@ IDs will signal a PARSE-ERROR."
        (let ((u (user (aref user i))))
 	 (cond
 	   ((and (> (length delete) i) (aref delete i))
-	    ;; If the user deletes a logged-in user, he must be logged off,
-	    ;; so remove session before removing from the user cache
-	    ;; and from the database.
-	    (logout u)
-	    (remhash (username u) *web-user-db*)
-	    (pomo:delete-dao u))))))
+	    (delete-user u))))))
     
   (save-config)
   (hunchentoot:redirect "/users?error=success"))
@@ -453,80 +457,86 @@ IDs will signal a PARSE-ERROR."
   (let ((*redirect-page* "/edit-user")
 	(user (user username)))
 
-    (string-case action
-      ;; Create a new login.
-      ("new"
-       (flet ((error-redirect (type &rest more-params)
-		(apply #'error-redirect type :add "true" more-params)))
+    (flet ((assign-filters (user filter-array)
+	     (handler-case
+		 ;; Yo dawg, I herd you like map, so we put a MAPCAR in your MAPCAR
+		 ;; in your MAP, so you can holy shit this is ridiculous.
+		 (setf (filters user)
+		       (mapcar #'filter-id
+			       (remove nil
+				       (mapcar #'find-filter
+					       (map 'list #'parse-integer
+						    (remove nil filter-array))))))
+	       (parse-error () (hunchentoot:redirect "/users")))))
+      (string-case action
+	;; Create a new login.
+	("new"
+	 (flet ((error-redirect (type &rest more-params)
+		  (apply #'error-redirect type :add "true" more-params)))
 
-	 ;; retain add-user information in session, in the case of failure.
-	 (setf (session-value 'conf-username) username
-	       (session-value 'conf-dispname) (escape-string displayname)
-	       (session-value 'conf-configp) (string= configp "configp"))
+	   ;; retain add-user information in session, in the case of failure.
+	   (setf (session-value 'conf-username) username
+		 (session-value 'conf-dispname) (escape-string displayname)
+		 (session-value 'conf-configp) (string= configp "configp"))
 
-	 (when (user username)
-	   (error-redirect "userexists"))
+	   (when (user username)
+	     (error-redirect "userexists"))
 	 
-	 (cond
-	   ((empty-string-p username)
-	    (error-redirect "blankuser"))
+	   (cond
+	     ((empty-string-p username)
+	      (error-redirect "blankuser"))
 	   
-	   ((not (ppcre:scan "^[A-Za-z0-9_]+$" username))
-	    (error-redirect "username"))
+	     ((not (ppcre:scan "^[A-Za-z0-9_]+$" username))
+	      (error-redirect "username"))
 
-	   ((empty-string-p displayname) (error-redirect "dispname"))
+	     ((empty-string-p displayname) (error-redirect "dispname"))
 
-	   ((not (and password1 password2 (plusp (length password1)) (plusp (length password2))))
-	    (error-redirect "nopassword"))
+	     ((not (and password1 password2 (plusp (length password1)) (plusp (length password2))))
+	      (error-redirect "nopassword"))
        
-	   ((string/= password1 password2)
-	    (error-redirect "passmatch")))
+	     ((string/= password1 password2)
+	      (error-redirect "passmatch")))
 
-	 (handler-case
-	     (let ((user
-		    ;; If no users have been defined yet, the first user is automatically
-		    ;; granted administrative privileges.
-		    (create-login username password1 (escape-string displayname)
-				  :admin (or (not (login-available-p))
-					     (not (null configp))))))
-	       ;; If this is the first user created - automatically log them in for convenience.
-	       (when (= 1 (user-count))
-		 (process-login user password1)))
-	   (periscope-config-error () (error-redirect "userexists"))))
-       (error-redirect "success" :user username :new "true"))
+	   (handler-case
+	       (let ((user
+		      ;; If no users have been defined yet, the first user is automatically
+		      ;; granted administrative privileges.
+		      (create-login username password1 (escape-string displayname)
+				    :admin (or (not (login-available-p))
+					       (not (null configp))))))
+		 (assign-filters user filters)
+		 
+		 ;; If this is the first user created - automatically log them in for convenience.
+		 (when (= 1 (user-count))
+		   (process-login user password1)))
+	     (periscope-config-error () (error-redirect "userexists"))))
+	 
+	 (error-redirect "success" :user username :new "true"))
+	
+	;; Edit an existing login.
+	("edit"
+	 (cond
+	   ((null user)
+	    (hunchentoot:redirect "/users"))
+
+	   ((empty-string-p displayname)
+	    (error-redirect "dispname" :user username))
+
+	   ((and (not (empty-string-p password1 password2)) (string/= password1 password2))
+	    (error-redirect "passmatch" :user username)))
+
+	 (assign-filters user filters)
+	 
+	 (if (and (null configp) (string= username (username (user))))
+	     (error-redirect "unadminself")
+	     (setf (admin-p user) (not (null configp))))
+
+	 (when (not (empty-string-p password1 password2))
+	   (setf (password-hash user) (hash-string password1)))
       
-      ;; Edit an existing login.
-      ("edit"
-       (cond
-	 ((null user)
-	  (hunchentoot:redirect "/users"))
-
-	 ((empty-string-p displayname)
-	  (error-redirect "dispname" :user username))
-
-	 ((and (not (empty-string-p password1 password2)) (string/= password1 password2))
-	  (error-redirect "passmatch" :user username)))
-
-       (handler-case
-	   ;; Yo dawg, I herd you like map, so we put a MAPCAR in your MAPCAR
-	   ;; in your MAP, so you can holy shit this is ridiculous.
-	   (setf (filters user)
-		 (mapcar #'filter-id
-			 (remove nil
-				 (mapcar #'find-filter
-					 (map 'list #'parse-integer (remove nil filters))))))
-	 (parse-error () (hunchentoot:redirect "/users")))
-
-       (if (and (null configp) (string= username (username (user))))
-	   (error-redirect "unadminself")
-	   (setf (admin-p user) (not (null configp))))
-
-       (when (not (empty-string-p password1 password2))
-	 (setf (password-hash user) (hash-string password1)))
+	 (setf (display-name user) (escape-string displayname))
+	 (commit user)))
       
-       (setf (display-name user) (escape-string displayname))
-       (commit user)))
-      
-    (save-config)
+      (save-config))
     (let ((*redirect-page* "/edit-user"))
       (error-redirect "success" :user (username user)))))
